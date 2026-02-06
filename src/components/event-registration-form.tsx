@@ -181,7 +181,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
           )}
         />
         
-        <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isLoading}>
+        <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isLoading ? 'Processing...' : 'Register for Free'}
         </Button>

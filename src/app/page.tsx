@@ -47,16 +47,16 @@ export default async function Home() {
             className="object-cover"
             data-ai-hint={event.heroImage.hint}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/50 to-transparent" />
         </section>
 
         <section className="container mx-auto px-4 -mt-32 md:-mt-48 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-16">
             <div className="lg:col-span-2 space-y-6">
-              <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-bold text-foreground">
+              <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-bold text-primary-foreground">
                 {event.name}
               </h1>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-primary-foreground/80">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-accent" />
                   <span>{event.date}</span>
@@ -66,7 +66,7 @@ export default async function Home() {
                   <span>{event.location}</span>
                 </div>
               </div>
-              <div className="prose prose-lg dark:prose-invert max-w-none text-foreground/90">
+              <div className="prose prose-lg prose-invert max-w-none text-primary-foreground/90">
                 <p>{event.description}</p>
               </div>
             </div>
