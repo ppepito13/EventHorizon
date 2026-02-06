@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from 'next/cache';
 import type { Event } from './types';
 import { PlaceHolderImages } from './placeholder-images';
 
@@ -48,16 +49,19 @@ let events: Event[] = [
 ];
 
 export async function getEvents(): Promise<Event[]> {
+  noStore();
   // Simulate async operation
   return Promise.resolve(events);
 }
 
 export async function getActiveEvent(): Promise<Event | null> {
+  noStore();
   const activeEvent = events.find(event => event.isActive);
   return Promise.resolve(activeEvent || null);
 }
 
 export async function getEventById(id: string): Promise<Event | null> {
+  noStore();
   const event = events.find(event => event.id === id);
   return Promise.resolve(event || null);
 }
