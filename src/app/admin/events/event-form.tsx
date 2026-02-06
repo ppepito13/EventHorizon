@@ -1,20 +1,20 @@
 'use client';
 
-import { useForm, type UseFormReturn } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
-import type { Event } from '@/lib/types';
+import type { Event, FormField as FormFieldType } from '@/lib/types';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { createEventAction, updateEventAction } from '../actions';
 import { Loader2 } from 'lucide-react';
-import { AiDescriptionGenerator } from './ai-description-generator';
 
 interface EventFormProps {
   event?: Event;
@@ -43,6 +43,14 @@ const eventFormSchema = z.object({
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
+const commonFields: FormFieldType[] = [
+    { name: 'fullName', label: 'Full Name', type: 'text', placeholder: 'John Doe', required: true },
+    { name: 'email', label: 'Email Address', type: 'email', placeholder: 'john.doe@example.com', required: true },
+    { name: 'tel', label: 'Phone Number', type: 'tel', placeholder: '+1 234 567 890', required: false },
+    { name: 'company', label: 'Company / Organization', type: 'text', placeholder: 'Innovate Inc.', required: false },
+    { name: 'teamName', label: 'Team Name', type: 'text', placeholder: 'Power Nappers', required: false },
+];
+
 export function EventForm({ event }: EventFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -61,6 +69,36 @@ export function EventForm({ event }: EventFormProps) {
       formFields: event ? JSON.stringify(event.formFields, null, 2) : '[]',
     },
   });
+
+  const formFieldsValue = form.watch('formFields');
+
+  const handleCommonFieldChange = (checked: boolean, fieldConfig: FormFieldType) => {
+    let currentFields: FormFieldType[] = [];
+    try {
+        currentFields = JSON.parse(form.getValues('formFields') || '[]');
+        if (!Array.isArray(currentFields)) throw new Error("Not an array");
+    } catch (e) {
+        toast({
+            variant: "destructive",
+            title: "Invalid JSON",
+            description: "Cannot add/remove common field because the current JSON is malformed. Please fix it first.",
+        });
+        return;
+    }
+
+    let updatedFields;
+    if (checked) {
+        if (!currentFields.some(f => f.name === fieldConfig.name)) {
+            updatedFields = [...currentFields, fieldConfig];
+        } else {
+            updatedFields = currentFields;
+        }
+    } else {
+        updatedFields = currentFields.filter(f => f.name !== fieldConfig.name);
+    }
+
+    form.setValue('formFields', JSON.stringify(updatedFields, null, 2), { shouldValidate: true, shouldDirty: true });
+  }
 
   const onSubmit = (values: EventFormValues) => {
     startTransition(async () => {
@@ -93,6 +131,19 @@ export function EventForm({ event }: EventFormProps) {
       }
     });
   };
+
+  let parsedFields: FormFieldType[] = [];
+  let isJsonValid = true;
+  try {
+    const parsed = JSON.parse(formFieldsValue || '[]');
+    if (!Array.isArray(parsed)) {
+        isJsonValid = false;
+    } else {
+        parsedFields = parsed;
+    }
+  } catch {
+    isJsonValid = false;
+  }
 
   return (
     <Form {...form}>
@@ -143,10 +194,7 @@ export function EventForm({ event }: EventFormProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <div className="flex items-center justify-between">
-                <FormLabel>Description</FormLabel>
-                <AiDescriptionGenerator form={form as UseFormReturn<EventFormValues, any, undefined>} />
-              </div>
+              <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea placeholder="Describe the event..." className="min-h-[150px]" {...field} />
               </FormControl>
@@ -185,6 +233,36 @@ export function EventForm({ event }: EventFormProps) {
             )}
             />
         </div>
+
+        <div className="space-y-2">
+            <FormLabel>Common Registration Fields</FormLabel>
+            <FormDescription>
+                Select common fields to quickly add them to your registration form.
+            </FormDescription>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2 rounded-lg border p-4">
+                {commonFields.map((commonField) => {
+                    const isChecked = isJsonValid && parsedFields.some(f => f.name === commonField.name);
+                    return (
+                        <FormItem key={commonField.name} className="flex flex-row items-center space-x-3 space-y-0">
+                            <FormControl>
+                                <Checkbox
+                                    checked={isChecked}
+                                    onCheckedChange={(checked) => {
+                                        handleCommonFieldChange(Boolean(checked), commonField);
+                                    }}
+                                    disabled={!isJsonValid}
+                                />
+                            </FormControl>
+                            <FormLabel className="font-normal text-sm">
+                                {commonField.label}
+                            </FormLabel>
+                        </FormItem>
+                    )
+                })}
+            </div>
+            {!isJsonValid && <p className="text-sm font-medium text-destructive">Checkboxes disabled due to invalid JSON in the editor below.</p>}
+        </div>
+
         <FormField
           control={form.control}
           name="formFields"

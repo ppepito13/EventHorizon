@@ -10,8 +10,6 @@ import {
   deactivateEvent,
 } from '@/lib/data';
 import type { Event } from '@/lib/types';
-import { generateEventDescription } from '@/ai/flows/generate-event-description';
-import type { GenerateEventDescriptionInput } from '@/ai/flows/generate-event-description';
 
 const eventSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
@@ -127,14 +125,5 @@ export async function deactivateEventAction(id: string) {
             success: false,
             message: error instanceof Error ? error.message : 'An unknown error occurred.',
         };
-    }
-}
-
-export async function generateDescriptionAction(input: GenerateEventDescriptionInput) {
-    try {
-        const result = await generateEventDescription(input);
-        return { success: true, description: result.description };
-    } catch(error) {
-        return { success: false, message: error instanceof Error ? error.message : 'Failed to generate description.' }
     }
 }
