@@ -7,6 +7,7 @@ import {
   deleteEvent,
   updateEvent,
   setActiveEvent as setActiveEventData,
+  deactivateEvent,
 } from '@/lib/data';
 import type { Event } from '@/lib/types';
 import { generateEventDescription } from '@/ai/flows/generate-event-description';
@@ -113,6 +114,10 @@ export async function deleteEventAction(id: string) {
 
 export async function setActiveEventAction(id: string) {
   return handleEventAction(setActiveEventData(id), 'Event set as active.');
+}
+
+export async function deactivateEventAction(id: string) {
+    return handleEventAction(deactivateEvent(id), 'Event deactivated successfully.');
 }
 
 export async function generateDescriptionAction(input: GenerateEventDescriptionInput) {

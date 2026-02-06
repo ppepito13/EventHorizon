@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { MoreHorizontal, Trash2, Edit, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { deleteEventAction, setActiveEventAction } from './actions';
+import { deleteEventAction, setActiveEventAction, deactivateEventAction } from './actions';
 
 interface EventsTableProps {
   events: Event[];
@@ -46,11 +46,12 @@ export function EventsTable({ events }: EventsTableProps) {
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
-  const handleSetActive = (id: string, currentlyActive: boolean) => {
-    if (currentlyActive) return;
-
+  const handleSetActive = (id: string, makeActive: boolean) => {
     startTransition(async () => {
-      const result = await setActiveEventAction(id);
+      const result = makeActive
+        ? await setActiveEventAction(id)
+        : await deactivateEventAction(id);
+
       if (result.success) {
         toast({ title: 'Success', description: result.message });
       } else {
@@ -103,13 +104,15 @@ export function EventsTable({ events }: EventsTableProps) {
             {events.map(event => (
               <TableRow key={event.id}>
                 <TableCell>
-                  <Switch
-                    checked={event.isActive}
-                    onCheckedChange={() => handleSetActive(event.id, event.isActive)}
-                    disabled={isPending || event.isActive}
-                    aria-label={`Set ${event.name} as active`}
-                  />
-                  {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                  <div className="flex items-center">
+                    <Switch
+                      checked={event.isActive}
+                      onCheckedChange={(checked) => handleSetActive(event.id, checked)}
+                      disabled={isPending}
+                      aria-label={`Set ${event.name} as active`}
+                    />
+                    {isPending && event.isActive && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                  </div>
                 </TableCell>
                 <TableCell className="font-medium">{event.name}</TableCell>
                 <TableCell>{event.date}</TableCell>

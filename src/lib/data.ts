@@ -106,3 +106,12 @@ export async function setActiveEvent(id: string): Promise<Event | null> {
   });
   return Promise.resolve(activeEvent);
 }
+
+export async function deactivateEvent(id: string): Promise<Event | null> {
+    const eventIndex = events.findIndex(event => event.id === id);
+    if (eventIndex > -1) {
+        events[eventIndex].isActive = false;
+        return Promise.resolve(events[eventIndex]);
+    }
+    return Promise.resolve(null);
+}

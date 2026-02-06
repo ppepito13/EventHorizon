@@ -80,7 +80,7 @@ export function EventForm({ event }: EventFormProps) {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: result.errors ? 'Please check the form for errors.' : 'An unknown error occurred.',
+          description: (result as { message: string }).message || (result.errors ? 'Please check the form for errors.' : 'An unknown error occurred.'),
         });
         if (result.errors) {
             Object.keys(result.errors).forEach((field) => {
