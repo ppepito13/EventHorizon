@@ -1,3 +1,10 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "event-hero",
+      "description": "A vibrant stage at a tech conference, with colorful lights and a large screen.",
+      "imageUrl": "https://images.unsplash.com/photo-1516280440614-37939bbacd81?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjb25mZXJlbmNlJTIwc3RhZ2V8ZW58MHx8fHwxNzcwMzc4NzE4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "conference stage"
+    }
+  ]
 }
