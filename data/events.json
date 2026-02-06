@@ -1,9 +1,9 @@
 [
   {
     "id": "clxsb7ncr000008l5heefd3jb",
-    "name": "InnovateSphere 2026",
-    "slug": "innovatesphere-2026",
-    "date": "October 26-28, 2026",
+    "name": "InnovateSphere 2026!",
+    "slug": "innovatesphere-2026!",
+    "date": "October 26-29, 2026",
     "location": "Virtual & Global",
     "description": "InnovateSphere is the premier global summit for visionaries, creators, and pioneers. This year, we delve into the future of artificial intelligence, sustainable technology, and the next wave of digital interaction. Join us for three days of groundbreaking keynotes, interactive workshops, and unparalleled networking opportunities with leaders from across the globe.",
     "heroImage": {
@@ -26,6 +26,13 @@
         "required": true
       },
       {
+        "name": "teamName",
+        "label": "Team Name",
+        "type": "text",
+        "placeholder": "Power Nappers",
+        "required": true
+      },
+      {
         "name": "company",
         "label": "Company / Organization",
         "type": "text",
@@ -41,7 +48,7 @@
       }
     ],
     "rodo": "By registering, you agree to our terms of service and privacy policy, which outlines how we use and protect your data. You consent to receive event-related communications from EventHorizon and its partners. You can unsubscribe at any time.",
-    "isActive": false
+    "isActive": true
   },
   {
     "id": "dlysb7ncr000008l5heefd3jd",

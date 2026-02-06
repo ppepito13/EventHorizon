@@ -125,6 +125,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
                 <Checkbox id={field.name} checked={formField.value} onCheckedChange={formField.onChange} />
                 <label htmlFor={field.name} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     {field.label}
+                    {field.required && <span className="text-destructive"> *</span>}
                 </label>
             </div>
         );
@@ -154,7 +155,10 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
             name={field.name}
             render={({ field: formField }) => (
               <FormItem>
-                {field.type !== 'checkbox' && <FormLabel>{field.label}</FormLabel>}
+                {field.type !== 'checkbox' && <FormLabel>
+                    {field.label}
+                    {field.required && <span className="text-destructive"> *</span>}
+                </FormLabel>}
                 <FormControl>{renderFormControl(field, formField)}</FormControl>
                 <FormMessage />
               </FormItem>
@@ -176,6 +180,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
               <div className="space-y-1 leading-none">
                 <FormLabel>
                   Agree to terms and conditions
+                  <span className="text-destructive"> *</span>
                 </FormLabel>
                 <FormDescription>
                   {event.rodo}
@@ -186,6 +191,10 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
           )}
         />
         
+        <p className="text-xs text-muted-foreground">
+            * Indicates a required field.
+        </p>
+
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isLoading ? 'Processing...' : 'Register for Free'}
