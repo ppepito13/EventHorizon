@@ -1,0 +1,83 @@
+[
+  {
+    "id": "clxsb7ncr000008l5heefd3jb",
+    "name": "InnovateSphere 2026",
+    "slug": "innovatesphere-2026",
+    "date": "October 26-28, 2026",
+    "location": "Virtual & Global",
+    "description": "InnovateSphere is the premier global summit for visionaries, creators, and pioneers. This year, we delve into the future of artificial intelligence, sustainable technology, and the next wave of digital interaction. Join us for three days of groundbreaking keynotes, interactive workshops, and unparalleled networking opportunities with leaders from across the globe.",
+    "heroImage": {
+      "src": "https://images.unsplash.com/photo-1516280440614-37939bbacd81?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjb25mZXJlbmNlJTIwc3RhZ2V8ZW58MHx8fHwxNzcwMzc4NzE4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "hint": "conference stage"
+    },
+    "formFields": [
+      {
+        "name": "fullName",
+        "label": "Full Name",
+        "type": "text",
+        "placeholder": "John Doe",
+        "required": true
+      },
+      {
+        "name": "email",
+        "label": "Email Address",
+        "type": "email",
+        "placeholder": "john.doe@example.com",
+        "required": true
+      },
+      {
+        "name": "company",
+        "label": "Company / Organization",
+        "type": "text",
+        "placeholder": "Innovate Inc.",
+        "required": false
+      },
+      {
+        "name": "jobTitle",
+        "label": "Job Title",
+        "type": "text",
+        "placeholder": "Chief Innovation Officer",
+        "required": true
+      }
+    ],
+    "rodo": "By registering, you agree to our terms of service and privacy policy, which outlines how we use and protect your data. You consent to receive event-related communications from EventHorizon and its partners. You can unsubscribe at any time.",
+    "isActive": false
+  },
+  {
+    "id": "dlysb7ncr000008l5heefd3jd",
+    "name": "Artisan Web Weavers Guild",
+    "slug": "artisan-web-weavers-guild",
+    "date": "November 12-14, 2026",
+    "location": "Online",
+    "description": "A gathering of the finest front-end developers and UI/UX designers to share techniques, review work, and push the boundaries of web aesthetics and performance. This is not for the faint of heart.",
+    "heroImage": {
+      "src": "https://picsum.photos/seed/weavers/1200/800",
+      "hint": "abstract code"
+    },
+    "formFields": [
+      {
+        "name": "fullName",
+        "label": "Full Name",
+        "type": "text",
+        "placeholder": "Jane Doe",
+        "required": true
+      },
+      {
+        "name": "email",
+        "label": "Email Address",
+        "type": "email",
+        "placeholder": "jane.doe@example.com",
+        "required": true
+      },
+      {
+        "name": "portfolio",
+        "label": "Portfolio URL",
+        "type": "text",
+        "placeholder": "https://your.portfolio.com",
+        "required": true
+      }
+    ],
+    "rodo": "By signing up, you agree to a public showcase of your submitted portfolio piece and to provide constructive feedback to at least three other participants.",
+    "isActive": false
+  }
+]

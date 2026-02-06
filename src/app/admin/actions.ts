@@ -6,7 +6,7 @@ import {
   createEvent,
   deleteEvent,
   updateEvent,
-  setActiveEvent as setActiveEventData,
+  setActiveEvent,
   deactivateEvent,
 } from '@/lib/data';
 import type { Event } from '@/lib/types';
@@ -104,7 +104,7 @@ export async function deleteEventAction(id: string) {
 
 export async function setActiveEventAction(id: string) {
   try {
-    await setActiveEventData(id);
+    await setActiveEvent(id);
     revalidatePath('/admin');
     revalidatePath('/');
     return { success: true, message: 'Event set as active.' };
