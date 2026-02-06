@@ -50,41 +50,45 @@ export default async function Home() {
           <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/50 to-transparent" />
         </section>
 
-        <section className="container mx-auto px-4 -mt-32 md:-mt-48 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
-            <div className="lg:col-span-3 space-y-6">
-              <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-bold text-primary-foreground">
-                {event.name}
-              </h1>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-primary-foreground/80">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-accent" />
-                  <span>{event.date}</span>
+        <section className="relative z-10 -mt-32 md:-mt-48">
+          <div className="container px-4">
+            <div className="max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start">
+                <div className="lg:col-span-3 space-y-6">
+                  <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-bold text-primary-foreground">
+                    {event.name}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-primary-foreground/80">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-accent" />
+                      <span>{event.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-accent" />
+                      <span>{event.location}</span>
+                    </div>
+                  </div>
+                  <div className="prose prose-lg prose-invert max-w-none text-primary-foreground/90">
+                    <p>{event.description}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-accent" />
-                  <span>{event.location}</span>
-                </div>
-              </div>
-              <div className="prose prose-lg prose-invert max-w-none text-primary-foreground/90">
-                <p>{event.description}</p>
-              </div>
-            </div>
 
-            <div className="lg:col-span-2 lg:pt-4">
-              <Card className="w-full max-w-md mx-auto lg:max-w-none shadow-2xl bg-card/80 backdrop-blur-sm border-border/50">
-                <CardHeader className="text-center">
-                  <CardTitle className="font-headline text-3xl">
-                    Register Now
-                  </CardTitle>
-                  <CardDescription>
-                    Secure your spot for this exclusive event.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <EventRegistrationForm event={event} />
-                </CardContent>
-              </Card>
+                <div className="lg:col-span-2">
+                  <Card className="w-full shadow-2xl bg-card/80 backdrop-blur-sm border-border/50">
+                    <CardHeader className="text-center">
+                      <CardTitle className="font-headline text-3xl">
+                        Register Now
+                      </CardTitle>
+                      <CardDescription>
+                        Secure your spot for this exclusive event.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <EventRegistrationForm event={event} />
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </div>
           </div>
         </section>
