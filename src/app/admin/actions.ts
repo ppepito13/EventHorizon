@@ -34,26 +34,6 @@ const eventSchema = z.object({
   ),
 });
 
-async function handleEventAction(
-  action: Promise<any>,
-  successMessage: string,
-  revalidate: boolean = true
-) {
-  try {
-    await action;
-    if (revalidate) {
-      revalidatePath('/admin');
-      revalidatePath('/');
-    }
-    return { success: true, message: successMessage };
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'An unknown error occurred.',
-    };
-  }
-}
-
 export async function createEventAction(data: FormData) {
   const formData = Object.fromEntries(data);
   const validated = eventSchema.safeParse(formData);
@@ -109,15 +89,45 @@ export async function updateEventAction(id: string, data: FormData) {
 }
 
 export async function deleteEventAction(id: string) {
-  return handleEventAction(deleteEvent(id), 'Event deleted successfully.');
+  try {
+    await deleteEvent(id);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true, message: 'Event deleted successfully.' };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'An unknown error occurred.',
+    };
+  }
 }
 
 export async function setActiveEventAction(id: string) {
-  return handleEventAction(setActiveEventData(id), 'Event set as active.');
+  try {
+    await setActiveEventData(id);
+    revalidatePath('/admin');
+    revalidatePath('/');
+    return { success: true, message: 'Event set as active.' };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'An unknown error occurred.',
+    };
+  }
 }
 
 export async function deactivateEventAction(id: string) {
-    return handleEventAction(deactivateEvent(id), 'Event deactivated successfully.');
+    try {
+        await deactivateEvent(id);
+        revalidatePath('/admin');
+        revalidatePath('/');
+        return { success: true, message: 'Event deactivated successfully.' };
+    } catch (error) {
+        return {
+            success: false,
+            message: error instanceof Error ? error.message : 'An unknown error occurred.',
+        };
+    }
 }
 
 export async function generateDescriptionAction(input: GenerateEventDescriptionInput) {
