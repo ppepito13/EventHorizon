@@ -199,7 +199,7 @@ export function EventForm({ event }: EventFormProps) {
                 />
               </FormControl>
               <FormDescription>
-                Define fields as a JSON array. Each field is an object: {"{ name, label, type ('text', 'email', 'checkbox'), required (boolean), placeholder? }"}.
+                Define fields as a JSON array. Each field is an object: {"{ name, label, type ('text', 'email', 'checkbox', 'tel'), required (boolean), placeholder? }"}.
               </FormDescription>
               <FormMessage />
             </FormItem>

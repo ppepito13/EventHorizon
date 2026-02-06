@@ -51,8 +51,8 @@ export default async function Home() {
         </section>
 
         <section className="container mx-auto px-4 -mt-32 md:-mt-48 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-16">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
+            <div className="lg:col-span-3 space-y-6">
               <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-bold text-primary-foreground">
                 {event.name}
               </h1>
@@ -71,7 +71,7 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="lg:pt-4">
+            <div className="lg:col-span-2 lg:pt-4">
               <Card className="w-full max-w-md mx-auto lg:max-w-none shadow-2xl bg-card/80 backdrop-blur-sm border-border/50">
                 <CardHeader className="text-center">
                   <CardTitle className="font-headline text-3xl">

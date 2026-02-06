@@ -22,6 +22,11 @@ export async function registerForEvent(
           case 'email':
             zodType = z.string().email({ message: 'Invalid email address.' });
             break;
+          case 'tel':
+            zodType = z.string().min(7, "Phone number is too short.").regex(/^[\d\s+()-]+$/, {
+                message: "Phone number can only contain digits, spaces, and characters like + ( ) -",
+            });
+            break;
           case 'checkbox':
             zodType = z.boolean();
             break;
@@ -31,7 +36,7 @@ export async function registerForEvent(
         }
 
         if (field.required) {
-          if (field.type === 'text') {
+          if (field.type === 'text' || field.type === 'tel') {
             zodType = zodType.min(1, { message: `${field.label} is required.` });
           }
           if(field.type === 'checkbox'){

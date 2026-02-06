@@ -35,6 +35,11 @@ const generateSchema = (fields: FormFieldType[]) => {
         case 'email':
           zodType = z.string().email({ message: 'Please enter a valid email.' });
           break;
+        case 'tel':
+            zodType = z.string().min(7, "Phone number is too short.").regex(/^[\d\s+()-]+$/, {
+                message: "Phone number can only contain digits, spaces, and characters like + ( ) -",
+            });
+            break;
         case 'checkbox':
             zodType = z.boolean();
             break;
@@ -44,7 +49,7 @@ const generateSchema = (fields: FormFieldType[]) => {
       }
 
       if (field.required) {
-        if (field.type === 'text') {
+        if (field.type === 'text' || field.type === 'tel') {
             zodType = zodType.min(2, { message: `${field.label} must be at least 2 characters.` });
         }
         if (field.type === 'checkbox') {
