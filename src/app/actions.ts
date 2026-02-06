@@ -1,14 +1,14 @@
 'use server';
 
 import { z } from 'zod';
-import { getEventById } from './lib/data';
+import { getEventById } from '@/lib/data';
 
 export async function registerForEvent(
   eventId: string,
   data: { [key: string]: unknown }
 ) {
   try {
-    const event = getEventById(eventId);
+    const event = await getEventById(eventId);
     if (!event) {
       throw new Error('Event not found.');
     }
