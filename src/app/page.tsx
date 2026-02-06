@@ -74,7 +74,7 @@ export default async function Home() {
             <div className="max-w-7xl mx-auto">
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start">
                 
-                <div className="lg:col-span-3 lg:pt-16">
+                <div className="lg:col-span-3 pt-24">
                   <div className="prose prose-lg max-w-none text-foreground/80">
                     <h2 className="text-3xl font-headline font-bold text-foreground mb-4">About the Event</h2>
                     <p>{event.description}</p>
