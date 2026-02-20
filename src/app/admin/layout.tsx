@@ -1,27 +1,18 @@
 import Link from 'next/link';
 import {
   CalendarDays,
-  Menu,
   TicketPercent,
   Users,
   UserCog,
 } from 'lucide-react';
 import type { Metadata } from 'next';
 
-import { Button } from '@/components/ui/button';
 import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from '@/components/ui/tooltip';
 import AuthGuard from './auth-guard';
 import { UserActions } from './user-actions';
+import { MobileNav } from './mobile-nav';
 
 export const metadata: Metadata = {
   title: 'Admin Panel',
@@ -68,32 +59,7 @@ export default function AdminLayout({
         </aside>
         <div className="flex flex-col">
           <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="shrink-0 md:hidden">
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Toggle navigation menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="flex flex-col">
-                <nav className="grid gap-2 text-lg font-medium">
-                  <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
-                    <TicketPercent className="h-6 w-6 text-primary" />
-                    <span className="">Panel Admina</span>
-                  </Link>
-                  {NAV_ITEMS.map(({ href, icon: Icon, label }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-primary"
-                    >
-                      <Icon className="h-5 w-5" />
-                      {label}
-                    </Link>
-                  ))}
-                </nav>
-              </SheetContent>
-            </Sheet>
+            <MobileNav navItems={NAV_ITEMS} />
             <div className="w-full flex-1 flex justify-end">
               <UserActions />
             </div>
