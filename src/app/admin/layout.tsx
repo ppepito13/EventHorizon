@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { TicketPercent } from 'lucide-react';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { UserActions } from './user-actions';
@@ -20,9 +21,11 @@ export default async function AdminLayout({
 }) {
   const user = await getSessionUser();
 
-  // This check now serves as the primary guard for all admin routes.
+  // The middleware protects the /admin routes. If we reach here without a user,
+  // it means the session cookie might be present but invalid (e.g., user deleted).
+  // In this case, we should clean up the session by redirecting to the logout route.
   if (!user) {
-    redirect('/login');
+    redirect('/api/logout');
   }
   
   const accessibleNavItems = NAV_ITEMS.filter(item => {
@@ -41,24 +44,24 @@ export default async function AdminLayout({
         <aside className="hidden border-r bg-muted/40 md:block">
           <div className="flex h-full max-h-screen flex-col gap-2">
             <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-              <a href="/" className="flex items-center gap-2 font-semibold">
+              <Link href="/" className="flex items-center gap-2 font-semibold">
                 <TicketPercent className="h-6 w-6 text-primary" />
                 <span className="">Panel Admina</span>
-              </a>
+              </Link>
             </div>
             <div className="flex-1">
               <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
                 {accessibleNavItems.map(({ href, icon, label }) => {
                   const Icon = iconMap[icon];
                   return (
-                    <a
+                    <Link
                       key={href}
                       href={href}
                       className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
                     >
                       <Icon className="h-4 w-4" />
                       {label}
-                    </a>
+                    </Link>
                   );
                 })}
               </nav>

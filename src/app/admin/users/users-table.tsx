@@ -2,6 +2,7 @@
 
 import type { User } from '@/lib/types';
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -105,9 +106,11 @@ export function UsersTable({ users }: UsersTableProps) {
                   <div className="flex items-center justify-end gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" onClick={() => (window.location.href = `/admin/users/${user.id}/edit`)}>
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit User</span>
+                        <Button variant="outline" size="icon" asChild>
+                            <Link href={`/admin/users/${user.id}/edit`}>
+                                <Edit className="h-4 w-4" />
+                                <span className="sr-only">Edit User</span>
+                            </Link>
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>

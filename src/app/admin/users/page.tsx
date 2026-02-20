@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import { UsersTable } from './users-table';
+import Link from 'next/link';
 
 export default async function UsersPage() {
   const users = await getUsers();
@@ -23,10 +24,10 @@ export default async function UsersPage() {
           </p>
         </div>
         <Button asChild>
-          <a href="/admin/users/new">
+          <Link href="/admin/users/new">
             <PlusCircle className="mr-2 h-4 w-4" />
             Dodaj użytkownika
-          </a>
+          </Link>
         </Button>
       </div>
       <Card>

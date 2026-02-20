@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Home, LogOut } from 'lucide-react';
 import type { User } from '@/lib/types';
@@ -14,10 +15,10 @@ export function UserActions({ user }: UserActionsProps) {
         Witaj, <span className="font-semibold">{user.name}</span>!
       </span>
       <Button variant="outline" size="sm" asChild>
-        <a href="/">
+        <Link href="/">
           <Home className="h-4 w-4 mr-2" />
           Strona główna
-        </a>
+        </Link>
       </Button>
       <a
         href="/api/logout"

@@ -11,6 +11,7 @@ import {
 import { PlusCircle } from 'lucide-react';
 import { getSessionUser } from '@/lib/session';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 export default async function AdminDashboardPage() {
   const user = await getSessionUser();
@@ -31,10 +32,10 @@ export default async function AdminDashboardPage() {
         </div>
         {user.role === 'Administrator' && (
           <Button asChild>
-            <a href="/admin/events/new">
+            <Link href="/admin/events/new">
               <PlusCircle className="mr-2 h-4 w-4" />
               Nowe wydarzenie
-            </a>
+            </Link>
           </Button>
         )}
       </div>

@@ -2,6 +2,7 @@
 
 import type { Event, User } from '@/lib/types';
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -130,9 +131,11 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
                   <div className="flex items-center justify-end gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" onClick={() => (window.location.href = `/admin/events/${event.id}/edit`)}>
+                        <Button variant="outline" size="icon" asChild>
+                          <Link href={`/admin/events/${event.id}/edit`}>
                             <Edit className="h-4 w-4" />
                             <span className="sr-only">Edit Event</span>
+                          </Link>
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
