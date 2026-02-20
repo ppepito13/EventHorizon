@@ -29,7 +29,7 @@ export default async function AdminLayout({
       if (item.adminOnly && user.role !== 'Administrator') {
           return false;
       }
-      if (item.organizerOnly && user.role !== 'Organizator') {
+      if (item.organizerOnly && !['Administrator', 'Organizator'].includes(user.role)) {
           return false;
       }
       return true;
