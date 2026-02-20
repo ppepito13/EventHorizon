@@ -4,8 +4,8 @@ import { unstable_noStore as noStore } from 'next/cache';
 import type { Event, User } from './types';
 
 // The path to the JSON file where events are stored.
-const eventsFilePath = path.join(process.cwd(), 'data', 'events.json');
-const usersFilePath = path.join(process.cwd(), 'data', 'users.json');
+const eventsFilePath = path.join(process.cwd(), 'src', 'data', 'events.json');
+const usersFilePath = path.join(process.cwd(), 'src', 'data', 'users.json');
 
 /**
  * Reads all events from the JSON file.

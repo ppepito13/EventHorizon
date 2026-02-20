@@ -1,0 +1,34 @@
+
+[
+  {
+    "id": "usr_admin",
+    "name": "Jan Kowalski",
+    "email": "admin@example.com",
+    "role": "Administrator",
+    "assignedEvents": [
+      "All"
+    ],
+    "password": "password"
+  },
+  {
+    "id": "usr_organizer1",
+    "name": "Anna Nowak",
+    "email": "organizer1@example.com",
+    "role": "Organizator",
+    "assignedEvents": [
+      "Tech Summit 2026",
+      "Creative Design Workshop"
+    ],
+    "password": "password"
+  },
+  {
+    "id": "usr_organizer2",
+    "name": "Piotr Wiśniewski",
+    "email": "organizer2@example.com",
+    "role": "Organizator",
+    "assignedEvents": [
+      "Summer Music Fest 2026"
+    ],
+    "password": "password"
+  }
+]

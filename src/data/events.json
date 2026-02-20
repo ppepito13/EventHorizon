@@ -1,0 +1,95 @@
+[
+  {
+    "id": "clxsb7ncr000008l5heefd3jb",
+    "name": "Tech Summit 2026",
+    "slug": "tech-summit-2026",
+    "date": "15 marca 2026",
+    "location": "Virtual",
+    "description": "Join us for the biggest technology conference of the year. Network with industry leaders, attend insightful talks, and discover the latest trends shaping our future. A must-attend for tech enthusiasts and professionals.",
+    "heroImage": {
+      "src": "https://picsum.photos/seed/tech/600/400",
+      "hint": "modern technology"
+    },
+    "formFields": [
+      {
+        "name": "fullName",
+        "label": "Full Name",
+        "type": "text",
+        "placeholder": "John Doe",
+        "required": true
+      },
+      {
+        "name": "email",
+        "label": "Email Address",
+        "type": "email",
+        "placeholder": "john.doe@example.com",
+        "required": true
+      }
+    ],
+    "rodo": "By registering, you agree to our terms of service and privacy policy.",
+    "isActive": true,
+    "themeColor": "#3b82f6"
+  },
+  {
+    "id": "dlysb7ncr000008l5heefd3jd",
+    "name": "Summer Music Fest 2026",
+    "slug": "summer-music-fest-2026",
+    "date": "20 lipca 2026",
+    "location": "Online",
+    "description": "Experience three days of amazing live music, art installations, and unforgettable memories at the biggest virtual music festival of the year. Featuring top artists from around the globe.",
+    "heroImage": {
+      "src": "https://picsum.photos/seed/music/600/400",
+      "hint": "music festival"
+    },
+    "formFields": [
+      {
+        "name": "fullName",
+        "label": "Full Name",
+        "type": "text",
+        "placeholder": "Jane Doe",
+        "required": true
+      },
+      {
+        "name": "email",
+        "label": "Email Address",
+        "type": "email",
+        "placeholder": "jane.doe@example.com",
+        "required": true
+      }
+    ],
+    "rodo": "By signing up, you agree to our terms of service and privacy policy.",
+    "isActive": true,
+    "themeColor": "#ef4444"
+  },
+  {
+    "id": "elysb7ncr000008l5heefd3je",
+    "name": "Creative Design Workshop",
+    "slug": "creative-design-workshop",
+    "date": "12 kwietnia 2026",
+    "location": "Online",
+    "description": "A hands-on workshop for designers, artists, and creative professionals. Learn new techniques, tools, and workflows to elevate your creative projects. Suitable for all skill levels.",
+    "heroImage": {
+      "src": "https://picsum.photos/seed/design/600/400",
+      "hint": "creative design"
+    },
+    "formFields": [
+      {
+        "name": "fullName",
+        "label": "Full Name",
+        "type": "text",
+        "placeholder": "Alex Smith",
+        "required": true
+      },
+      {
+        "name": "email",
+        "label": "Email Address",
+        "type": "email",
+        "placeholder": "alex.smith@example.com",
+        "required": true
+      }
+    ],
+    "rodo": "By registering, you agree to our terms of service and privacy policy.",
+    "isActive": false,
+    "themeColor": "#8b5cf6"
+  }
+]

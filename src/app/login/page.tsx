@@ -18,6 +18,8 @@ import { TicketPercent, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
 import { login } from './actions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import demoUsers from '@/data/users.json';
+import { Badge } from '@/components/ui/badge';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -32,19 +34,13 @@ function SubmitButton() {
 export default function LoginPage() {
   const [state, formAction] = useActionState(login, undefined);
   const { toast } = useToast();
-  const [copiedEmail, setCopiedEmail] = useState(false);
-  const [copiedPassword, setCopiedPassword] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const handleCopy = (text: string, type: 'email' | 'password') => {
+  const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: `${type === 'email' ? 'Email' : 'Password'} copied!` });
-    if (type === 'email') {
-      setCopiedEmail(true);
-      setTimeout(() => setCopiedEmail(false), 2000);
-    } else {
-      setCopiedPassword(true);
-      setTimeout(() => setCopiedPassword(false), 2000);
-    }
+    toast({ title: 'Skopiowano do schowka!' });
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
   };
 
   return (
@@ -109,22 +105,31 @@ export default function LoginPage() {
             Użyj poniższych danych, by zalogować się na potrzeby prezentacji.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-           <div className="p-3 rounded-md border bg-muted/50">
-              <div className="flex justify-between items-center">
-                  <p className="font-semibold">Email: <span className='font-mono'>admin@example.com</span></p>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy('admin@example.com', 'email')}>
-                      {copiedEmail ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-              </div>
-              <div className="flex justify-between items-center mt-1">
-                  <p className="font-semibold">Hasło: <span className='font-mono'>password</span></p>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy('password', 'password')}>
-                      {copiedPassword ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-              </div>
-           </div>
-           <p className='text-xs text-muted-foreground pt-2'>Możesz też użyć kont organizatorów z pliku <code className='font-mono text-xs bg-muted px-1 py-0.5 rounded'>data/users.json</code>.</p>
+        <CardContent className="space-y-4 text-sm">
+            {demoUsers.map((user, index) => (
+                <div key={user.id} className="p-3 rounded-md border bg-muted/50">
+                    <div className='flex justify-between items-center mb-2'>
+                        <p className='font-bold'>{user.name}</p>
+                        <Badge variant={user.role === 'Administrator' ? 'default' : 'secondary'}>
+                            {user.role}
+                        </Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <p className="font-semibold">Email: <span className='font-mono'>{user.email}</span></p>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(user.email, `email-${index}`)}>
+                            {copiedKey === `email-${index}` ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                    </div>
+                    {user.password && (
+                        <div className="flex justify-between items-center mt-1">
+                            <p className="font-semibold">Hasło: <span className='font-mono'>{user.password}</span></p>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(user.password!, `password-${index}`)}>
+                                {copiedKey === `password-${index}` ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            ))}
         </CardContent>
       </Card>
     </div>
