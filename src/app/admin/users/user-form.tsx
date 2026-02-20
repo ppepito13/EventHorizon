@@ -3,9 +3,8 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useEffect, useTransition } from 'react';
+import { useEffect, useTransition, useActionState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFormState } from 'react-dom';
 
 import type { Event, User } from '@/lib/types';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -43,7 +42,7 @@ export function UserForm({ user, events }: UserFormProps) {
   const { toast } = useToast();
   
   const action = user ? updateUserAction.bind(null, user.id) : createUserAction;
-  const [state, formAction] = useFormState(action, initialState);
+  const [state, formAction] = useActionState(action, initialState);
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
