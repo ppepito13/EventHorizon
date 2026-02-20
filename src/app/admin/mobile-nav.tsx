@@ -9,13 +9,11 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import type { NavItem } from './nav-config';
+import { iconMap } from './nav-config';
 
 interface MobileNavProps {
-    navItems: {
-        href: string;
-        icon: React.ComponentType<{ className: string }>;
-        label: string;
-    }[];
+    navItems: NavItem[];
 }
 
 export function MobileNav({ navItems }: MobileNavProps) {
@@ -33,16 +31,19 @@ export function MobileNav({ navItems }: MobileNavProps) {
                         <TicketPercent className="h-6 w-6 text-primary" />
                         <span className="">Panel Admina</span>
                     </Link>
-                    {navItems.map(({ href, icon: Icon, label }) => (
-                        <Link
-                            key={href}
-                            href={href}
-                            className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-primary"
-                        >
-                            <Icon className="h-5 w-5" />
-                            {label}
-                        </Link>
-                    ))}
+                    {navItems.map(({ href, icon, label }) => {
+                        const Icon = iconMap[icon];
+                        return (
+                            <Link
+                                key={href}
+                                href={href}
+                                className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-primary"
+                            >
+                                <Icon className="h-5 w-5" />
+                                {label}
+                            </Link>
+                        );
+                    })}
                 </nav>
             </SheetContent>
         </Sheet>

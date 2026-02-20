@@ -1,10 +1,5 @@
 import Link from 'next/link';
-import {
-  CalendarDays,
-  TicketPercent,
-  Users,
-  UserCog,
-} from 'lucide-react';
+import { TicketPercent } from 'lucide-react';
 import type { Metadata } from 'next';
 
 import {
@@ -13,17 +8,12 @@ import {
 import AuthGuard from './auth-guard';
 import { UserActions } from './user-actions';
 import { MobileNav } from './mobile-nav';
+import { NAV_ITEMS, iconMap } from './nav-config';
 
 export const metadata: Metadata = {
   title: 'Admin Panel',
   description: 'Manage your events and registrations.',
 };
-
-const NAV_ITEMS = [
-  { href: '/admin', icon: CalendarDays, label: 'Wydarzenia' },
-  { href: '/admin/registrations', icon: Users, label: 'Rejestracje' },
-  { href: '/admin/users', icon: UserCog, label: 'Użytkownicy' },
-];
 
 export default function AdminLayout({
   children,
@@ -43,7 +33,9 @@ export default function AdminLayout({
             </div>
             <div className="flex-1">
               <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-                {NAV_ITEMS.map(({ href, icon: Icon, label }) => (
+                {NAV_ITEMS.map(({ href, icon, label }) => {
+                  const Icon = iconMap[icon];
+                  return (
                   <Link
                     key={href}
                     href={href}
@@ -52,7 +44,7 @@ export default function AdminLayout({
                     <Icon className="h-4 w-4" />
                     {label}
                   </Link>
-                ))}
+                )})}
               </nav>
             </div>
           </div>
