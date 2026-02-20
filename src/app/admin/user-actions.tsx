@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useTransition } from 'react';
 import { Button } from '@/components/ui/button';
-import { Home, LogOut } from 'lucide-react';
+import { Home, LogOut, Loader2 } from 'lucide-react';
 import { logout } from './actions';
 import type { User } from '@/lib/types';
 
@@ -11,6 +12,13 @@ interface UserActionsProps {
 }
 
 export function UserActions({ user }: UserActionsProps) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleLogout = () => {
+    startTransition(() => {
+      logout();
+    });
+  };
 
   return (
     <div className="flex items-center gap-4">
@@ -23,12 +31,14 @@ export function UserActions({ user }: UserActionsProps) {
           Strona główna
         </Link>
       </Button>
-      <form action={logout}>
-        <Button variant="outline" size="sm" type="submit">
+      <Button variant="outline" size="sm" onClick={handleLogout} disabled={isPending}>
+        {isPending ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
           <LogOut className="h-4 w-4 mr-2" />
-          Wyloguj
-        </Button>
-      </form>
+        )}
+        Wyloguj
+      </Button>
     </div>
   );
 }
