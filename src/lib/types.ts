@@ -20,4 +20,5 @@ export type Event = {
   formFields: FormField[];
   rodo: string;
   isActive: boolean;
+  themeColor: string;
 };

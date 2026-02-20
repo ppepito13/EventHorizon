@@ -45,10 +45,9 @@ export async function getEvents(): Promise<Event[]> {
   return await readEventsFromFile();
 }
 
-export async function getActiveEvent(): Promise<Event | null> {
+export async function getActiveEvents(): Promise<Event[]> {
   const events = await readEventsFromFile();
-  const activeEvent = events.find(event => event.isActive);
-  return activeEvent || null;
+  return events.filter(event => event.isActive);
 }
 
 export async function getEventById(id: string): Promise<Event | null> {
@@ -115,8 +114,8 @@ export async function setActiveEvent(id: string): Promise<Event | null> {
         activeEvent = { ...event, isActive: true };
         return activeEvent;
     }
-    // If it's not the one we are activating, ensure it's inactive
-    return { ...event, isActive: false };
+    // If it's not the one we are activating, it can remain as it is
+    return event;
   });
 
   if (!activeEvent) {

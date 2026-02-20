@@ -17,7 +17,7 @@ export function SiteHeader() {
         <div className="flex flex-1 items-center justify-end">
           <nav>
             <Button variant="ghost" asChild>
-              <Link href="/admin">Admin Panel</Link>
+              <Link href="/login">Panel Administracyjny</Link>
             </Button>
           </nav>
         </div>
