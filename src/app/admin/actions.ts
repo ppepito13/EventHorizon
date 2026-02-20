@@ -30,6 +30,7 @@ const eventSchema = z.object({
     },
     { message: 'Form fields must be a valid JSON array.' }
   ),
+  isActive: z.preprocess(val => val === 'true', z.boolean()),
 });
 
 export async function createEventAction(data: FormData) {
@@ -43,15 +44,16 @@ export async function createEventAction(data: FormData) {
     };
   }
 
-  const { heroImageSrc, heroImageHint, formFields, ...rest } = validated.data;
+  const { heroImageSrc, heroImageHint, formFields, isActive, ...rest } = validated.data;
   
-  const newEventData: Omit<Event, 'id' | 'slug' | 'isActive'> = {
+  const newEventData: Omit<Event, 'id' | 'slug'> = {
     ...rest,
     heroImage: { src: heroImageSrc, hint: heroImageHint },
     formFields: JSON.parse(formFields),
+    isActive,
   };
 
-  await createEvent({ ...newEventData, isActive: false });
+  await createEvent(newEventData);
 
   revalidatePath('/admin');
   revalidatePath('/');
@@ -69,12 +71,13 @@ export async function updateEventAction(id: string, data: FormData) {
     };
   }
 
-  const { heroImageSrc, heroImageHint, formFields, ...rest } = validated.data;
+  const { heroImageSrc, heroImageHint, formFields, isActive, ...rest } = validated.data;
 
   const updatedEventData: Partial<Omit<Event, 'id' | 'slug'>> = {
     ...rest,
     heroImage: { src: heroImageSrc, hint: heroImageHint },
     formFields: JSON.parse(formFields),
+    isActive,
   };
 
   await updateEvent(id, updatedEventData);

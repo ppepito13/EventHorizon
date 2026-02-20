@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Trash2, Edit, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Edit, Loader2, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deleteEventAction, setActiveEventAction, deactivateEventAction } from './actions';
 
@@ -87,6 +87,16 @@ export function EventsTable({ events }: EventsTableProps) {
     });
   };
 
+  const handleCopyLink = (slug: string) => {
+    const url = `${window.location.origin}/events/${slug}`;
+    navigator.clipboard.writeText(url);
+    toast({
+        title: "Link copied!",
+        description: "The event registration link has been copied to your clipboard.",
+    });
+  };
+
+
   return (
     <>
       <div className="rounded-md border">
@@ -97,7 +107,7 @@ export function EventsTable({ events }: EventsTableProps) {
               <TableHead>Event Name</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead className="w-[50px] text-right">Actions</TableHead>
+              <TableHead className="text-right w-[300px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -111,36 +121,47 @@ export function EventsTable({ events }: EventsTableProps) {
                       disabled={isPending}
                       aria-label={`Set ${event.name} as active`}
                     />
-                    {isPending && event.isActive && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                   </div>
                 </TableCell>
                 <TableCell className="font-medium">{event.name}</TableCell>
                 <TableCell>{event.date}</TableCell>
                 <TableCell>{event.location}</TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => router.push(`/admin/events/${event.id}/edit`)}>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => router.push(`/admin/events/${event.id}/edit`)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => openDeleteDialog(event.id)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleCopyLink(event.slug)}>
+                        <LinkIcon className="mr-2 h-4 w-4" />
+                        Copy link
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer" className='cursor-pointer'>
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Open in new tab
+                          </a>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => openDeleteDialog(event.id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
