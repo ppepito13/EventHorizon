@@ -74,11 +74,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
-      <div className="absolute top-8 flex items-center gap-2">
+    <div className="flex min-h-screen flex-col items-center gap-8 bg-secondary p-4 py-12">
+      <div className="flex items-center gap-2">
         <TicketPercent className="h-6 w-6 text-primary" />
         <span className="text-lg font-semibold">Platforma Rejestracji</span>
       </div>
+      
       <Card className="w-full max-w-sm shadow-xl">
         <form onSubmit={handleLogin}>
           <CardHeader>
@@ -132,7 +133,7 @@ export default function LoginPage() {
         </form>
       </Card>
 
-      <Card className="w-full max-w-sm shadow-xl mt-6">
+      <Card className="w-full max-w-sm shadow-xl">
         <CardHeader>
           <CardTitle className="text-lg font-headline">
             Dane do logowania (demo)
