@@ -1,6 +1,7 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { changePasswordAction } from './actions';
@@ -26,7 +27,7 @@ function SubmitButton() {
 
 export function ChangePasswordForm({ userId }: ChangePasswordFormProps) {
   const { toast } = useToast();
-  const [state, formAction] = useFormState(changePasswordAction.bind(null, userId), undefined);
+  const [state, formAction] = useActionState(changePasswordAction.bind(null, userId), undefined);
 
   useEffect(() => {
     if (state?.success) {
