@@ -108,7 +108,7 @@ export function EventsTable({ events }: EventsTableProps) {
               <TableHead>Event Name</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead className="text-right w-[300px]">Actions</TableHead>
+              <TableHead className="text-right w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
