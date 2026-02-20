@@ -141,13 +141,13 @@ export async function setActiveEvent(id: string): Promise<Event | null> {
   let activeEvent: Event | null = null;
 
   const updatedEvents = events.map(event => {
-    const shouldBeActive = event.id === id;
-    if (shouldBeActive) {
+    if (event.id === id) {
+      // Set the target event to active
       activeEvent = { ...event, isActive: true };
       return activeEvent;
     }
-    // If it's not the one we are activating, it can remain as it is
-    return { ...event, isActive: false };
+    // Leave other events as they are
+    return event;
   });
 
   if (!activeEvent) {
