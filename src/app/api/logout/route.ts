@@ -1,12 +1,16 @@
+'use server';
+
 import { NextResponse, type NextRequest } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const sessionFilePath = path.join(process.cwd(), 'src', 'data', 'session.json');
+// Use a directory not watched by the dev server to prevent restarts on file change.
+const sessionFilePath = path.join(process.cwd(), '.tmp', 'session.json');
 
 export async function GET(request: NextRequest) {
   // Clear session file by writing an empty object to it.
   try {
+    await fs.mkdir(path.dirname(sessionFilePath), { recursive: true });
     await fs.writeFile(sessionFilePath, JSON.stringify({}), 'utf8');
   } catch (error) {
     // If the file doesn't exist, that's fine. If another error occurs, log it.

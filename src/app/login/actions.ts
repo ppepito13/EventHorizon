@@ -11,7 +11,8 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required.'),
 });
 
-const sessionFilePath = path.join(process.cwd(), 'src', 'data', 'session.json');
+// Use a directory not watched by the dev server to prevent restarts on file change.
+const sessionFilePath = path.join(process.cwd(), '.tmp', 'session.json');
 
 export async function login(prevState: { error: string } | undefined, formData: FormData) {
   const validatedFields = loginSchema.safeParse(
@@ -35,6 +36,7 @@ export async function login(prevState: { error: string } | undefined, formData: 
 
     // Set session by writing to file
     const sessionData = { userId: user.id };
+    await fs.mkdir(path.dirname(sessionFilePath), { recursive: true });
     await fs.writeFile(sessionFilePath, JSON.stringify(sessionData, null, 2), 'utf8');
 
   } catch (error) {

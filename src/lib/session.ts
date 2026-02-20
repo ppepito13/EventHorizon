@@ -6,7 +6,8 @@ import { getUserById } from '@/lib/data';
 import type { User } from '@/lib/types';
 import { unstable_noStore as noStore } from 'next/cache';
 
-const sessionFilePath = path.join(process.cwd(), 'src', 'data', 'session.json');
+// Use a directory not watched by the dev server to prevent restarts on file change.
+const sessionFilePath = path.join(process.cwd(), '.tmp', 'session.json');
 
 type SessionData = {
   userId?: string;
