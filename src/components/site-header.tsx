@@ -1,8 +1,20 @@
+'use client';
+
 import Link from 'next/link';
 import { Icons } from './icons';
 import { Button } from './ui/button';
+import { useEffect, useState } from 'react';
 
 export function SiteHeader() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const loggedInStatus = localStorage.getItem('isLoggedIn');
+    setIsLoggedIn(loggedInStatus === 'true');
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 max-w-screen-2xl items-center">
@@ -16,9 +28,11 @@ export function SiteHeader() {
         </div>
         <div className="flex flex-1 items-center justify-end">
           <nav>
-            <Button variant="ghost" asChild>
-              <Link href="/login">Panel Administracyjny</Link>
-            </Button>
+            {isMounted && isLoggedIn && (
+              <Button variant="ghost" asChild>
+                <Link href="/admin">Wróć do panelu</Link>
+              </Button>
+            )}
           </nav>
         </div>
       </div>

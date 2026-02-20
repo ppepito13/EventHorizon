@@ -5,7 +5,6 @@ import {
   TicketPercent,
   Users,
   UserCog,
-  Home
 } from 'lucide-react';
 import type { Metadata } from 'next';
 
@@ -21,6 +20,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import AuthGuard from './auth-guard';
+import { UserActions } from './user-actions';
 
 export const metadata: Metadata = {
   title: 'Admin Panel',
@@ -94,16 +95,11 @@ export default function AdminLayout({
               </SheetContent>
             </Sheet>
             <div className="w-full flex-1 flex justify-end">
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/">
-                  <Home className="h-4 w-4 mr-2" />
-                  Strona główna
-                </Link>
-              </Button>
+              <UserActions />
             </div>
           </header>
           <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/40">
-            {children}
+            <AuthGuard>{children}</AuthGuard>
           </main>
         </div>
       </div>

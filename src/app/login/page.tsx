@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -39,8 +39,18 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    if (isLoggedIn === 'true') {
+      router.replace('/admin');
+    } else {
+      setIsCheckingAuth(false);
+    }
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,10 +59,10 @@ export default function LoginPage() {
     // Placeholder login logic
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // In a real app, you'd call Firebase Auth here.
     if (
       demoUsers.some(user => user.email === email && user.password === password)
     ) {
+      localStorage.setItem('isLoggedIn', 'true');
       toast({
         title: 'Login Successful',
         description: 'Redirecting to admin panel...',
@@ -72,6 +82,14 @@ export default function LoginPage() {
     navigator.clipboard.writeText(text);
     toast({ title: 'Skopiowano!', description: `${text} skopiowano do schowka.` });
   };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-secondary">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center gap-8 bg-secondary p-4 py-12">
