@@ -1,10 +1,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { unstable_noStore as noStore } from 'next/cache';
-import type { Event } from './types';
+import type { Event, User } from './types';
 
 // The path to the JSON file where events are stored.
 const eventsFilePath = path.join(process.cwd(), 'data', 'events.json');
+const usersFilePath = path.join(process.cwd(), 'data', 'users.json');
 
 /**
  * Reads all events from the JSON file.
@@ -20,7 +21,7 @@ async function readEventsFromFile(): Promise<Event[]> {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return [];
     }
-    console.error("Error reading from events.json:", error);
+    console.error('Error reading from events.json:', error);
     // In case of other errors (e.g., malformed JSON), we might want to fail loudly
     // but for now, returning an empty array is safer for rendering.
     return [];
@@ -31,14 +32,32 @@ async function readEventsFromFile(): Promise<Event[]> {
  * Writes the entire events array to the JSON file.
  */
 async function writeEventsToFile(events: Event[]): Promise<void> {
-   try {
+  try {
     // Ensure the directory exists
     await fs.mkdir(path.dirname(eventsFilePath), { recursive: true });
     await fs.writeFile(eventsFilePath, JSON.stringify(events, null, 2), 'utf8');
-   } catch(error) {
-    console.error("Error writing to events.json:", error);
-    throw new Error("Could not save event data.");
-   }
+  } catch (error) {
+    console.error('Error writing to events.json:', error);
+    throw new Error('Could not save event data.');
+  }
+}
+
+async function readUsersFromFile(): Promise<User[]> {
+  noStore();
+  try {
+    const fileContent = await fs.readFile(usersFilePath, 'utf8');
+    return JSON.parse(fileContent) as User[];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return [];
+    }
+    console.error('Error reading from users.json:', error);
+    return [];
+  }
+}
+
+export async function getUsers(): Promise<User[]> {
+  return await readUsersFromFile();
 }
 
 export async function getEvents(): Promise<Event[]> {
@@ -56,7 +75,15 @@ export async function getEventById(id: string): Promise<Event | null> {
   return event || null;
 }
 
-export async function createEvent(eventData: Omit<Event, 'id' | 'slug'>): Promise<Event> {
+export async function getEventBySlug(slug: string): Promise<Event | null> {
+  const events = await readEventsFromFile();
+  const event = events.find(event => event.slug === slug);
+  return event || null;
+}
+
+export async function createEvent(
+  eventData: Omit<Event, 'id' | 'slug'>
+): Promise<Event> {
   const events = await readEventsFromFile();
   const newEvent: Event = {
     ...eventData,
@@ -68,22 +95,27 @@ export async function createEvent(eventData: Omit<Event, 'id' | 'slug'>): Promis
   return newEvent;
 }
 
-export async function updateEvent(id: string, eventData: Partial<Omit<Event, 'id' | 'slug'>>): Promise<Event | null> {
+export async function updateEvent(
+  id: string,
+  eventData: Partial<Omit<Event, 'id' | 'slug'>>
+): Promise<Event | null> {
   const events = await readEventsFromFile();
   let updatedEvent: Event | null = null;
-  
+
   const updatedEvents = events.map(event => {
     if (event.id === id) {
       updatedEvent = {
         ...event,
         ...eventData,
-        slug: eventData.name ? eventData.name.toLowerCase().replace(/\s+/g, '-') : event.slug,
+        slug: eventData.name
+          ? eventData.name.toLowerCase().replace(/\s+/g, '-')
+          : event.slug,
       };
       return updatedEvent;
     }
     return event;
   });
-  
+
   if (!updatedEvent) {
     return null;
   }
@@ -95,7 +127,7 @@ export async function updateEvent(id: string, eventData: Partial<Omit<Event, 'id
 export async function deleteEvent(id: string): Promise<boolean> {
   const events = await readEventsFromFile();
   const updatedEvents = events.filter(event => event.id !== id);
-  
+
   if (events.length === updatedEvents.length) {
     return false; // Nothing was deleted
   }
@@ -107,15 +139,15 @@ export async function deleteEvent(id: string): Promise<boolean> {
 export async function setActiveEvent(id: string): Promise<Event | null> {
   const events = await readEventsFromFile();
   let activeEvent: Event | null = null;
-  
+
   const updatedEvents = events.map(event => {
     const shouldBeActive = event.id === id;
-    if(shouldBeActive) {
-        activeEvent = { ...event, isActive: true };
-        return activeEvent;
+    if (shouldBeActive) {
+      activeEvent = { ...event, isActive: true };
+      return activeEvent;
     }
     // If it's not the one we are activating, it can remain as it is
-    return event;
+    return { ...event, isActive: false };
   });
 
   if (!activeEvent) {
@@ -127,20 +159,20 @@ export async function setActiveEvent(id: string): Promise<Event | null> {
 }
 
 export async function deactivateEvent(id: string): Promise<Event | null> {
-    const events = await readEventsFromFile();
-    let deactivatedEvent: Event | null = null;
-    
-    const eventExists = events.some(e => e.id === id);
-    if (!eventExists) return null;
+  const events = await readEventsFromFile();
+  let deactivatedEvent: Event | null = null;
 
-    const updatedEvents = events.map(event => {
-        if (event.id === id) {
-            deactivatedEvent = { ...event, isActive: false };
-            return deactivatedEvent;
-        }
-        return event;
-    });
+  const eventExists = events.some(e => e.id === id);
+  if (!eventExists) return null;
 
-    await writeEventsToFile(updatedEvents);
-    return deactivatedEvent;
+  const updatedEvents = events.map(event => {
+    if (event.id === id) {
+      deactivatedEvent = { ...event, isActive: false };
+      return deactivatedEvent;
+    }
+    return event;
+  });
+
+  await writeEventsToFile(updatedEvents);
+  return deactivatedEvent;
 }

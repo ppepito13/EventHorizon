@@ -14,8 +14,26 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TicketPercent, Loader2 } from 'lucide-react';
+import { TicketPercent, Loader2, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const demoUsers = [
+  {
+    email: 'admin@example.com',
+    password: 'password',
+    role: 'Administrator',
+  },
+  {
+    email: 'organizer1@example.com',
+    password: 'password',
+    role: 'Organizator (Tech Summit)',
+  },
+  {
+    email: 'organizer2@example.com',
+    password: 'password',
+    role: 'Organizator (Music Fest)',
+  },
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +50,9 @@ export default function LoginPage() {
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     // In a real app, you'd call Firebase Auth here.
-    if (email === 'admin@example.com' && password === 'password') {
+    if (
+      demoUsers.some(user => user.email === email && user.password === password)
+    ) {
       toast({
         title: 'Login Successful',
         description: 'Redirecting to admin panel...',
@@ -48,17 +68,26 @@ export default function LoginPage() {
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Skopiowano!', description: `${text} skopiowano do schowka.` });
+  };
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-secondary">
-       <div className="absolute top-8 flex items-center gap-2">
-            <TicketPercent className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">Platforma Rejestracji</span>
-        </div>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
+      <div className="absolute top-8 flex items-center gap-2">
+        <TicketPercent className="h-6 w-6 text-primary" />
+        <span className="text-lg font-semibold">Platforma Rejestracji</span>
+      </div>
       <Card className="w-full max-w-sm shadow-xl">
         <form onSubmit={handleLogin}>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">Panel Administracyjny</CardTitle>
-            <CardDescription>Zaloguj się, aby zarządzać wydarzeniami</CardDescription>
+            <CardTitle className="text-2xl font-headline">
+              Panel Administracyjny
+            </CardTitle>
+            <CardDescription>
+              Zaloguj się, aby zarządzać wydarzeniami
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -69,7 +98,7 @@ export default function LoginPage() {
                 placeholder="admin@example.com"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 disabled={isLoading}
               />
             </div>
@@ -81,7 +110,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
                 disabled={isLoading}
               />
             </div>
@@ -91,11 +120,63 @@ export default function LoginPage() {
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? 'Logowanie...' : 'Zaloguj się'}
             </Button>
-            <Button variant="link" size="sm" className="text-muted-foreground" asChild>
-                <Link href="/">Powrót na stronę główną</Link>
+            <Button
+              variant="link"
+              size="sm"
+              className="text-muted-foreground"
+              asChild
+            >
+              <Link href="/">Powrót na stronę główną</Link>
             </Button>
           </CardFooter>
         </form>
+      </Card>
+
+      <Card className="w-full max-w-sm shadow-xl mt-6">
+        <CardHeader>
+          <CardTitle className="text-lg font-headline">
+            Dane do logowania (demo)
+          </CardTitle>
+          <CardDescription>
+            Użyj poniższych danych, by zalogować się na potrzeby prezentacji.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          {demoUsers.map(user => (
+            <div
+              key={user.email}
+              className="p-3 rounded-md border bg-muted/50"
+            >
+              <p className="font-semibold">{user.role}</p>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-muted-foreground font-mono truncate">
+                  Email: {user.email}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => copyToClipboard(user.email)}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground font-mono">
+                  Hasło: {user.password}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => copyToClipboard(user.password)}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </CardContent>
       </Card>
     </div>
   );

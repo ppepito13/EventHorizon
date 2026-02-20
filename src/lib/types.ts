@@ -22,3 +22,11 @@ export type Event = {
   isActive: boolean;
   themeColor: string;
 };
+
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'Administrator' | 'Organizator';
+  assignedEvents: string[];
+};
