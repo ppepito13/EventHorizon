@@ -10,9 +10,16 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { PlusCircle } from 'lucide-react';
+import { getSessionUser } from '@/lib/session';
+import { redirect } from 'next/navigation';
 
 export default async function AdminDashboardPage() {
-  const events = await getEvents();
+  const user = await getSessionUser();
+  if (!user) {
+    redirect('/login');
+  }
+  
+  const events = await getEvents(user);
 
   return (
     <>
@@ -23,22 +30,27 @@ export default async function AdminDashboardPage() {
             Zarządzaj wydarzeniami i przeglądaj ich status.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/admin/events/new">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Nowe wydarzenie
-          </Link>
-        </Button>
+        {user.role === 'Administrator' && (
+          <Button asChild>
+            <Link href="/admin/events/new">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nowe wydarzenie
+            </Link>
+          </Button>
+        )}
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Wszystkie wydarzenia</CardTitle>
           <CardDescription>
-            Ustaw wydarzenie jako aktywne, aby wyświetlić je na stronie głównej.
+            {user.role === 'Administrator' 
+              ? "Ustaw wydarzenie jako aktywne, aby wyświetlić je na stronie głównej."
+              : "Poniżej znajduje się lista wydarzeń, do których masz dostęp."
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <EventsTable events={events} />
+          <EventsTable events={events} userRole={user.role} />
         </CardContent>
       </Card>
     </>

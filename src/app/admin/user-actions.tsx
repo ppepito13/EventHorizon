@@ -1,36 +1,34 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Home, LogOut } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { logout } from './actions';
+import type { User } from '@/lib/types';
 
-export function UserActions() {
-  const router = useRouter();
-  const { toast } = useToast();
+interface UserActionsProps {
+  user: User;
+}
 
-  const handleLogout = () => {
-    localStorage.removeItem('isLoggedIn');
-    toast({
-        title: 'Wylogowano',
-        description: 'Zostałeś pomyślnie wylogowany.',
-    });
-    router.push('/login');
-  };
+export function UserActions({ user }: UserActionsProps) {
 
   return (
-    <div className="flex gap-2">
+    <div className="flex items-center gap-4">
+       <span className="text-sm text-muted-foreground hidden sm:inline-block">
+        Witaj, <span className="font-semibold">{user.name}</span>!
+      </span>
       <Button variant="outline" size="sm" asChild>
         <Link href="/">
           <Home className="h-4 w-4 mr-2" />
           Strona główna
         </Link>
       </Button>
-      <Button variant="outline" size="sm" onClick={handleLogout}>
-        <LogOut className="h-4 w-4 mr-2" />
-        Wyloguj
-      </Button>
+      <form action={logout}>
+        <Button variant="outline" size="sm" type="submit">
+          <LogOut className="h-4 w-4 mr-2" />
+          Wyloguj
+        </Button>
+      </form>
     </div>
   );
 }

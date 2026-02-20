@@ -43,6 +43,7 @@ export async function createUserAction(prevState: any, formData: FormData) {
   
   const newUser: Omit<User, 'id'> = {
       ...userData,
+      password: password, // Pass password to be saved
   };
 
   await createUser(newUser);
@@ -73,10 +74,13 @@ export async function updateUserAction(id: string, prevState: any, formData: For
   
   const { password, ...userData } = validated.data;
 
-  // Don't update password if it's empty
-  const updateData: Partial<Omit<User, 'id'>> = {
+  const updateData: Partial<Omit<User, 'id'>> & { password?: string } = {
       ...userData
   };
+
+  if (password) {
+    updateData.password = password;
+  }
 
   await updateUser(id, updateData);
 

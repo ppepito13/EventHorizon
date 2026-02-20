@@ -1,6 +1,6 @@
 'use client';
 
-import type { Event } from '@/lib/types';
+import type { Event, User } from '@/lib/types';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -38,9 +38,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 interface EventsTableProps {
   events: Event[];
+  userRole: User['role'];
 }
 
-export function EventsTable({ events }: EventsTableProps) {
+export function EventsTable({ events, userRole }: EventsTableProps) {
   const { toast } = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -168,14 +169,18 @@ export function EventsTable({ events }: EventsTableProps) {
                               Open in new tab
                           </a>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => openDeleteDialog(event.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
+                        {userRole === 'Administrator' && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => openDeleteDialog(event.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

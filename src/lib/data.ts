@@ -76,8 +76,23 @@ export async function getUserById(id: string): Promise<User | null> {
     return user || null;
 }
 
-export async function getEvents(): Promise<Event[]> {
-  return await readEventsFromFile();
+export async function getUserByEmail(email: string): Promise<User | null> {
+    const users = await readUsersFromFile();
+    const user = users.find(user => user.email.toLowerCase() === email.toLowerCase());
+    return user || null;
+}
+
+export async function getEvents(user?: User | null): Promise<Event[]> {
+  const allEvents = await readEventsFromFile();
+  if (user?.role === 'Organizator') {
+    // If assigned 'All', show all events
+    if (user.assignedEvents.includes('All')) {
+      return allEvents;
+    }
+    return allEvents.filter(event => user.assignedEvents.includes(event.name));
+  }
+  // Admins and other roles see all events
+  return allEvents;
 }
 
 export async function getActiveEvents(): Promise<Event[]> {
@@ -205,12 +220,16 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<User> {
     return newUser;
 }
 
-export async function updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<User | null> {
+export async function updateUser(id: string, userData: Partial<Omit<User, 'id' | 'password'>> & { password?: string }): Promise<User | null> {
     const users = await readUsersFromFile();
     let updatedUser: User | null = null;
     const updatedUsers = users.map(user => {
         if (user.id === id) {
-            updatedUser = { ...user, ...userData };
+            const newUserData = { ...user, ...userData };
+            if (!userData.password) {
+              newUserData.password = user.password; // Keep old password if not provided
+            }
+            updatedUser = newUserData;
             return updatedUser;
         }
         return user;

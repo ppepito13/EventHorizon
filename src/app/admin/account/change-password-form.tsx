@@ -1,0 +1,71 @@
+'use client';
+
+import { useFormState, useFormStatus } from 'react-dom';
+import { useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { changePasswordAction } from './actions';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle, Loader2 } from 'lucide-react';
+
+interface ChangePasswordFormProps {
+  userId: string;
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      Zmień hasło
+    </Button>
+  );
+}
+
+export function ChangePasswordForm({ userId }: ChangePasswordFormProps) {
+  const { toast } = useToast();
+  const [state, formAction] = useFormState(changePasswordAction.bind(null, userId), undefined);
+
+  useEffect(() => {
+    if (state?.success) {
+      toast({
+        title: 'Sukces!',
+        description: 'Twoje hasło zostało zmienione.',
+      });
+      // Optionally reset form here
+    }
+  }, [state, toast]);
+
+  return (
+    <form action={formAction} className="space-y-4 max-w-lg">
+      {state?.error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Błąd</AlertTitle>
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      )}
+       {state?.success && (
+        <Alert variant="default" className='border-green-500 text-green-700'>
+          <AlertTitle>Sukces</AlertTitle>
+          <AlertDescription>Hasło zostało pomyślnie zaktualizowane.</AlertDescription>
+        </Alert>
+      )}
+      <div className="space-y-2">
+        <Label htmlFor="currentPassword">Aktualne hasło</Label>
+        <Input name="currentPassword" id="currentPassword" type="password" required />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="newPassword">Nowe hasło</Label>
+        <Input name="newPassword" id="newPassword" type="password" required />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Potwierdź nowe hasło</Label>
+        <Input name="confirmPassword" id="confirmPassword" type="password" required />
+      </div>
+      <SubmitButton />
+    </form>
+  );
+}
