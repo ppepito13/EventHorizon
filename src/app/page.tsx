@@ -56,14 +56,14 @@ export default async function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
-        <section className="relative bg-gradient-to-br from-primary/70 via-primary to-accent py-20 md:py-32">
+        <section className="relative py-20 md:py-32">
           <div
-            className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))] via-[hsl(var(--primary))] to-transparent bg-blend-multiply"
+            className="absolute inset-0"
             style={{
               background: 'linear-gradient(to bottom right, hsl(var(--primary)) 50%, hsl(var(--accent)))'
             }}
           ></div>
-          <div className="container relative z-10 text-center">
+          <div className="container relative z-10 text-center text-primary-foreground">
             <div className="inline-block bg-white/10 text-xs font-semibold px-4 py-1 rounded-full mb-4">
               <MonitorSmartphone className="w-3 h-3 inline-block mr-2" />
               Platforma rejestracji na wydarzenia
