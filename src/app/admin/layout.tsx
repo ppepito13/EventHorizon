@@ -21,6 +21,7 @@ export default async function AdminLayout({
 }) {
   const user = await getSessionUser();
 
+  // This check now serves as the primary guard for all admin routes.
   if (!user) {
     redirect('/login');
   }
