@@ -5,7 +5,7 @@ import { unstable_noStore as noStore } from 'next/cache';
 
 export async function getSessionUser(): Promise<User | null> {
   noStore();
-  const userId = cookies().get('session_userid')?.value;
+  const userId = cookies().get('event-platform-auth-token')?.value;
 
   if (!userId) {
     return null;

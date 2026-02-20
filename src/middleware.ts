@@ -1,25 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// This middleware is intentionally disabled to avoid conflicts with the root middleware.ts file.
+// All middleware logic is now handled in the project's root directory.
 export function middleware(request: NextRequest) {
-  const cookie = request.cookies.get('session_userid');
-  const { pathname } = request.nextUrl;
-
-  // If trying to access login page while logged in, redirect to admin
-  if (cookie && pathname === '/login') {
-    return NextResponse.redirect(new URL('/admin', request.url));
-  }
-
-  // If trying to access admin page while not logged in, redirect to login
-  if (!cookie && pathname.startsWith('/admin')) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
   return NextResponse.next();
 }
 
 export const config = {
-  // By removing the matcher, we are effectively disabling the middleware
-  // as it will no longer run on any routes. This is the source of the bug.
   matcher: [],
 };

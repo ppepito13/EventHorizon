@@ -31,7 +31,7 @@ export async function login(prevState: { error: string } | undefined, formData: 
     }
 
     // Set session cookie
-    cookies().set('session_userid', user.id, {
+    cookies().set('event-platform-auth-token', user.id, {
       httpOnly: true,
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 1 week
