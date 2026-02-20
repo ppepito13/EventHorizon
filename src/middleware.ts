@@ -19,5 +19,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/login'],
+  // By removing the matcher, we are effectively disabling the middleware
+  // as it will no longer run on any routes. This is the source of the bug.
+  matcher: [],
 };

@@ -21,11 +21,10 @@ export default async function AdminLayout({
 }) {
   const user = await getSessionUser();
 
-  // The middleware protects the /admin routes. If we reach here without a user,
-  // it means the session cookie might be present but invalid (e.g., user deleted).
-  // In this case, we should clean up the session by redirecting to the logout route.
+  // This is the new, authoritative guard for all admin routes.
+  // If no user is found, we redirect to the login page.
   if (!user) {
-    redirect('/api/logout');
+    redirect('/login');
   }
   
   const accessibleNavItems = NAV_ITEMS.filter(item => {

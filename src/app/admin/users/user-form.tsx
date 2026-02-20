@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useEffect, useTransition, useActionState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import type { Event, User } from '@/lib/types';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -38,6 +39,7 @@ const initialState = {
 export function UserForm({ user, events }: UserFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const router = useRouter();
   
   const action = user ? updateUserAction.bind(null, user.id) : createUserAction;
   const [state, formAction] = useActionState(action, initialState);
@@ -58,7 +60,8 @@ export function UserForm({ user, events }: UserFormProps) {
   useEffect(() => {
     if (state.success) {
       toast({ title: 'Sukces!', description: `Użytkownik został ${user ? 'zaktualizowany' : 'utworzony'}.` });
-      window.location.href = '/admin/users';
+      router.push('/admin/users');
+      router.refresh();
     } else if (Object.keys(state.errors).length > 0) {
         Object.entries(state.errors).forEach(([field, messages]) => {
             form.setError(field as keyof UserFormValues, {
@@ -67,7 +70,7 @@ export function UserForm({ user, events }: UserFormProps) {
             });
         });
     }
-  }, [state, form, user, toast]);
+  }, [state, form, user, toast, router]);
 
   const onSubmit = (values: UserFormValues) => {
     const formData = new FormData();
@@ -211,7 +214,7 @@ export function UserForm({ user, events }: UserFormProps) {
           />
         )}
         <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => window.history.back()}>
+            <Button type="button" variant="outline" onClick={() => router.back()}>
                 Anuluj
             </Button>
             <Button type="submit" disabled={isPending}>
