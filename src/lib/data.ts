@@ -56,8 +56,24 @@ async function readUsersFromFile(): Promise<User[]> {
   }
 }
 
+async function writeUsersToFile(users: User[]): Promise<void> {
+    try {
+      await fs.mkdir(path.dirname(usersFilePath), { recursive: true });
+      await fs.writeFile(usersFilePath, JSON.stringify(users, null, 2), 'utf8');
+    } catch (error) {
+      console.error('Error writing to users.json:', error);
+      throw new Error('Could not save user data.');
+    }
+}
+
 export async function getUsers(): Promise<User[]> {
   return await readUsersFromFile();
+}
+
+export async function getUserById(id: string): Promise<User | null> {
+    const users = await readUsersFromFile();
+    const user = users.find(user => user.id === id);
+    return user || null;
 }
 
 export async function getEvents(): Promise<Event[]> {
@@ -175,4 +191,43 @@ export async function deactivateEvent(id: string): Promise<Event | null> {
 
   await writeEventsToFile(updatedEvents);
   return deactivatedEvent;
+}
+
+
+export async function createUser(userData: Omit<User, 'id'>): Promise<User> {
+    const users = await readUsersFromFile();
+    const newUser: User = {
+        ...userData,
+        id: `usr_${crypto.randomUUID()}`,
+    };
+    const updatedUsers = [...users, newUser];
+    await writeUsersToFile(updatedUsers);
+    return newUser;
+}
+
+export async function updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<User | null> {
+    const users = await readUsersFromFile();
+    let updatedUser: User | null = null;
+    const updatedUsers = users.map(user => {
+        if (user.id === id) {
+            updatedUser = { ...user, ...userData };
+            return updatedUser;
+        }
+        return user;
+    });
+    if (!updatedUser) {
+        return null;
+    }
+    await writeUsersToFile(updatedUsers);
+    return updatedUser;
+}
+
+export async function deleteUser(id: string): Promise<boolean> {
+    const users = await readUsersFromFile();
+    const updatedUsers = users.filter(user => user.id !== id);
+    if (users.length === updatedUsers.length) {
+        return false;
+    }
+    await writeUsersToFile(updatedUsers);
+    return true;
 }

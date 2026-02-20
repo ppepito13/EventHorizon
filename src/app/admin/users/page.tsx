@@ -1,13 +1,5 @@
+import Link from 'next/link';
 import { getUsers } from '@/lib/data';
-import type { User } from '@/lib/types';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Card,
   CardContent,
@@ -15,71 +7,40 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal } from 'lucide-react';
-
-function UserRow({ user }: { user: User }) {
-  return (
-    <TableRow>
-      <TableCell>
-        <div className="font-medium">{user.name}</div>
-        <div className="text-sm text-muted-foreground">{user.email}</div>
-      </TableCell>
-      <TableCell>
-        <Badge variant={user.role === 'Administrator' ? 'default' : 'secondary'}>
-          {user.role}
-        </Badge>
-      </TableCell>
-      <TableCell>
-        <div className="flex flex-wrap gap-1">
-          {user.assignedEvents.map(event => (
-            <Badge key={event} variant="outline" className="font-normal">
-              {event}
-            </Badge>
-          ))}
-        </div>
-      </TableCell>
-      <TableCell className="text-right">
-        <Button variant="ghost" size="icon">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Actions</span>
-        </Button>
-      </TableCell>
-    </TableRow>
-  );
-}
+import { PlusCircle } from 'lucide-react';
+import { UsersTable } from './users-table';
 
 export default async function UsersPage() {
   const users = await getUsers();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Użytkownicy</CardTitle>
-        <CardDescription>
-          Zarządzaj użytkownikami i ich uprawnieniami.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Użytkownik</TableHead>
-                <TableHead>Rola</TableHead>
-                <TableHead>Dostęp do wydarzeń</TableHead>
-                <TableHead className="text-right">Akcje</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map(user => (
-                <UserRow key={user.id} user={user} />
-              ))}
-            </TableBody>
-          </Table>
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Użytkownicy</h1>
+          <p className="text-muted-foreground">
+            Zarządzaj użytkownikami i ich uprawnieniami.
+          </p>
         </div>
-      </CardContent>
-    </Card>
+        <Button asChild>
+          <Link href="/admin/users/new">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Dodaj użytkownika
+          </Link>
+        </Button>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Wszyscy użytkownicy</CardTitle>
+          <CardDescription>
+            Przeglądaj, edytuj i usuwaj użytkowników systemu.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <UsersTable users={users} />
+        </CardContent>
+      </Card>
+    </>
   );
 }
