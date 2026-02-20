@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,9 +14,10 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TicketPercent, Loader2, AlertCircle } from 'lucide-react';
+import { TicketPercent, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
 import { login } from './actions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -30,6 +31,21 @@ function SubmitButton() {
 
 export default function LoginPage() {
   const [state, formAction] = useActionState(login, undefined);
+  const { toast } = useToast();
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedPassword, setCopiedPassword] = useState(false);
+
+  const handleCopy = (text: string, type: 'email' | 'password') => {
+    navigator.clipboard.writeText(text);
+    toast({ title: `${type === 'email' ? 'Email' : 'Password'} copied!` });
+    if (type === 'email') {
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    } else {
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 2000);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-secondary p-4">
@@ -95,10 +111,20 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
            <div className="p-3 rounded-md border bg-muted/50">
-              <p className="font-semibold">Email: <span className='font-mono'>admin@example.com</span></p>
-              <p className="font-semibold mt-1">Hasło: <span className='font-mono'>password</span></p>
+              <div className="flex justify-between items-center">
+                  <p className="font-semibold">Email: <span className='font-mono'>admin@example.com</span></p>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy('admin@example.com', 'email')}>
+                      {copiedEmail ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                  <p className="font-semibold">Hasło: <span className='font-mono'>password</span></p>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy('password', 'password')}>
+                      {copiedPassword ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+              </div>
            </div>
-           <p className='text-xs text-muted-foreground pt-2'>Możesz też użyć kont organizatorów z sekcji "Użytkownicy".</p>
+           <p className='text-xs text-muted-foreground pt-2'>Możesz też użyć kont organizatorów z pliku <code className='font-mono text-xs bg-muted px-1 py-0.5 rounded'>data/users.json</code>.</p>
         </CardContent>
       </Card>
     </div>
