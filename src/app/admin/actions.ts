@@ -132,9 +132,3 @@ export async function deactivateEventAction(id: string) {
         };
     }
 }
-
-
-export async function logout() {
-  cookies().delete('session_userid');
-  redirect('/login');
-}
