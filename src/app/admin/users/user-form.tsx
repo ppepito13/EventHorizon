@@ -19,7 +19,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 const userFormSchema = z.object({
   name: z.string().min(3, 'Imię i nazwisko musi mieć co najmniej 3 znaki.'),
   email: z.string().email('Nieprawidłowy adres email.'),
-  password: z.string().optional(),
+  password: z.string().min(6, 'Hasło musi mieć co najmniej 6 znaków.').or(z.literal('')).optional(),
   role: z.enum(['Administrator', 'Organizator'], { required_error: 'Rola jest wymagana.' }),
   assignedEvents: z.array(z.string()).default([]),
 });
@@ -84,9 +84,7 @@ export function UserForm({ user, events }: UserFormProps) {
     formData.append('name', values.name);
     formData.append('email', values.email);
     formData.append('role', values.role);
-    if(values.password) {
-        formData.append('password', values.password);
-    }
+    formData.append('password', values.password || '');
 
 
     startTransition(() => {
@@ -130,7 +128,7 @@ export function UserForm({ user, events }: UserFormProps) {
             <FormItem>
               <FormLabel>Hasło {user && '(pozostaw puste, aby nie zmieniać)'}</FormLabel>
               <FormControl>
-                <Input type="password" {...field} />
+                <Input type="password" {...field} value={field.value ?? ''} />
               </FormControl>
                <FormDescription>
                 {user ? 'Wprowadź nowe hasło, aby je zaktualizować.' : 'Hasło musi mieć co najmniej 6 znaków.'}
