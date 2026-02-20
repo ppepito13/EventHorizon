@@ -2,7 +2,6 @@
 
 import type { User } from '@/lib/types';
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -42,7 +41,6 @@ interface UsersTableProps {
 
 export function UsersTable({ users }: UsersTableProps) {
   const { toast } = useToast();
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
@@ -107,7 +105,7 @@ export function UsersTable({ users }: UsersTableProps) {
                   <div className="flex items-center justify-end gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" onClick={() => router.push(`/admin/users/${user.id}/edit`)}>
+                        <Button variant="outline" size="icon" onClick={() => (window.location.href = `/admin/users/${user.id}/edit`)}>
                             <Edit className="h-4 w-4" />
                             <span className="sr-only">Edit User</span>
                         </Button>

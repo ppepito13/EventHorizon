@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { Menu, TicketPercent } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -27,21 +26,21 @@ export function MobileNav({ navItems }: MobileNavProps) {
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col">
                 <nav className="grid gap-2 text-lg font-medium">
-                    <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
+                    <a href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
                         <TicketPercent className="h-6 w-6 text-primary" />
                         <span className="">Panel Admina</span>
-                    </Link>
+                    </a>
                     {navItems.map(({ href, icon, label }) => {
                         const Icon = iconMap[icon];
                         return (
-                            <Link
+                            <a
                                 key={href}
                                 href={href}
                                 className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-primary"
                             >
                                 <Icon className="h-5 w-5" />
                                 {label}
-                            </Link>
+                            </a>
                         );
                     })}
                 </nav>

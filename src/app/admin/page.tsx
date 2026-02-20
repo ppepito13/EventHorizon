@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getEvents } from '@/lib/data';
 import { EventsTable } from './events-table';
 import { Button } from '@/components/ui/button';
@@ -32,10 +31,10 @@ export default async function AdminDashboardPage() {
         </div>
         {user.role === 'Administrator' && (
           <Button asChild>
-            <Link href="/admin/events/new">
+            <a href="/admin/events/new">
               <PlusCircle className="mr-2 h-4 w-4" />
               Nowe wydarzenie
-            </Link>
+            </a>
           </Button>
         )}
       </div>

@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useEffect, useTransition, useActionState } from 'react';
-import { useRouter } from 'next/navigation';
 
 import type { Event, User } from '@/lib/types';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -38,7 +37,6 @@ const initialState = {
 
 export function UserForm({ user, events }: UserFormProps) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
   const { toast } = useToast();
   
   const action = user ? updateUserAction.bind(null, user.id) : createUserAction;
@@ -60,7 +58,7 @@ export function UserForm({ user, events }: UserFormProps) {
   useEffect(() => {
     if (state.success) {
       toast({ title: 'Sukces!', description: `Użytkownik został ${user ? 'zaktualizowany' : 'utworzony'}.` });
-      router.push('/admin/users');
+      window.location.href = '/admin/users';
     } else if (Object.keys(state.errors).length > 0) {
         Object.entries(state.errors).forEach(([field, messages]) => {
             form.setError(field as keyof UserFormValues, {
@@ -69,7 +67,7 @@ export function UserForm({ user, events }: UserFormProps) {
             });
         });
     }
-  }, [state, form, user, router, toast]);
+  }, [state, form, user, toast]);
 
   const onSubmit = (values: UserFormValues) => {
     const formData = new FormData();
@@ -84,7 +82,9 @@ export function UserForm({ user, events }: UserFormProps) {
     formData.append('name', values.name);
     formData.append('email', values.email);
     formData.append('role', values.role);
-    formData.append('password', values.password || '');
+    if (values.password) {
+      formData.append('password', values.password);
+    }
 
 
     startTransition(() => {
@@ -211,7 +211,7 @@ export function UserForm({ user, events }: UserFormProps) {
           />
         )}
         <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button type="button" variant="outline" onClick={() => window.history.back()}>
                 Anuluj
             </Button>
             <Button type="submit" disabled={isPending}>

@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { getUsers } from '@/lib/data';
 import {
   Card,
@@ -24,10 +23,10 @@ export default async function UsersPage() {
           </p>
         </div>
         <Button asChild>
-          <Link href="/admin/users/new">
+          <a href="/admin/users/new">
             <PlusCircle className="mr-2 h-4 w-4" />
             Dodaj użytkownika
-          </Link>
+          </a>
         </Button>
       </div>
       <Card>

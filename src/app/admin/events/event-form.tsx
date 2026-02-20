@@ -4,7 +4,6 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 
 import type { Event, FormField as FormFieldType } from '@/lib/types';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -57,7 +56,6 @@ const generateFieldName = (label: string) => {
 
 export function EventForm({ event }: EventFormProps) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
   const { toast } = useToast();
 
   const form = useForm<EventFormValues>({
@@ -99,7 +97,7 @@ export function EventForm({ event }: EventFormProps) {
 
       if (result.success) {
         toast({ title: 'Success!', description: `Event has been ${event ? 'updated' : 'created'}.` });
-        router.push('/admin');
+        window.location.href = '/admin';
       } else {
         toast({
           variant: 'destructive',
@@ -168,7 +166,7 @@ export function EventForm({ event }: EventFormProps) {
                 <FormItem>
                 <FormLabel>Location *</FormLabel>
                 <FormControl>
-                    <Input placeholder="Virtual & Global" {...field} />
+                    <Input placeholder="Virtual &amp; Global" {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -348,7 +346,7 @@ export function EventForm({ event }: EventFormProps) {
 
 
         <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button type="button" variant="outline" onClick={() => window.history.back()}>
                 Anuluj
             </Button>
             <Button type="submit" disabled={isPending}>
