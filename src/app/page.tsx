@@ -56,9 +56,12 @@ export default async function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
-        <section className="relative bg-primary text-primary-foreground py-20 md:py-32">
+        <section className="relative bg-gradient-to-br from-primary/70 via-primary to-accent py-20 md:py-32">
           <div
-            className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-accent opacity-90"
+            className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--primary))] via-[hsl(var(--primary))] to-transparent bg-blend-multiply"
+            style={{
+              background: 'linear-gradient(to bottom right, hsl(var(--primary)) 50%, hsl(var(--accent)))'
+            }}
           ></div>
           <div className="container relative z-10 text-center">
             <div className="inline-block bg-white/10 text-xs font-semibold px-4 py-1 rounded-full mb-4">
@@ -81,25 +84,20 @@ export default async function Home() {
         </section>
 
         <div className="relative">
-          <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-primary to-transparent -translate-y-full" style={{backgroundColor: 'hsl(var(--primary))'}}></div>
           <svg
-              className="absolute -top-0.5 left-0 w-full h-auto text-background"
+              className="absolute -top-px left-0 w-full h-[50px] sm:h-[80px] md:h-[120px] text-background"
               viewBox="0 0 1440 120"
               preserveAspectRatio="none"
           >
               <path
-                  d="M0,120L1440,0L1440,120L0,120Z"
-                  className="fill-primary"
-              ></path>
-              <path
-                  d="M0,120 C240,60 480,0 720,0 C960,0 1200,60 1440,120 L1440,120 L0,120Z"
-                  className="fill-background"
+                  className="fill-current"
+                  d="M0,120 C480,30, 960,30, 1440,120 L1440,0 L0,0 Z"
               ></path>
           </svg>
         </div>
 
 
-        <section className="py-16 md:py-24">
+        <section className="py-16 md:py-24 bg-background">
           <div className="container">
             <h2 className="text-3xl font-headline font-bold text-center mb-12">
               Aktywne wydarzenia
