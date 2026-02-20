@@ -1,22 +1,14 @@
-'use client';
-
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Home, LogOut } from 'lucide-react';
 import type { User } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 interface UserActionsProps {
   user: User;
 }
 
 export function UserActions({ user }: UserActionsProps) {
-  const router = useRouter();
-
-  const handleLogout = () => {
-    router.push('/api/logout');
-  };
-
   return (
     <div className="flex items-center gap-4">
       <span className="text-sm text-muted-foreground hidden sm:inline-block">
@@ -28,10 +20,13 @@ export function UserActions({ user }: UserActionsProps) {
           Strona główna
         </Link>
       </Button>
-      <Button variant="outline" size="sm" onClick={handleLogout}>
+      <a
+        href="/api/logout"
+        className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+      >
         <LogOut className="h-4 w-4 mr-2" />
         Wyloguj
-      </Button>
+      </a>
     </div>
   );
 }

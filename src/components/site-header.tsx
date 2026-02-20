@@ -3,17 +3,14 @@
 import Link from 'next/link';
 import { Icons } from './icons';
 import { Button } from './ui/button';
-import { useEffect, useState } from 'react';
+import type { User } from '@/lib/types';
 
-export function SiteHeader() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+interface SiteHeaderProps {
+  user: User | null;
+}
 
-  useEffect(() => {
-    setIsMounted(true);
-    const loggedInStatus = localStorage.getItem('isLoggedIn');
-    setIsLoggedIn(loggedInStatus === 'true');
-  }, []);
+export function SiteHeader({ user }: SiteHeaderProps) {
+  const isLoggedIn = !!user;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -28,7 +25,7 @@ export function SiteHeader() {
         </div>
         <div className="flex flex-1 items-center justify-end">
           <nav>
-            {isMounted && isLoggedIn && (
+            {isLoggedIn && (
               <Button variant="ghost" asChild>
                 <Link href="/admin">Wróć do panelu</Link>
               </Button>
