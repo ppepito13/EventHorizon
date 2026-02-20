@@ -34,6 +34,7 @@ import {
 import { MoreHorizontal, Trash2, Edit, Loader2, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deleteEventAction, setActiveEventAction, deactivateEventAction } from './actions';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface EventsTableProps {
   events: Event[];
@@ -128,14 +129,30 @@ export function EventsTable({ events }: EventsTableProps) {
                 <TableCell>{event.location}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/admin/events/${event.id}/edit`)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => handleCopyLink(event.slug)}>
-                        <LinkIcon className="mr-2 h-4 w-4" />
-                        Copy link
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" onClick={() => router.push(`/admin/events/${event.id}/edit`)}>
+                            <Edit className="h-4 w-4" />
+                            <span className="sr-only">Edit Event</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Edit Event</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" onClick={() => handleCopyLink(event.slug)}>
+                            <LinkIcon className="h-4 w-4" />
+                             <span className="sr-only">Copy Link</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Copy Link</p>
+                      </TooltipContent>
+                    </Tooltip>
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
