@@ -59,9 +59,6 @@ export default async function Home() {
         <section className="relative bg-primary text-primary-foreground py-20 md:py-32">
           <div
             className="absolute inset-0 bg-gradient-to-br from-primary via-primary/80 to-primary/60 opacity-80"
-            style={{
-              backgroundImage: 'linear-gradient(to bottom right, #0a4d56, #147369, #0a4d56)',
-            }}
           ></div>
           <div className="container relative z-10 text-center">
             <div className="inline-block bg-white/10 text-xs font-semibold px-4 py-1 rounded-full mb-4">
