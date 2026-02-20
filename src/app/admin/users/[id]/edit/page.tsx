@@ -1,5 +1,5 @@
 import { getEvents, getUserById } from '@/lib/data';
-import { UserForm } from '../user-form';
+import { UserForm } from '../../user-form';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
