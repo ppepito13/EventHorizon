@@ -58,7 +58,7 @@ export default async function Home() {
       <main className="flex-1">
         <section className="relative bg-primary text-primary-foreground py-20 md:py-32">
           <div
-            className="absolute inset-0 bg-gradient-to-br from-primary to-accent opacity-90"
+            className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-accent opacity-90"
           ></div>
           <div className="container relative z-10 text-center">
             <div className="inline-block bg-white/10 text-xs font-semibold px-4 py-1 rounded-full mb-4">
