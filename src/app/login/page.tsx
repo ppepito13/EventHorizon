@@ -81,11 +81,11 @@ export default function LoginPage() {
       </div>
       <Card className="w-full max-w-sm shadow-xl">
         <form onSubmit={handleLogin}>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-headline">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl font-headline">
               Panel Administracyjny
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-center">
               Zaloguj się, aby zarządzać wydarzeniami
             </CardDescription>
           </CardHeader>
