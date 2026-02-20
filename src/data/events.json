@@ -89,7 +89,7 @@
       }
     ],
     "rodo": "By registering, you agree to our terms of service and privacy policy.",
-    "isActive": false,
+    "isActive": true,
     "themeColor": "#8b5cf6"
   }
 ]

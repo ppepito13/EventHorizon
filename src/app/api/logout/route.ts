@@ -1,14 +1,25 @@
-import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+const sessionFilePath = path.join(process.cwd(), 'src', 'data', 'session.json');
 
 export async function GET(request: NextRequest) {
-  const cookieName = 'event-platform-auth-token';
-  
-  // Create a response object to redirect the user
+  // Clear session file by writing an empty object to it.
+  try {
+    await fs.writeFile(sessionFilePath, JSON.stringify({}), 'utf8');
+  } catch (error) {
+    // If the file doesn't exist, that's fine. If another error occurs, log it.
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.error('Failed to clear session file on logout:', error);
+    }
+  }
+
+  // Create a response object to redirect the user to the login page.
   const response = NextResponse.redirect(new URL('/login', request.url));
 
-  // Instruct the browser to delete the cookie
-  response.cookies.set(cookieName, '', { maxAge: -1, path: '/' });
+  // As a fallback, also instruct the browser to delete any old cookie that might exist.
+  response.cookies.set('event-platform-auth-token', '', { maxAge: -1, path: '/' });
 
   return response;
 }
