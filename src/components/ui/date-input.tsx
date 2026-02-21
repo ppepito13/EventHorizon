@@ -30,7 +30,6 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
       setYear(y);
     }, [value]);
     
-    // This is the key change for the selection issue.
     // We only notify the parent form when the user leaves the input group.
     const handleBlur = () => {
       if (onChange) {
@@ -42,8 +41,9 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
       const val = e.target.value.replace(/[^0-9]/g, '');
       const newDay = val.slice(0, 2);
       setDay(newDay);
-      if (newDay.length === 2 && monthRef.current) {
-        monthRef.current.focus();
+      if (newDay.length === 2) {
+        // Defer focus change to prevent race condition
+        setTimeout(() => monthRef.current?.focus(), 0);
       }
     };
 
@@ -51,8 +51,9 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
       const val = e.target.value.replace(/[^0-9]/g, '');
       const newMonth = val.slice(0, 2);
       setMonth(newMonth);
-      if (newMonth.length === 2 && yearRef.current) {
-        yearRef.current.focus();
+      if (newMonth.length === 2) {
+        // Defer focus change to prevent race condition
+        setTimeout(() => yearRef.current?.focus(), 0);
       }
     };
 
