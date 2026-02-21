@@ -1,18 +1,20 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { getEvents, getRegistrations } from '@/lib/data';
+import { getSessionUser } from '@/lib/session';
+import { redirect } from 'next/navigation';
+import { RegistrationsClientPage } from './registrations-client-page';
 
-export default function RegistrationsPage() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Registrations</CardTitle>
-        <CardDescription>View and manage event registrations.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12 text-muted-foreground">
-            <p>This feature is under construction.</p>
-            <p className="text-sm">You will soon be able to view the list of participants here.</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+export default async function RegistrationsPage() {
+  const user = await getSessionUser();
+  if (!user) {
+    redirect('/login');
+  }
+
+  // getEvents already handles filtering for organizers
+  const userEvents = await getEvents(user);
+  const allRegistrations = await getRegistrations();
+
+  const userEventIds = new Set(userEvents.map(e => e.id));
+  const userRegistrations = allRegistrations.filter(r => userEventIds.has(r.eventId));
+
+  return <RegistrationsClientPage events={userEvents} registrations={userRegistrations} />;
 }

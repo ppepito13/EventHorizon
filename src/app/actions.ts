@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { getEventById } from '@/lib/data';
+import { createRegistration, getEventById } from '@/lib/data';
 
 export async function registerForEvent(
   eventId: string,
@@ -67,12 +67,11 @@ export async function registerForEvent(
       };
     }
     
-    // In a real application, you would save `validated.data` to a database.
-    // For this MVP, we'll just log it to the console.
-    console.log('New Registration Successful:', {
+    // Save the new registration to the data file.
+    await createRegistration({
       eventId: event.id,
       eventName: event.name,
-      registrationData: validated.data,
+      formData: validated.data,
     });
 
     return { success: true, data: validated.data };

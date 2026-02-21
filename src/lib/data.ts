@@ -1,11 +1,12 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { unstable_noStore as noStore } from 'next/cache';
-import type { Event, User } from './types';
+import type { Event, User, Registration } from './types';
 
 // The path to the JSON file where events are stored.
 const eventsFilePath = path.join(process.cwd(), 'src', 'data', 'events.json');
 const usersFilePath = path.join(process.cwd(), 'src', 'data', 'users.json');
+const registrationsFilePath = path.join(process.cwd(), 'src', 'data', 'registrations.json');
 
 /**
  * Reads all events from the JSON file.
@@ -66,6 +67,30 @@ async function writeUsersToFile(users: User[]): Promise<void> {
     }
 }
 
+async function readRegistrationsFromFile(): Promise<Registration[]> {
+  noStore();
+  try {
+    const fileContent = await fs.readFile(registrationsFilePath, 'utf8');
+    return JSON.parse(fileContent) as Registration[];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return [];
+    }
+    console.error('Error reading from registrations.json:', error);
+    return [];
+  }
+}
+
+async function writeRegistrationsToFile(registrations: Registration[]): Promise<void> {
+  try {
+    await fs.mkdir(path.dirname(registrationsFilePath), { recursive: true });
+    await fs.writeFile(registrationsFilePath, JSON.stringify(registrations, null, 2), 'utf8');
+  } catch (error) {
+    console.error('Error writing to registrations.json:', error);
+    throw new Error('Could not save registration data.');
+  }
+}
+
 export async function getUsers(): Promise<User[]> {
   return await readUsersFromFile();
 }
@@ -84,14 +109,14 @@ export async function getUserByEmail(email: string): Promise<User | null> {
 
 export async function getEvents(user?: User | null): Promise<Event[]> {
   const allEvents = await readEventsFromFile();
-  if (user?.role === 'Organizator') {
+  if (user?.role === 'Organizer') {
     // If assigned 'All', show all events
     if (user.assignedEvents.includes('All')) {
       return allEvents;
     }
     return allEvents.filter(event => user.assignedEvents.includes(event.name));
   }
-  // Admins and other roles see all events
+  // Admins see all events
   return allEvents;
 }
 
@@ -248,5 +273,36 @@ export async function deleteUser(id: string): Promise<boolean> {
         return false;
     }
     await writeUsersToFile(updatedUsers);
+    return true;
+}
+
+export async function getRegistrations(eventId?: string): Promise<Registration[]> {
+  const registrations = await readRegistrationsFromFile();
+  if (eventId) {
+    return registrations.filter(r => r.eventId === eventId);
+  }
+  return registrations;
+}
+
+export async function createRegistration(data: { eventId: string; eventName: string; formData: { [key: string]: any; } }): Promise<Registration> {
+    const registrations = await readRegistrationsFromFile();
+    const newRegistration: Registration = {
+        ...data,
+        id: `reg_${crypto.randomUUID()}`,
+        registrationDate: new Date().toISOString(),
+    };
+    const updatedRegistrations = [...registrations, newRegistration];
+    await writeRegistrationsToFile(updatedRegistrations);
+    return newRegistration;
+}
+
+export async function deleteRegistration(id: string): Promise<boolean> {
+    const registrations = await readRegistrationsFromFile();
+    const updatedRegistrations = registrations.filter(reg => reg.id !== id);
+
+    if (registrations.length === updatedRegistrations.length) {
+        return false;
+    }
+    await writeRegistrationsToFile(updatedRegistrations);
     return true;
 }

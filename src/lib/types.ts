@@ -35,3 +35,11 @@ export type User = {
   assignedEvents: string[];
   password?: string;
 };
+
+export type Registration = {
+  id: string;
+  eventId: string;
+  eventName: string;
+  registrationDate: string; // ISO string
+  formData: { [key: string]: any };
+};
