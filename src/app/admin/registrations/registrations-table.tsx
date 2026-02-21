@@ -62,6 +62,16 @@ export function RegistrationsTable({ event, registrations, userRole }: Registrat
   const fullNameKey = fullNameField ? fullNameField.name : 'full_name';
   const emailKey = emailField ? emailField.name : 'email';
 
+  const getFullNameValue = (formData: { [key: string]: any }) => {
+    // Prioritize the key from the current event definition, but fall back to common variations.
+    return formData[fullNameKey] ?? formData['fullName'] ?? formData['full_name'];
+  };
+
+  const getEmailValue = (formData: { [key: string]: any }) => {
+    return formData[emailKey] ?? formData['email'];
+  };
+
+
   const openDeleteDialog = (id: string) => {
     setRegistrationToDelete(id);
     setAlertOpen(true);
@@ -120,8 +130,8 @@ export function RegistrationsTable({ event, registrations, userRole }: Registrat
             {registrations.map(reg => (
               <TableRow key={reg.id}>
                 <TableCell>{new Date(reg.registrationDate).toLocaleString()}</TableCell>
-                <TableCell>{getDisplayValue(reg.formData[fullNameKey])}</TableCell>
-                <TableCell>{getDisplayValue(reg.formData[emailKey])}</TableCell>
+                <TableCell>{getDisplayValue(getFullNameValue(reg.formData))}</TableCell>
+                <TableCell>{getDisplayValue(getEmailValue(reg.formData))}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <Tooltip>
