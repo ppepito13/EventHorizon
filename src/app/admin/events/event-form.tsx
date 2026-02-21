@@ -5,8 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
-import { pl } from 'date-fns/locale';
 
 import type { Event } from '@/lib/types';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -20,7 +18,8 @@ import { createEventAction, updateEventAction } from '../actions';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+
 
 interface EventFormProps {
   event?: Event;
@@ -37,13 +36,9 @@ const formFieldSchema = z.object({
 
 const eventFormSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
-  date: z.object(
-    {
-      from: z.date({ required_error: 'A start date is required.' }),
-      to: z.date().optional(),
-    },
-    { required_error: 'Date is required.' }
-  ),
+  dateType: z.enum(['single', 'range']).default('single'),
+  startDate: z.string().min(1, 'Data jest wymagana.'),
+  endDate: z.string().optional(),
   locationTypes: z.array(z.string()).nonempty({ message: 'Proszę wybrać przynajmniej jedną formę wydarzenia.' }),
   locationAddress: z.string().optional(),
   description: z.string().min(1, 'Description is required.'),
@@ -52,6 +47,14 @@ const eventFormSchema = z.object({
   heroImageHint: z.string().optional(),
   formFields: z.array(formFieldSchema),
   isActive: z.boolean(),
+}).refine((data) => {
+    if (data.dateType === 'range' && (!data.endDate || data.endDate.trim() === '')) {
+        return false;
+    }
+    return true;
+}, {
+    message: 'Data końcowa jest wymagana dla zakresu dat.',
+    path: ['endDate'],
 }).refine(data => {
   if (data.locationTypes.includes('On-site') && (!data.locationAddress || data.locationAddress.trim() === '')) {
     return false;
@@ -69,11 +72,16 @@ export function EventForm({ event }: EventFormProps) {
   const { toast } = useToast();
   const router = useRouter();
 
+  const dateParts = event?.date?.split(' - ') ?? [];
+  const isRange = dateParts.length > 1;
+
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: event?.name || '',
-      date: undefined, // User must re-select the date when editing to ensure consistency
+      dateType: isRange ? 'range' : 'single',
+      startDate: dateParts[0] ?? '',
+      endDate: dateParts[1] ?? '',
       locationTypes: event?.location.types || [],
       locationAddress: event?.location.address || '',
       description: event?.description || '',
@@ -91,29 +99,13 @@ export function EventForm({ event }: EventFormProps) {
   });
   
   const watchedLocationTypes = form.watch('locationTypes');
+  const dateType = form.watch('dateType');
 
   const onSubmit = (values: EventFormValues) => {
     startTransition(async () => {
-      // Format date range back to a user-friendly string for storage
-      let dateString = '';
-      if (values.date?.from) {
-        const fromDate = values.date.from;
-        const toDate = values.date.to;
-
-        if (toDate && toDate.getTime() !== fromDate.getTime()) {
-           if (fromDate.getMonth() === toDate.getMonth() && fromDate.getFullYear() === toDate.getFullYear()) {
-             dateString = `${format(fromDate, 'd')} - ${format(toDate, 'd MMMM yyyy', { locale: pl })}`;
-          } else if (fromDate.getFullYear() === toDate.getFullYear()) {
-             dateString = `${format(fromDate, 'd MMMM', { locale: pl })} - ${format(toDate, 'd MMMM yyyy', { locale: pl })}`;
-          } else {
-            dateString = `${format(fromDate, 'd MMMM yyyy', { locale: pl })} - ${format(toDate, 'd MMMM yyyy', { locale: pl })}`;
-          }
-        } else {
-          dateString = format(fromDate, 'd MMMM yyyy', { locale: pl });
-        }
-      }
+      const { dateType, startDate, endDate, locationTypes, locationAddress, ...restOfValues } = values;
+      const dateString = dateType === 'range' && endDate ? `${startDate} - ${endDate}` : startDate;
       
-      const { locationTypes, locationAddress, date, ...restOfValues } = values;
       const submissionData = {
         ...restOfValues,
         date: dateString,
@@ -185,18 +177,84 @@ export function EventForm({ event }: EventFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <FormField
               control={form.control}
-              name="date"
+              name="dateType"
               render={({ field }) => (
-                <FormItem className="flex flex-col pt-2">
-                  <FormLabel>Date *</FormLabel>
-                  <DateRangePicker
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
+                <FormItem className="space-y-3">
+                  <FormLabel>Typ daty *</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex space-x-4"
+                    >
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="single" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Wydarzenie jednodniowe</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl>
+                          <RadioGroupItem value="range" />
+                        </FormControl>
+                        <FormLabel className="font-normal">Wydarzenie kilkudniowe</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            <div className="space-y-2">
+                {dateType === 'single' ? (
+                     <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Data wydarzenia *</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="DD/MM/YYYY" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="startDate"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Data rozpoczęcia *</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="DD/MM/YYYY" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="endDate"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Data zakończenia *</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="DD/MM/YYYY" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                )}
+
+            </div>
+
+
             <FormField
               control={form.control}
               name="locationTypes"
