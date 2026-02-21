@@ -18,8 +18,8 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Edytuj użytkownika</CardTitle>
-        <CardDescription>Modyfikuj dane użytkownika "{user.name}".</CardDescription>
+        <CardTitle>Edit User</CardTitle>
+        <CardDescription>Modify user details for "{user.name}".</CardDescription>
       </CardHeader>
       <CardContent>
         <UserForm user={user} events={events} />

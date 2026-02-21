@@ -37,12 +37,12 @@ const formFieldSchema = z.object({
 const eventFormSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
   dateType: z.enum(['single', 'range']).default('single'),
-  startDate: z.string().min(1, 'Data jest wymagana.'),
+  startDate: z.string().min(1, 'Date is required.'),
   endDate: z.string().optional(),
-  locationTypes: z.array(z.string()).nonempty({ message: 'Proszę wybrać przynajmniej jedną formę wydarzenia.' }),
+  locationTypes: z.array(z.string()).nonempty({ message: 'Please select at least one event format.' }),
   locationAddress: z.string().optional(),
   description: z.string().min(1, 'Description is required.'),
-  rodo: z.string().min(1, 'RODO/Privacy policy is required.'),
+  rodo: z.string().min(1, 'Privacy Policy is required.'),
   heroImageSrc: z.string().url('Hero image source must be a valid URL.'),
   heroImageHint: z.string().optional(),
   formFields: z.array(formFieldSchema),
@@ -53,7 +53,7 @@ const eventFormSchema = z.object({
     }
     return true;
 }, {
-    message: 'Data końcowa jest wymagana dla zakresu dat.',
+    message: 'End date is required for a date range.',
     path: ['endDate'],
 }).refine(data => {
   if (data.locationTypes.includes('On-site') && (!data.locationAddress || data.locationAddress.trim() === '')) {
@@ -61,7 +61,7 @@ const eventFormSchema = z.object({
   }
   return true;
 }, {
-  message: 'Adres jest wymagany dla wydarzeń stacjonarnych.',
+  message: 'Address is required for on-site events.',
   path: ['locationAddress'],
 });
 
@@ -180,7 +180,7 @@ export function EventForm({ event }: EventFormProps) {
               name="dateType"
               render={({ field }) => (
                 <FormItem className="space-y-3">
-                  <FormLabel>Typ daty *</FormLabel>
+                  <FormLabel>Date Type *</FormLabel>
                   <FormControl>
                     <RadioGroup
                       onValueChange={field.onChange}
@@ -191,13 +191,13 @@ export function EventForm({ event }: EventFormProps) {
                         <FormControl>
                           <RadioGroupItem value="single" />
                         </FormControl>
-                        <FormLabel className="font-normal">Wydarzenie jednodniowe</FormLabel>
+                        <FormLabel className="font-normal">Single day event</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
                           <RadioGroupItem value="range" />
                         </FormControl>
-                        <FormLabel className="font-normal">Wydarzenie kilkudniowe</FormLabel>
+                        <FormLabel className="font-normal">Multi-day event</FormLabel>
                       </FormItem>
                     </RadioGroup>
                   </FormControl>
@@ -213,7 +213,7 @@ export function EventForm({ event }: EventFormProps) {
                         name="startDate"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Data wydarzenia *</FormLabel>
+                                <FormLabel>Event Date *</FormLabel>
                                 <FormControl>
                                     <Input placeholder="DD/MM/YYYY" {...field} />
                                 </FormControl>
@@ -228,7 +228,7 @@ export function EventForm({ event }: EventFormProps) {
                             name="startDate"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Data rozpoczęcia *</FormLabel>
+                                    <FormLabel>Start Date *</FormLabel>
                                     <FormControl>
                                         <Input placeholder="DD/MM/YYYY" {...field} />
                                     </FormControl>
@@ -241,7 +241,7 @@ export function EventForm({ event }: EventFormProps) {
                             name="endDate"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Data zakończenia *</FormLabel>
+                                    <FormLabel>End Date *</FormLabel>
                                     <FormControl>
                                         <Input placeholder="DD/MM/YYYY" {...field} />
                                     </FormControl>
@@ -260,7 +260,7 @@ export function EventForm({ event }: EventFormProps) {
               name="locationTypes"
               render={() => (
                 <FormItem>
-                  <FormLabel>Forma wydarzenia *</FormLabel>
+                  <FormLabel>Event Format *</FormLabel>
                   <div className="flex flex-col sm:flex-row gap-4 pt-2">
                     <FormField
                       control={form.control}
@@ -279,7 +279,7 @@ export function EventForm({ event }: EventFormProps) {
                             />
                           </FormControl>
                           <FormLabel className="font-normal">
-                            Wirtualne
+                            Virtual
                           </FormLabel>
                         </FormItem>
                       )}
@@ -301,7 +301,7 @@ export function EventForm({ event }: EventFormProps) {
                             />
                           </FormControl>
                           <FormLabel className="font-normal">
-                            Stacjonarne
+                            On-site
                           </FormLabel>
                         </FormItem>
                       )}
@@ -320,8 +320,8 @@ export function EventForm({ event }: EventFormProps) {
                 name="locationAddress"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Adres wydarzenia stacjonarnego *</FormLabel>
-                        <FormControl><Input placeholder="np. ul. Konferencyjna 12, 00-123 Warszawa" {...field} /></FormControl>
+                        <FormLabel>On-site Event Address *</FormLabel>
+                        <FormControl><Input placeholder="e.g. 123 Conference St, 12345 City" {...field} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -362,8 +362,8 @@ export function EventForm({ event }: EventFormProps) {
         
         <Card>
             <CardHeader>
-                <CardTitle>Pola formularza rejestracyjnego</CardTitle>
-                <CardDescription>Zdefiniuj, jakie dane będą zbierane od uczestników.</CardDescription>
+                <CardTitle>Registration Form Fields</CardTitle>
+                <CardDescription>Define what data will be collected from attendees.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="space-y-4">
@@ -377,7 +377,7 @@ export function EventForm({ event }: EventFormProps) {
                     onClick={() => append({ name: `field_${fields.length}`, label: '', type: 'text', placeholder: '', required: false, options: [] })}
                 >
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    Dodaj pole
+                    Add Field
                 </Button>
             </CardContent>
         </Card>
@@ -387,7 +387,7 @@ export function EventForm({ event }: EventFormProps) {
           name="rodo"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>RODO / Privacy Policy *</FormLabel>
+              <FormLabel>Privacy Policy / GDPR *</FormLabel>
               <FormControl>
                 <Textarea placeholder="Your privacy policy and terms..." className="min-h-[100px]" {...field} />
               </FormControl>
@@ -402,9 +402,9 @@ export function EventForm({ event }: EventFormProps) {
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
               <div className="space-y-0.5">
-                <FormLabel>Wydarzenie aktywne</FormLabel>
+                <FormLabel>Event Active</FormLabel>
                 <FormDescription>
-                  Udostępnij stronę wydarzenia publicznie.
+                  Make the event page public.
                 </FormDescription>
               </div>
               <FormControl>
@@ -420,7 +420,7 @@ export function EventForm({ event }: EventFormProps) {
 
         <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()}>
-                Anuluj
+                Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -460,10 +460,10 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                     name={`formFields.${index}.label`}
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Etykieta</FormLabel>
+                        <FormLabel>Label</FormLabel>
                         <FormControl>
                             <Input
-                                placeholder="np. Imię i nazwisko"
+                                placeholder="e.g. Full Name"
                                 {...field}
                                 onChange={(e) => {
                                     field.onChange(e);
@@ -483,7 +483,7 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                     <FormItem>
                         <FormLabel>Placeholder</FormLabel>
                         <FormControl>
-                        <Input placeholder="np. Jan Kowalski" {...field} />
+                        <Input placeholder="e.g. John Doe" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -500,7 +500,7 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                             <FormControl>
                                 <Switch checked={field.value} onCheckedChange={field.onChange} />
                             </FormControl>
-                            <FormLabel className="cursor-pointer">Wymagane</FormLabel>
+                            <FormLabel className="cursor-pointer">Required</FormLabel>
                         </FormItem>
                     )}
                     />
@@ -521,7 +521,7 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                                 }} defaultValue={field.value}>
                                     <FormControl>
                                         <SelectTrigger className="w-[220px]">
-                                            <SelectValue placeholder="Wybierz typ pola" />
+                                            <SelectValue placeholder="Select field type" />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
@@ -529,9 +529,9 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                                         <SelectItem value="email">Email</SelectItem>
                                         <SelectItem value="tel">Phone</SelectItem>
                                         <SelectItem value="textarea">Textarea</SelectItem>
-                                        <SelectItem value="checkbox">Checkbox (zgoda)</SelectItem>
-                                        <SelectItem value="radio">Lista wyboru (jednokrotny)</SelectItem>
-                                        <SelectItem value="multiple-choice">Lista wyboru (wielokrotny)</SelectItem>
+                                        <SelectItem value="checkbox">Checkbox (agreement)</SelectItem>
+                                        <SelectItem value="radio">Single Choice (Radio)</SelectItem>
+                                        <SelectItem value="multiple-choice">Multiple Choice (Checkbox)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </FormItem>
@@ -547,14 +547,14 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
             </div>
             {(fieldType === 'radio' || fieldType === 'multiple-choice') && (
                 <div className="mt-4 space-y-3">
-                    <FormLabel>Opcje wyboru</FormLabel>
+                    <FormLabel>Choice Options</FormLabel>
                     {options.map((option, optionIndex) => (
                         <div key={option.id} className="flex items-center gap-2">
                              <FormField
                                 control={form.control}
                                 name={`formFields.${index}.options.${optionIndex}`}
                                 render={({ field }) => (
-                                    <Input {...field} placeholder={`Opcja ${optionIndex + 1}`} />
+                                    <Input {...field} placeholder={`Option ${optionIndex + 1}`} />
                                 )}
                             />
                             <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(optionIndex)}>
@@ -564,7 +564,7 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                     ))}
                     <Button type="button" variant="outline" size="sm" onClick={() => appendOption('')}>
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        Dodaj opcję
+                        Add Option
                     </Button>
                 </div>
             )}

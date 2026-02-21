@@ -4,13 +4,13 @@ export default function RegistrationsPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Rejestracje</CardTitle>
-        <CardDescription>Przeglądaj i zarządzaj rejestracjami na wydarzenia.</CardDescription>
+        <CardTitle>Registrations</CardTitle>
+        <CardDescription>View and manage event registrations.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="text-center py-12 text-muted-foreground">
-            <p>Ta funkcja jest w budowie.</p>
-            <p className="text-sm">Wkrótce będzie można tutaj przeglądać listę uczestników.</p>
+            <p>This feature is under construction.</p>
+            <p className="text-sm">You will soon be able to view the list of participants here.</p>
         </div>
       </CardContent>
     </Card>

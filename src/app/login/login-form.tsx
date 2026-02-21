@@ -27,7 +27,7 @@ function SubmitButton() {
   return (
     <Button className="w-full" type="submit" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      {pending ? 'Logowanie...' : 'Zaloguj się'}
+      {pending ? 'Logging in...' : 'Log in'}
     </Button>
   );
 }
@@ -43,7 +43,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: 'Skopiowano do schowka!' });
+    toast({ title: 'Copied to clipboard!' });
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
   };
@@ -52,17 +52,17 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-secondary p-4">
        <Link href="/" className="flex items-center gap-2 absolute top-8 left-8">
         <TicketPercent className="h-6 w-6 text-primary" />
-        <span className="text-lg font-semibold">Platforma Rejestracji</span>
+        <span className="text-lg font-semibold">Event Registration Platform</span>
       </Link>
       
       <Card className="w-full max-w-sm shadow-xl">
         <form action={formAction}>
           <CardHeader>
             <CardTitle className="text-center text-2xl font-headline">
-              Panel Administracyjny
+              Admin Panel
             </CardTitle>
             <CardDescription className="text-center">
-              Zaloguj się, aby zarządzać wydarzeniami
+              Log in to manage your events
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -75,7 +75,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Adres email</Label>
+              <Label htmlFor="email">Email address</Label>
               <Input
                 id="email"
                 name="email"
@@ -85,7 +85,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Hasło</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 name="password"
@@ -104,10 +104,10 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
       <Card className="w-full max-w-sm shadow-xl">
         <CardHeader>
           <CardTitle className="text-lg font-headline">
-            Dane do logowania (demo)
+            Demo Login Credentials
           </CardTitle>
           <CardDescription>
-            Użyj poniższych danych, by zalogować się na potrzeby prezentacji.
+            Use the credentials below for demonstration purposes.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
@@ -127,7 +127,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                     </div>
                     {user.password && (
                         <div className="flex justify-between items-center mt-1">
-                            <p className="font-semibold">Hasło: <span className='font-mono'>{user.password}</span></p>
+                            <p className="font-semibold">Password: <span className='font-mono'>{user.password}</span></p>
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(user.password!, `password-${index}`)}>
                                 {copiedKey === `password-${index}` ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                             </Button>

@@ -27,7 +27,7 @@ export function SiteHeader({ user }: SiteHeaderProps) {
           <nav>
             {isLoggedIn && (
               <Button variant="ghost" asChild>
-                <Link href="/admin">Wróć do panelu</Link>
+                <Link href="/admin">Back to Panel</Link>
               </Button>
             )}
           </nav>

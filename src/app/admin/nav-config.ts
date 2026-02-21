@@ -9,10 +9,10 @@ export type NavItem = {
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/admin', icon: 'CalendarDays', label: 'Wydarzenia' },
-  { href: '/admin/registrations', icon: 'Users', label: 'Rejestracje' },
-  { href: '/admin/users', icon: 'UserCog', label: 'Użytkownicy', adminOnly: true },
-  { href: '/admin/account', icon: 'Settings', label: 'Ustawienia konta', organizerOnly: true },
+  { href: '/admin', icon: 'CalendarDays', label: 'Events' },
+  { href: '/admin/registrations', icon: 'Users', label: 'Registrations' },
+  { href: '/admin/users', icon: 'UserCog', label: 'Users', adminOnly: true },
+  { href: '/admin/account', icon: 'Settings', label: 'Account Settings', organizerOnly: true },
 ];
 
 export const iconMap: { [key: string]: LucideIcon } = {

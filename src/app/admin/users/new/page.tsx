@@ -7,8 +7,8 @@ export default async function NewUserPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Dodaj nowego użytkownika</CardTitle>
-        <CardDescription>Wprowadź dane, aby utworzyć nowe konto.</CardDescription>
+        <CardTitle>Add New User</CardTitle>
+        <CardDescription>Enter the details to create a new account.</CardDescription>
       </CardHeader>
       <CardContent>
         <UserForm events={events} />

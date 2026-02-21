@@ -6,10 +6,10 @@ import { createUser, deleteUser, updateUser } from '@/lib/data';
 import type { User } from '@/lib/types';
 
 const userSchema = z.object({
-  name: z.string().min(3, 'Imię i nazwisko musi mieć co najmniej 3 znaki.'),
-  email: z.string().email('Nieprawidłowy adres email.'),
-  password: z.string().min(6, 'Hasło musi mieć co najmniej 6 znaków.').optional().or(z.literal('')),
-  role: z.enum(['Administrator', 'Organizator']),
+  name: z.string().min(3, 'Name must be at least 3 characters.'),
+  email: z.string().email('Invalid email address.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.').optional().or(z.literal('')),
+  role: z.enum(['Administrator', 'Organizer']),
   assignedEvents: z.array(z.string()).default([]),
 });
 
@@ -35,7 +35,7 @@ export async function createUserAction(prevState: any, formData: FormData) {
   if (!validated.data.password) {
      return {
       success: false,
-      errors: { password: ['Hasło jest wymagane dla nowego użytkownika.'] },
+      errors: { password: ['Password is required for a new user.'] },
     };
   }
 
@@ -94,11 +94,11 @@ export async function deleteUserAction(id: string) {
   try {
     await deleteUser(id);
     revalidatePath('/admin/users');
-    return { success: true, message: 'Użytkownik pomyślnie usunięty.' };
+    return { success: true, message: 'User deleted successfully.' };
   } catch (error) {
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Wystąpił nieznany błąd.',
+      message: error instanceof Error ? error.message : 'An unknown error occurred.',
     };
   }
 }

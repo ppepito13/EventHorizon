@@ -1,7 +1,7 @@
 [
   {
     "id": "usr_admin",
-    "name": "Jan Kowalski",
+    "name": "Admin User",
     "email": "admin@example.com",
     "role": "Administrator",
     "assignedEvents": [
@@ -11,9 +11,9 @@
   },
   {
     "id": "usr_organizer1",
-    "name": "Anna Nowak",
+    "name": "Anna Smith",
     "email": "organizer1@example.com",
-    "role": "Organizator",
+    "role": "Organizer",
     "assignedEvents": [
       "Tech Summit 2026",
       "Creative Design Workshop"
@@ -22,9 +22,9 @@
   },
   {
     "id": "usr_organizer2",
-    "name": "Piotr Wiśniewski",
+    "name": "Peter Jones",
     "email": "organizer2@example.com",
-    "role": "Organizator",
+    "role": "Organizer",
     "assignedEvents": [
       "Summer Music Fest 2026"
     ],
@@ -33,7 +33,7 @@
   {
     "name": "John Doe",
     "email": "john.doe@example.com",
-    "role": "Organizator",
+    "role": "Organizer",
     "assignedEvents": [
       "Creative Design Workshop"
     ],

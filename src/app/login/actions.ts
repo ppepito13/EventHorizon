@@ -21,7 +21,7 @@ export async function login(prevState: { error: string } | undefined, formData: 
 
   if (!validatedFields.success) {
     return {
-      error: "Nieprawidłowy email lub hasło.",
+      error: "Invalid email or password.",
     };
   }
 
@@ -31,7 +31,7 @@ export async function login(prevState: { error: string } | undefined, formData: 
     const user = await getUserByEmail(email);
 
     if (!user || user.password !== password) {
-      return { error: 'Nieprawidłowy email lub hasło.' };
+      return { error: 'Invalid email or password.' };
     }
 
     // Set session by writing to file
@@ -41,7 +41,7 @@ export async function login(prevState: { error: string } | undefined, formData: 
 
   } catch (error) {
     console.error(error);
-    return { error: 'Wystąpił błąd serwera. Spróbuj ponownie.' };
+    return { error: 'A server error occurred. Please try again.' };
   }
   
   redirect('/admin');

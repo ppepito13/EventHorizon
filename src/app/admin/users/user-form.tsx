@@ -17,10 +17,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 
 const userFormSchema = z.object({
-  name: z.string().min(3, 'Imię i nazwisko musi mieć co najmniej 3 znaki.'),
-  email: z.string().email('Nieprawidłowy adres email.'),
-  password: z.string().min(6, 'Hasło musi mieć co najmniej 6 znaków.').or(z.literal('')).optional(),
-  role: z.enum(['Administrator', 'Organizator'], { required_error: 'Rola jest wymagana.' }),
+  name: z.string().min(3, 'Name must be at least 3 characters.'),
+  email: z.string().email('Invalid email address.'),
+  password: z.string().min(6, 'Password must be at least 6 characters.').or(z.literal('')).optional(),
+  role: z.enum(['Administrator', 'Organizer'], { required_error: 'Role is required.' }),
   assignedEvents: z.array(z.string()).default([]),
 });
 
@@ -50,7 +50,7 @@ export function UserForm({ user, events }: UserFormProps) {
       name: user?.name || '',
       email: user?.email || '',
       password: '',
-      role: user?.role || 'Organizator',
+      role: user?.role || 'Organizer',
       assignedEvents: user?.assignedEvents || [],
     },
   });
@@ -59,7 +59,7 @@ export function UserForm({ user, events }: UserFormProps) {
 
   useEffect(() => {
     if (state.success) {
-      toast({ title: 'Sukces!', description: `Użytkownik został ${user ? 'zaktualizowany' : 'utworzony'}.` });
+      toast({ title: 'Success!', description: `User has been ${user ? 'updated' : 'created'}.` });
       router.push('/admin/users');
       router.refresh();
     } else if (Object.keys(state.errors).length > 0) {
@@ -103,9 +103,9 @@ export function UserForm({ user, events }: UserFormProps) {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Imię i nazwisko *</FormLabel>
+              <FormLabel>Full Name *</FormLabel>
               <FormControl>
-                <Input placeholder="Jan Kowalski" {...field} />
+                <Input placeholder="John Doe" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -116,9 +116,9 @@ export function UserForm({ user, events }: UserFormProps) {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Adres email *</FormLabel>
+              <FormLabel>Email Address *</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="jan.kowalski@example.com" {...field} />
+                <Input type="email" placeholder="john.doe@example.com" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -129,12 +129,12 @@ export function UserForm({ user, events }: UserFormProps) {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Hasło {user && '(pozostaw puste, aby nie zmieniać)'}</FormLabel>
+              <FormLabel>Password {user && '(leave blank to keep current)'}</FormLabel>
               <FormControl>
                 <Input type="password" {...field} value={field.value ?? ''} />
               </FormControl>
                <FormDescription>
-                {user ? 'Wprowadź nowe hasło, aby je zaktualizować.' : 'Hasło musi mieć co najmniej 6 znaków.'}
+                {user ? 'Enter a new password to update it.' : 'Password must be at least 6 characters.'}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -145,35 +145,35 @@ export function UserForm({ user, events }: UserFormProps) {
           name="role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Rola *</FormLabel>
+              <FormLabel>Role *</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Wybierz rolę" />
+                    <SelectValue placeholder="Select a role" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="Administrator">Administrator</SelectItem>
-                  <SelectItem value="Organizator">Organizator wydarzenia</SelectItem>
+                  <SelectItem value="Organizer">Event Organizer</SelectItem>
                 </SelectContent>
               </Select>
               <FormDescription>
-                {field.value === 'Administrator' ? 'Dostęp do wszystkich sekcji i wydarzeń.' : 'Dostęp tylko do przypisanych wydarzeń.'}
+                {field.value === 'Administrator' ? 'Access to all sections and events.' : 'Access only to assigned events.'}
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        {role === 'Organizator' && (
+        {role === 'Organizer' && (
           <FormField
             control={form.control}
             name="assignedEvents"
             render={() => (
               <FormItem>
                 <div className="mb-4">
-                  <FormLabel>Przypisane wydarzenia</FormLabel>
+                  <FormLabel>Assigned Events</FormLabel>
                   <FormDescription>
-                    Wybierz wydarzenia, do których użytkownik będzie miał dostęp.
+                    Select events the user will have access to.
                   </FormDescription>
                 </div>
                 {events.map((event) => (
@@ -215,11 +215,11 @@ export function UserForm({ user, events }: UserFormProps) {
         )}
         <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => router.back()}>
-                Anuluj
+                Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {user ? 'Zapisz zmiany' : 'Dodaj użytkownika'}
+                {user ? 'Save Changes' : 'Add User'}
             </Button>
         </div>
       </form>

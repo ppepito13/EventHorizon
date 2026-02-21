@@ -20,7 +20,7 @@ function SubmitButton() {
   return (
     <Button type="submit" disabled={pending}>
       {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Zmień hasło
+      Change Password
     </Button>
   );
 }
@@ -32,8 +32,8 @@ export function ChangePasswordForm({ userId }: ChangePasswordFormProps) {
   useEffect(() => {
     if (state?.success) {
       toast({
-        title: 'Sukces!',
-        description: 'Twoje hasło zostało zmienione.',
+        title: 'Success!',
+        description: 'Your password has been changed.',
       });
       // Optionally reset form here
     }
@@ -44,26 +44,26 @@ export function ChangePasswordForm({ userId }: ChangePasswordFormProps) {
       {state?.error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Błąd</AlertTitle>
+          <AlertTitle>Error</AlertTitle>
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       )}
        {state?.success && (
         <Alert variant="default" className='border-green-500 text-green-700'>
-          <AlertTitle>Sukces</AlertTitle>
-          <AlertDescription>Hasło zostało pomyślnie zaktualizowane.</AlertDescription>
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription>Password updated successfully.</AlertDescription>
         </Alert>
       )}
       <div className="space-y-2">
-        <Label htmlFor="currentPassword">Aktualne hasło</Label>
+        <Label htmlFor="currentPassword">Current Password</Label>
         <Input name="currentPassword" id="currentPassword" type="password" required />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="newPassword">Nowe hasło</Label>
+        <Label htmlFor="newPassword">New Password</Label>
         <Input name="newPassword" id="newPassword" type="password" required />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Potwierdź nowe hasło</Label>
+        <Label htmlFor="confirmPassword">Confirm New Password</Label>
         <Input name="confirmPassword" id="confirmPassword" type="password" required />
       </div>
       <SubmitButton />

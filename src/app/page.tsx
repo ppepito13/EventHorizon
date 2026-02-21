@@ -42,7 +42,7 @@ function EventCard({ event }: { event: Event }) {
       <div className="p-6 pt-0">
         <Button asChild className="w-full" style={{ backgroundColor: event.themeColor }}>
           <Link href={`/events/${event.slug}`}>
-            Zobacz szczegóły i zarejestruj się
+            View Details & Register
           </Link>
         </Button>
       </div>
@@ -66,18 +66,18 @@ export default async function Home() {
           <div className="container relative z-10 text-center text-primary-foreground">
             <div className="inline-block bg-white/10 text-xs font-semibold px-4 py-1 rounded-full mb-4">
               <MonitorSmartphone className="w-3 h-3 inline-block mr-2" />
-              Platforma rejestracji na wydarzenia
+              Event Registration Platform
             </div>
             <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-bold max-w-4xl mx-auto">
-              System rejestracji wydarzeń
+              Event Registration System
             </h1>
             <p className="mt-4 text-lg text-primary-foreground/80 max-w-2xl mx-auto">
-              Dedykowane strony dla każdego wydarzenia z możliwością pełnego zarządzania
+              Dedicated pages for each event with full management capabilities
             </p>
             <Button asChild size="lg" className="mt-8 bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-base px-8 py-6">
               <Link href="/login">
                 <Users className="w-5 h-5 mr-2" />
-                Panel administracyjny
+                Admin Panel
               </Link>
             </Button>
           </div>
@@ -100,7 +100,7 @@ export default async function Home() {
         <section className="py-16 md:py-24 bg-background">
           <div className="container">
             <h2 className="text-3xl font-headline font-bold text-center mb-12">
-              Aktywne wydarzenia
+              Active Events
             </h2>
             {events.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -110,8 +110,8 @@ export default async function Home() {
               </div>
             ) : (
               <div className="text-center text-muted-foreground py-16">
-                <h3 className="text-2xl font-headline mb-2">Brak aktywnych wydarzeń</h3>
-                <p>Obecnie nie ma żadnych aktywnych wydarzeń. Sprawdź ponownie później!</p>
+                <h3 className="text-2xl font-headline mb-2">No Active Events</h3>
+                <p>There are currently no active events. Please check back later!</p>
               </div>
             )}
           </div>

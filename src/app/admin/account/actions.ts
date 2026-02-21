@@ -5,11 +5,11 @@ import { getUserById, updateUser } from '@/lib/data';
 import { revalidatePath } from 'next/cache';
 
 const passwordSchema = z.object({
-    currentPassword: z.string().min(1, "Aktualne hasło jest wymagane."),
-    newPassword: z.string().min(6, "Nowe hasło musi mieć co najmniej 6 znaków."),
+    currentPassword: z.string().min(1, "Current password is required."),
+    newPassword: z.string().min(6, "New password must be at least 6 characters."),
     confirmPassword: z.string(),
   }).refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Nowe hasła nie pasują do siebie.",
+    message: "New passwords do not match.",
     path: ["confirmPassword"],
 });
 
@@ -27,7 +27,7 @@ export async function changePasswordAction(
     const fieldErrors = validatedFields.error.flatten().fieldErrors;
     const firstError = Object.values(fieldErrors)[0]?.[0];
     return {
-      error: firstError || "Nieprawidłowe dane.",
+      error: firstError || "Invalid data.",
     };
   }
 
@@ -37,11 +37,11 @@ export async function changePasswordAction(
     const user = await getUserById(userId);
 
     if (!user) {
-      return { error: 'Nie znaleziono użytkownika.' };
+      return { error: 'User not found.' };
     }
     
     if (user.password !== currentPassword) {
-      return { error: 'Aktualne hasło jest nieprawidłowe.' };
+      return { error: 'Current password is incorrect.' };
     }
 
     await updateUser(userId, { password: newPassword });
@@ -51,6 +51,6 @@ export async function changePasswordAction(
 
   } catch (error) {
     console.error(error);
-    return { error: 'Wystąpił błąd serwera. Spróbuj ponownie.' };
+    return { error: 'A server error occurred. Please try again.' };
   }
 }

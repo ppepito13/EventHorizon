@@ -25,27 +25,27 @@ export default async function AdminDashboardPage() {
     <>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Wydarzenia</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Events</h1>
           <p className="text-muted-foreground">
-            Zarządzaj wydarzeniami i przeglądaj ich status.
+            Manage your events and view their status.
           </p>
         </div>
         {user.role === 'Administrator' && (
           <Button asChild>
             <Link href="/admin/events/new">
               <PlusCircle className="mr-2 h-4 w-4" />
-              Nowe wydarzenie
+              New Event
             </Link>
           </Button>
         )}
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Wszystkie wydarzenia</CardTitle>
+          <CardTitle>All Events</CardTitle>
           <CardDescription>
             {user.role === 'Administrator' 
-              ? "Ustaw wydarzenie jako aktywne, aby wyświetlić je na stronie głównej."
-              : "Poniżej znajduje się lista wydarzeń, do których masz dostęp."
+              ? "Set an event as active to display it on the homepage."
+              : "Below is a list of events you have access to."
             }
           </CardDescription>
         </CardHeader>

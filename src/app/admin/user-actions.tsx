@@ -12,12 +12,12 @@ export function UserActions({ user }: UserActionsProps) {
   return (
     <div className="flex items-center gap-4">
       <span className="text-sm text-muted-foreground hidden sm:inline-block">
-        Witaj, <span className="font-semibold">{user.name}</span>!
+        Welcome, <span className="font-semibold">{user.name}</span>!
       </span>
       <Button variant="outline" size="sm" asChild>
         <Link href="/">
           <Home className="h-4 w-4 mr-2" />
-          Strona główna
+          Homepage
         </Link>
       </Button>
       <a
@@ -25,7 +25,7 @@ export function UserActions({ user }: UserActionsProps) {
         className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
       >
         <LogOut className="h-4 w-4 mr-2" />
-        Wyloguj
+        Log out
       </a>
     </div>
   );

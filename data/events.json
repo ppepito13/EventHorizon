@@ -4,7 +4,7 @@
     "id": "clxsb7ncr000008l5heefd3jb",
     "name": "Tech Summit 2026",
     "slug": "tech-summit-2026",
-    "date": "15 marca 2026",
+    "date": "March 15, 2026",
     "location": {
       "types": ["Virtual"],
       "address": ""
@@ -38,7 +38,7 @@
     "id": "dlysb7ncr000008l5heefd3jd",
     "name": "Summer Music Fest 2026",
     "slug": "summer-music-fest-2026",
-    "date": "20 lipca 2026",
+    "date": "July 20, 2026",
     "location": {
       "types": ["Virtual"],
       "address": ""
@@ -72,7 +72,7 @@
     "id": "elysb7ncr000008l5heefd3je",
     "name": "Creative Design Workshop",
     "slug": "creative-design-workshop",
-    "date": "12 kwietnia 2026",
+    "date": "April 12, 2026",
     "location": {
       "types": ["Virtual"],
       "address": ""

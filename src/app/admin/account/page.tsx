@@ -20,9 +20,9 @@ export default async function AccountPage() {
     <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Ustawienia konta</CardTitle>
+          <CardTitle>Account Settings</CardTitle>
           <CardDescription>
-            Zarządzaj ustawieniami swojego konta.
+            Manage your account settings.
           </CardDescription>
         </CardHeader>
         <CardContent>

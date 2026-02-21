@@ -41,6 +41,15 @@ interface EventsTableProps {
   userRole: User['role'];
 }
 
+function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address?: string }) {
+    if (!location || !location.types) return 'N/A';
+    let locationString = location.types.join(' & ');
+    if (location.types.includes('On-site') && location.address) {
+        locationString += ` - ${location.address}`;
+    }
+    return locationString;
+}
+
 export function EventsTable({ events, userRole }: EventsTableProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -126,7 +135,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
                 </TableCell>
                 <TableCell className="font-medium">{event.name}</TableCell>
                 <TableCell>{event.date}</TableCell>
-                <TableCell>{event.location}</TableCell>
+                <TableCell>{formatLocation(event.location)}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <Tooltip>

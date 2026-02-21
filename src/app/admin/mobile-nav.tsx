@@ -29,7 +29,7 @@ export function MobileNav({ navItems }: MobileNavProps) {
                 <nav className="grid gap-2 text-lg font-medium">
                     <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
                         <TicketPercent className="h-6 w-6 text-primary" />
-                        <span className="">Panel Admina</span>
+                        <span className="">Admin Panel</span>
                     </Link>
                     {navItems.map(({ href, icon, label }) => {
                         const Icon = iconMap[icon];

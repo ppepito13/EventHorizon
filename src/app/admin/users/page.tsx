@@ -18,23 +18,23 @@ export default async function UsersPage() {
     <>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Użytkownicy</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Users</h1>
           <p className="text-muted-foreground">
-            Zarządzaj użytkownikami i ich uprawnieniami.
+            Manage users and their permissions.
           </p>
         </div>
         <Button asChild>
           <Link href="/admin/users/new">
             <PlusCircle className="mr-2 h-4 w-4" />
-            Dodaj użytkownika
+            Add User
           </Link>
         </Button>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Wszyscy użytkownicy</CardTitle>
+          <CardTitle>All Users</CardTitle>
           <CardDescription>
-            Przeglądaj, edytuj i usuwaj użytkowników systemu.
+            View, edit, and delete system users.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -20,7 +20,7 @@ interface EventPageProps {
 export const dynamic = 'force-dynamic';
 
 function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address?: string }) {
-    const typeLabels = location.types.map(t => t === 'Virtual' ? 'Wirtualne' : 'Stacjonarne');
+    const typeLabels = location.types.map(t => t === 'Virtual' ? 'Virtual' : 'On-site');
     let locationString = typeLabels.join(' & ');
     if (location.types.includes('On-site') && location.address) {
         locationString += ` - ${location.address}`;

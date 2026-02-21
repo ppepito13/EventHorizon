@@ -75,10 +75,10 @@ export function UsersTable({ users }: UsersTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Użytkownik</TableHead>
-              <TableHead>Rola</TableHead>
-              <TableHead>Dostęp do wydarzeń</TableHead>
-              <TableHead className="text-right w-[150px]">Akcje</TableHead>
+              <TableHead>User</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Event Access</TableHead>
+              <TableHead className="text-right w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -114,7 +114,7 @@ export function UsersTable({ users }: UsersTableProps) {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Edytuj użytkownika</p>
+                        <p>Edit User</p>
                       </TooltipContent>
                     </Tooltip>
                     
@@ -126,13 +126,13 @@ export function UsersTable({ users }: UsersTableProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Akcje</DropdownMenuLabel>
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => openDeleteDialog(user.id)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          Usuń
+                          Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -146,16 +146,16 @@ export function UsersTable({ users }: UsersTableProps) {
       <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Jesteś pewien?</AlertDialogTitle>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tej akcji nie można cofnąć. Użytkownik zostanie usunięty na stałe.
+              This action cannot be undone. This will permanently delete the user.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Kontynuuj
+              Continue
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
