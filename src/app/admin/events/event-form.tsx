@@ -430,7 +430,7 @@ export function EventForm({ event }: EventFormProps) {
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>On-site Event Address *</FormLabel>
-                        <FormControl><Input placeholder="e.g. 123 Conference St, 12345 City" {...field} /></FormControl>
+                        <FormControl><Input placeholder="Wersalska 6, 91-203 Łódź" {...field} value={field.value ?? ''} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
