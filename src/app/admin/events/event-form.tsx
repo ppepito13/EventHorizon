@@ -5,8 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
+import { pl } from 'date-fns/locale';
 
-import type { Event, FormField as FormFieldType } from '@/lib/types';
+import type { Event } from '@/lib/types';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +20,7 @@ import { createEventAction, updateEventAction } from '../actions';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 
 interface EventFormProps {
   event?: Event;
@@ -34,7 +37,13 @@ const formFieldSchema = z.object({
 
 const eventFormSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
-  date: z.string().min(1, 'Date is required.'),
+  date: z.object(
+    {
+      from: z.date({ required_error: 'A start date is required.' }),
+      to: z.date().optional(),
+    },
+    { required_error: 'Date is required.' }
+  ),
   locationTypes: z.array(z.string()).nonempty({ message: 'Proszę wybrać przynajmniej jedną formę wydarzenia.' }),
   locationAddress: z.string().optional(),
   description: z.string().min(1, 'Description is required.'),
@@ -55,17 +64,6 @@ const eventFormSchema = z.object({
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
-const generateFieldName = (label: string) => {
-  return label
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "_")
-    .replace(/-/g, "_");
-};
-
 export function EventForm({ event }: EventFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
@@ -75,7 +73,7 @@ export function EventForm({ event }: EventFormProps) {
     resolver: zodResolver(eventFormSchema),
     defaultValues: {
       name: event?.name || '',
-      date: event?.date || '',
+      date: undefined, // User must re-select the date when editing to ensure consistency
       locationTypes: event?.location.types || [],
       locationAddress: event?.location.address || '',
       description: event?.description || '',
@@ -96,9 +94,29 @@ export function EventForm({ event }: EventFormProps) {
 
   const onSubmit = (values: EventFormValues) => {
     startTransition(async () => {
-      const { locationTypes, locationAddress, ...restOfValues } = values;
+      // Format date range back to a user-friendly string for storage
+      let dateString = '';
+      if (values.date?.from) {
+        const fromDate = values.date.from;
+        const toDate = values.date.to;
+
+        if (toDate && toDate.getTime() !== fromDate.getTime()) {
+           if (fromDate.getMonth() === toDate.getMonth() && fromDate.getFullYear() === toDate.getFullYear()) {
+             dateString = `${format(fromDate, 'd')} - ${format(toDate, 'd MMMM yyyy', { locale: pl })}`;
+          } else if (fromDate.getFullYear() === toDate.getFullYear()) {
+             dateString = `${format(fromDate, 'd MMMM', { locale: pl })} - ${format(toDate, 'd MMMM yyyy', { locale: pl })}`;
+          } else {
+            dateString = `${format(fromDate, 'd MMMM yyyy', { locale: pl })} - ${format(toDate, 'd MMMM yyyy', { locale: pl })}`;
+          }
+        } else {
+          dateString = format(fromDate, 'd MMMM yyyy', { locale: pl });
+        }
+      }
+      
+      const { locationTypes, locationAddress, date, ...restOfValues } = values;
       const submissionData = {
         ...restOfValues,
+        date: dateString,
         location: JSON.stringify({ types: locationTypes, address: locationAddress }),
         formFields: JSON.stringify(values.formFields, null, 2),
         isActive: String(values.isActive),
@@ -166,17 +184,18 @@ export function EventForm({ event }: EventFormProps) {
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <FormField
-            control={form.control}
-            name="date"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Date *</FormLabel>
-                <FormControl>
-                    <Input placeholder="October 26-28, 2026" {...field} />
-                </FormControl>
-                <FormMessage />
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem className="flex flex-col pt-2">
+                  <FormLabel>Date *</FormLabel>
+                  <DateRangePicker
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                  <FormMessage />
                 </FormItem>
-            )}
+              )}
             />
             <FormField
               control={form.control}
