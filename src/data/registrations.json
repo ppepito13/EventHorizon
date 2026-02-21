@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "eventId": "clxsb7ncr000008l5heefd3jb",
+    "eventName": "Tech Summit 2026",
+    "formData": {
+      "fullName": "John Doe",
+      "email": "john.doe@example.com",
+      "rodo": true
+    },
+    "id": "reg_682e508e-c3c1-4207-a697-bb87c0ab7ace",
+    "registrationDate": "2026-02-21T14:08:05.169Z"
+  }
+]

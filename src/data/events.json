@@ -3,7 +3,7 @@
     "id": "clxsb7ncr000008l5heefd3jb",
     "name": "Tech Summit 2026",
     "slug": "tech-summit-2026",
-    "date": "01/01/2020",
+    "date": "15/03/2026",
     "location": {
       "types": [
         "Virtual"
@@ -17,7 +17,7 @@
     },
     "formFields": [
       {
-        "name": "fullName",
+        "name": "full_name",
         "label": "Full Name",
         "type": "text",
         "placeholder": "John Doe",
@@ -55,18 +55,20 @@
     },
     "formFields": [
       {
-        "name": "fullName",
+        "name": "full_name",
         "label": "Full Name",
         "type": "text",
         "placeholder": "Jane Doe",
-        "required": true
+        "required": true,
+        "options": []
       },
       {
         "name": "email",
         "label": "Email Address",
         "type": "email",
         "placeholder": "jane.doe@example.com",
-        "required": true
+        "required": true,
+        "options": []
       }
     ],
     "rodo": "By signing up, you agree to our terms of service and privacy policy.",
@@ -91,18 +93,59 @@
     },
     "formFields": [
       {
-        "name": "fullName",
+        "name": "full_name",
         "label": "Full Name",
         "type": "text",
         "placeholder": "Alex Smith",
-        "required": true
+        "required": true,
+        "options": []
       },
       {
         "name": "email",
         "label": "Email Address",
         "type": "email",
         "placeholder": "alex.smith@example.com",
-        "required": true
+        "required": true,
+        "options": []
+      },
+      {
+        "name": "phone_number",
+        "label": "Phone Number",
+        "type": "tel",
+        "placeholder": "+1 234 567 890",
+        "required": false,
+        "options": []
+      },
+      {
+        "name": "experience_level",
+        "label": "Experience Level",
+        "type": "radio",
+        "required": true,
+        "options": [
+          "Beginner",
+          "Intermediate",
+          "Advanced"
+        ]
+      },
+      {
+        "name": "areas_of_interest",
+        "label": "Areas of Interest",
+        "type": "multiple-choice",
+        "required": true,
+        "options": [
+          "UI Design",
+          "UX Research",
+          "Prototyping",
+          "Graphic Design"
+        ]
+      },
+      {
+        "name": "portfolio_url",
+        "label": "Portfolio URL",
+        "type": "text",
+        "placeholder": "https://yourportfolio.com",
+        "required": false,
+        "options": []
       }
     ],
     "rodo": "By registering, you agree to our terms of service and privacy policy.",
