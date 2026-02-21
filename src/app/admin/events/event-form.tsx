@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -131,8 +130,8 @@ export function EventForm({ event }: EventFormProps) {
     defaultValues: {
       name: event?.name || '',
       dateType: isRange ? 'range' : 'single',
-      startDate: dateParts[0] ?? '',
-      endDate: dateParts[1] ?? '',
+      startDate: '',
+      endDate: '',
       locationTypes: event?.location.types || [],
       locationAddress: event?.location.address || '',
       description: event?.description || '',
@@ -266,7 +265,10 @@ export function EventForm({ event }: EventFormProps) {
                         name="startDate"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Event Date *</FormLabel>
+                                <FormLabel>
+                                  Event Date *
+                                  {event?.date && !isRange && <span className="text-muted-foreground font-normal ml-2">(current: {event.date})</span>}
+                                </FormLabel>
                                 <FormControl>
                                     <Input placeholder="DD/MM/YYYY" {...field} />
                                 </FormControl>
@@ -281,7 +283,10 @@ export function EventForm({ event }: EventFormProps) {
                             name="startDate"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Start Date *</FormLabel>
+                                    <FormLabel>
+                                      Start Date *
+                                      {event?.date && isRange && <span className="text-muted-foreground font-normal ml-2">(current: {dateParts[0]})</span>}
+                                    </FormLabel>
                                     <FormControl>
                                         <Input placeholder="DD/MM/YYYY" {...field} />
                                     </FormControl>
@@ -294,7 +299,10 @@ export function EventForm({ event }: EventFormProps) {
                             name="endDate"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>End Date *</FormLabel>
+                                    <FormLabel>
+                                      End Date *
+                                      {event?.date && isRange && <span className="text-muted-foreground font-normal ml-2">(current: {dateParts[1]})</span>}
+                                    </FormLabel>
                                     <FormControl>
                                         <Input placeholder="DD/MM/YYYY" {...field} />
                                     </FormControl>
@@ -624,5 +632,3 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
         </Card>
     );
 }
-
-    
