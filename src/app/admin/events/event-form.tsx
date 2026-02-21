@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { createEventAction, updateEventAction } from '../actions';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
@@ -25,21 +26,31 @@ interface EventFormProps {
 const formFieldSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   label: z.string().min(1, 'Label is required.'),
-  type: z.enum(['text', 'email', 'tel', 'checkbox', 'textarea']),
+  type: z.enum(['text', 'email', 'tel', 'checkbox', 'textarea', 'radio', 'multiple-choice']),
   placeholder: z.string().optional(),
   required: z.boolean(),
+  options: z.array(z.string()).optional(),
 });
 
 const eventFormSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
   date: z.string().min(1, 'Date is required.'),
-  location: z.string().min(1, 'Location is required.'),
+  locationTypes: z.array(z.string()).nonempty({ message: 'Proszę wybrać przynajmniej jedną formę wydarzenia.' }),
+  locationAddress: z.string().optional(),
   description: z.string().min(1, 'Description is required.'),
   rodo: z.string().min(1, 'RODO/Privacy policy is required.'),
   heroImageSrc: z.string().url('Hero image source must be a valid URL.'),
   heroImageHint: z.string().optional(),
   formFields: z.array(formFieldSchema),
   isActive: z.boolean(),
+}).refine(data => {
+  if (data.locationTypes.includes('On-site') && (!data.locationAddress || data.locationAddress.trim() === '')) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Adres jest wymagany dla wydarzeń stacjonarnych.',
+  path: ['locationAddress'],
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -65,7 +76,8 @@ export function EventForm({ event }: EventFormProps) {
     defaultValues: {
       name: event?.name || '',
       date: event?.date || '',
-      location: event?.location || '',
+      locationTypes: event?.location.types || [],
+      locationAddress: event?.location.address || '',
       description: event?.description || '',
       rodo: event?.rodo || '',
       heroImageSrc: event?.heroImage.src || '',
@@ -79,18 +91,22 @@ export function EventForm({ event }: EventFormProps) {
     control: form.control,
     name: "formFields",
   });
+  
+  const watchedLocationTypes = form.watch('locationTypes');
 
   const onSubmit = (values: EventFormValues) => {
     startTransition(async () => {
+      const { locationTypes, locationAddress, ...restOfValues } = values;
       const submissionData = {
-        ...values,
+        ...restOfValues,
+        location: JSON.stringify({ types: locationTypes, address: locationAddress }),
         formFields: JSON.stringify(values.formFields, null, 2),
         isActive: String(values.isActive),
       };
 
       const formData = new FormData();
       Object.entries(submissionData).forEach(([key, value]) => {
-        formData.append(key, value);
+        formData.append(key, value as string);
       });
 
       const result = event
@@ -163,19 +179,77 @@ export function EventForm({ event }: EventFormProps) {
             )}
             />
             <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
+              control={form.control}
+              name="locationTypes"
+              render={() => (
                 <FormItem>
-                <FormLabel>Location *</FormLabel>
-                <FormControl>
-                    <Input placeholder="Virtual &amp; Global" {...field} />
-                </FormControl>
-                <FormMessage />
+                  <FormLabel>Forma wydarzenia *</FormLabel>
+                  <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                    <FormField
+                      control={form.control}
+                      name="locationTypes"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes('Virtual')}
+                              onCheckedChange={(checked) => {
+                                const currentValue = field.value || [];
+                                return checked
+                                  ? field.onChange([...currentValue, 'Virtual'])
+                                  : field.onChange(currentValue?.filter((value) => value !== 'Virtual'));
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Wirtualne
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="locationTypes"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes('On-site')}
+                              onCheckedChange={(checked) => {
+                                const currentValue = field.value || [];
+                                return checked
+                                  ? field.onChange([...currentValue, 'On-site'])
+                                  : field.onChange(currentValue?.filter((value) => value !== 'On-site'));
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Stacjonarne
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormMessage />
                 </FormItem>
-            )}
+              )}
             />
+
         </div>
+        
+        {watchedLocationTypes?.includes('On-site') && (
+            <FormField
+                control={form.control}
+                name="locationAddress"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Adres wydarzenia stacjonarnego *</FormLabel>
+                        <FormControl><Input placeholder="np. ul. Konferencyjna 12, 00-123 Warszawa" {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        )}
         
          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <FormField
@@ -217,94 +291,13 @@ export function EventForm({ event }: EventFormProps) {
             <CardContent className="space-y-4">
                 <div className="space-y-4">
                     {fields.map((field, index) => (
-                        <Card key={field.id} className="p-4 relative bg-secondary/50">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name={`formFields.${index}.label`}
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Label</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                placeholder="np. Imię i nazwisko"
-                                                {...field}
-                                                onChange={(e) => {
-                                                    field.onChange(e);
-                                                    const newName = generateFieldName(e.target.value);
-                                                    form.setValue(`formFields.${index}.name`, newName);
-                                                }}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name={`formFields.${index}.placeholder`}
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Placeholder</FormLabel>
-                                        <FormControl>
-                                        <Input placeholder="np. Jan Kowalski" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                            </div>
-                            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                                  <FormField
-                                    control={form.control}
-                                    name={`formFields.${index}.required`}
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                                            <FormControl>
-                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                            <FormLabel className="cursor-pointer">Wymagane</FormLabel>
-                                        </FormItem>
-                                    )}
-                                  />
-                                  <FormField
-                                      control={form.control}
-                                      name={`formFields.${index}.type`}
-                                      render={({ field }) => (
-                                          <FormItem>
-                                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                  <FormControl>
-                                                      <SelectTrigger className="w-[180px]">
-                                                          <SelectValue placeholder="Select a field type" />
-                                                      </SelectTrigger>
-                                                  </FormControl>
-                                                  <SelectContent>
-                                                      <SelectItem value="text">Text</SelectItem>
-                                                      <SelectItem value="email">Email</SelectItem>
-                                                      <SelectItem value="tel">Phone</SelectItem>
-                                                      <SelectItem value="textarea">Textarea</SelectItem>
-                                                      <SelectItem value="checkbox">Checkbox</SelectItem>
-                                                  </SelectContent>
-                                              </Select>
-                                          </FormItem>
-                                      )}
-                                  />
-                                </div>
-                                <div>
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                        <span className="sr-only">Remove field</span>
-                                    </Button>
-                                </div>
-                            </div>
-                        </Card>
+                       <FormFieldCard key={field.id} index={index} remove={remove} form={form} />
                     ))}
                 </div>
                 <Button
                     type="button"
                     variant="outline"
-                    onClick={() => append({ name: `field_${fields.length}`, label: '', type: 'text', placeholder: '', required: false })}
+                    onClick={() => append({ name: `field_${fields.length}`, label: '', type: 'text', placeholder: '', required: false, options: [] })}
                 >
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Dodaj pole
@@ -360,4 +353,144 @@ export function EventForm({ event }: EventFormProps) {
       </form>
     </Form>
   );
+}
+
+
+function FormFieldCard({ index, remove, form }: { index: number, remove: (index: number) => void, form: any }) {
+    const { fields: options, append: appendOption, remove: removeOption } = useFieldArray({
+        control: form.control,
+        name: `formFields.${index}.options`,
+    });
+
+    const fieldType = form.watch(`formFields.${index}.type`);
+
+    const generateFieldName = (label: string) => {
+      return label
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "_")
+        .replace(/-/g, "_");
+    };
+    
+    return (
+        <Card className="p-4 relative bg-secondary/50">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name={`formFields.${index}.label`}
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Etykieta</FormLabel>
+                        <FormControl>
+                            <Input
+                                placeholder="np. Imię i nazwisko"
+                                {...field}
+                                onChange={(e) => {
+                                    field.onChange(e);
+                                    const newName = generateFieldName(e.target.value);
+                                    form.setValue(`formFields.${index}.name`, newName);
+                                }}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name={`formFields.${index}.placeholder`}
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Placeholder</FormLabel>
+                        <FormControl>
+                        <Input placeholder="np. Jan Kowalski" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+            </div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                    <FormField
+                    control={form.control}
+                    name={`formFields.${index}.required`}
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                            <FormControl>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            </FormControl>
+                            <FormLabel className="cursor-pointer">Wymagane</FormLabel>
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name={`formFields.${index}.type`}
+                        render={({ field }) => (
+                            <FormItem>
+                                <Select onValueChange={(value) => {
+                                    field.onChange(value);
+                                    if (value === 'radio' || value === 'multiple-choice') {
+                                        // Set default options if not present
+                                        const currentOptions = form.getValues(`formFields.${index}.options`);
+                                        if (!currentOptions || currentOptions.length === 0) {
+                                            form.setValue(`formFields.${index}.options`, ['', '']);
+                                        }
+                                    }
+                                }} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger className="w-[220px]">
+                                            <SelectValue placeholder="Wybierz typ pola" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="text">Text</SelectItem>
+                                        <SelectItem value="email">Email</SelectItem>
+                                        <SelectItem value="tel">Phone</SelectItem>
+                                        <SelectItem value="textarea">Textarea</SelectItem>
+                                        <SelectItem value="checkbox">Checkbox (zgoda)</SelectItem>
+                                        <SelectItem value="radio">Lista wyboru (jednokrotny)</SelectItem>
+                                        <SelectItem value="multiple-choice">Lista wyboru (wielokrotny)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </FormItem>
+                        )}
+                    />
+                </div>
+                <div>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <span className="sr-only">Remove field</span>
+                    </Button>
+                </div>
+            </div>
+            {(fieldType === 'radio' || fieldType === 'multiple-choice') && (
+                <div className="mt-4 space-y-3">
+                    <FormLabel>Opcje wyboru</FormLabel>
+                    {options.map((option, optionIndex) => (
+                        <div key={option.id} className="flex items-center gap-2">
+                             <FormField
+                                control={form.control}
+                                name={`formFields.${index}.options.${optionIndex}`}
+                                render={({ field }) => (
+                                    <Input {...field} placeholder={`Opcja ${optionIndex + 1}`} />
+                                )}
+                            />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(optionIndex)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={() => appendOption('')}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Dodaj opcję
+                    </Button>
+                </div>
+            )}
+        </Card>
+    );
 }

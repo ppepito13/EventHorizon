@@ -16,7 +16,16 @@ import { redirect } from 'next/navigation';
 const eventSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
   date: z.string().min(1, 'Date is required.'),
-  location: z.string().min(1, 'Location is required.'),
+  location: z.string().refine(
+    value => {
+      try {
+        const parsed = JSON.parse(value);
+        return typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.types);
+      } catch {
+        return false;
+      }
+    }, { message: 'Invalid location data.'}
+  ),
   description: z.string().min(1, 'Description is required.'),
   rodo: z.string().min(1, 'RODO/Privacy policy is required.'),
   heroImageSrc: z.string().url('Hero image source must be a valid URL.'),
@@ -46,10 +55,11 @@ export async function createEventAction(data: FormData) {
     };
   }
 
-  const { heroImageSrc, heroImageHint, formFields, isActive, ...rest } = validated.data;
+  const { heroImageSrc, heroImageHint, formFields, isActive, location, ...rest } = validated.data;
   
   const newEventData: Omit<Event, 'id' | 'slug'> = {
     ...rest,
+    location: JSON.parse(location),
     heroImage: { src: heroImageSrc, hint: heroImageHint },
     formFields: JSON.parse(formFields),
     isActive,
@@ -73,10 +83,11 @@ export async function updateEventAction(id: string, data: FormData) {
     };
   }
 
-  const { heroImageSrc, heroImageHint, formFields, isActive, ...rest } = validated.data;
+  const { heroImageSrc, heroImageHint, formFields, isActive, location, ...rest } = validated.data;
 
   const updatedEventData: Partial<Omit<Event, 'id' | 'slug'>> = {
     ...rest,
+    location: JSON.parse(location),
     heroImage: { src: heroImageSrc, hint: heroImageHint },
     formFields: JSON.parse(formFields),
     isActive,

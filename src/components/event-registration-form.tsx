@@ -16,10 +16,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from '@/hooks/use-toast';
 import { registerForEvent } from '@/app/actions';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Textarea } from './ui/textarea';
 
 interface EventRegistrationFormProps {
   event: Event;
@@ -43,17 +45,25 @@ const generateSchema = (fields: FormFieldType[]) => {
         case 'checkbox':
             zodType = z.boolean();
             break;
+        case 'radio':
+            zodType = z.string();
+            break;
+        case 'multiple-choice':
+            zodType = z.array(z.string());
+            break;
+        case 'textarea':
         default:
           zodType = z.string();
           break;
       }
 
       if (field.required) {
-        if (field.type === 'text' || field.type === 'tel') {
-            zodType = zodType.min(2, { message: `${field.label} must be at least 2 characters.` });
-        }
-        if (field.type === 'checkbox') {
-            zodType = zodType.refine((val) => val === true, { message: `You must check this box.` });
+        if (zodType instanceof z.ZodString) {
+            zodType = zodType.min(1, { message: `${field.label} is required.` });
+        } else if (zodType instanceof z.ZodArray) {
+            zodType = zodType.min(1, { message: `Please select at least one option for ${field.label}.` });
+        } else if (zodType instanceof z.ZodBoolean && field.type === 'checkbox') {
+             zodType = zodType.refine((val) => val === true, { message: `You must check this box.` });
         }
       } else {
         zodType = zodType.optional();
@@ -76,10 +86,22 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const formSchema = generateSchema(event.formFields);
+  
+  const defaultValues = event.formFields.reduce((acc, field) => {
+      if (field.type === 'multiple-choice') {
+          acc[field.name] = [];
+      } else if (field.type === 'checkbox') {
+          acc[field.name] = false;
+      }
+      else {
+        acc[field.name] = '';
+      }
+      return acc;
+  }, {} as { [key: string]: any });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: event.formFields.reduce((acc, field) => ({...acc, [field.name]: ''}), {})
+    defaultValues,
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -129,6 +151,8 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
                 </label>
             </div>
         );
+      case 'textarea':
+        return <Textarea placeholder={field.placeholder} {...formField} className="bg-input/70" />;
       case 'email':
       case 'text':
       case 'tel':
@@ -139,6 +163,48 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
             {...formField}
             className="bg-input/70"
           />
+        );
+      case 'radio':
+        return (
+            <RadioGroup onValueChange={formField.onChange} defaultValue={formField.value} className="flex flex-col space-y-1">
+                {field.options?.map(option => (
+                    <FormItem key={option} className="flex items-center space-x-3 space-y-0">
+                        <FormControl>
+                            <RadioGroupItem value={option} />
+                        </FormControl>
+                        <FormLabel className="font-normal">{option}</FormLabel>
+                    </FormItem>
+                ))}
+            </RadioGroup>
+        );
+      case 'multiple-choice':
+        return (
+             <div className="space-y-2">
+                {field.options?.map(option => (
+                    <FormField
+                        key={option}
+                        control={form.control}
+                        name={field.name}
+                        render={({ field }) => (
+                           <FormItem key={option} className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                    <Checkbox
+                                        checked={field.value?.includes(option)}
+                                        onCheckedChange={(checked) => {
+                                            return checked
+                                                ? field.onChange([...field.value, option])
+                                                : field.onChange(field.value?.filter((value: string) => value !== option))
+                                        }}
+                                    />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                    {option}
+                                </FormLabel>
+                           </FormItem>
+                        )}
+                    />
+                ))}
+             </div>
         );
       default:
         return null;

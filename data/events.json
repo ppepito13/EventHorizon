@@ -1,10 +1,14 @@
+
 [
   {
     "id": "clxsb7ncr000008l5heefd3jb",
     "name": "Tech Summit 2026",
     "slug": "tech-summit-2026",
     "date": "15 marca 2026",
-    "location": "Virtual",
+    "location": {
+      "types": ["Virtual"],
+      "address": ""
+    },
     "description": "Join us for the biggest technology conference of the year. Network with industry leaders, attend insightful talks, and discover the latest trends shaping our future. A must-attend for tech enthusiasts and professionals.",
     "heroImage": {
       "src": "https://picsum.photos/seed/tech/600/400",
@@ -35,7 +39,10 @@
     "name": "Summer Music Fest 2026",
     "slug": "summer-music-fest-2026",
     "date": "20 lipca 2026",
-    "location": "Online",
+    "location": {
+      "types": ["Virtual"],
+      "address": ""
+    },
     "description": "Experience three days of amazing live music, art installations, and unforgettable memories at the biggest virtual music festival of the year. Featuring top artists from around the globe.",
     "heroImage": {
       "src": "https://picsum.photos/seed/music/600/400",
@@ -58,7 +65,7 @@
       }
     ],
     "rodo": "By signing up, you agree to our terms of service and privacy policy.",
-    "isActive": true,
+    "isActive": false,
     "themeColor": "#ef4444"
   },
   {
@@ -66,7 +73,10 @@
     "name": "Creative Design Workshop",
     "slug": "creative-design-workshop",
     "date": "12 kwietnia 2026",
-    "location": "Online",
+    "location": {
+      "types": ["Virtual"],
+      "address": ""
+    },
     "description": "A hands-on workshop for designers, artists, and creative professionals. Learn new techniques, tools, and workflows to elevate your creative projects. Suitable for all skill levels.",
     "heroImage": {
       "src": "https://picsum.photos/seed/design/600/400",
@@ -89,7 +99,7 @@
       }
     ],
     "rodo": "By registering, you agree to our terms of service and privacy policy.",
-    "isActive": false,
+    "isActive": true,
     "themeColor": "#8b5cf6"
   }
 ]

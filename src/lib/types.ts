@@ -1,9 +1,10 @@
 export type FormField = {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'tel' | 'checkbox' | 'textarea';
+  type: 'text' | 'email' | 'tel' | 'checkbox' | 'textarea' | 'radio' | 'multiple-choice';
   placeholder?: string;
   required: boolean;
+  options?: string[];
 };
 
 export type Event = {
@@ -11,7 +12,10 @@ export type Event = {
   name: string;
   slug: string;
   date: string;
-  location: string;
+  location: {
+    types: Array<'Virtual' | 'On-site'>;
+    address?: string;
+  };
   description: string;
   heroImage: {
     src: string;

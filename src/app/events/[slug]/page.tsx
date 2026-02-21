@@ -19,6 +19,15 @@ interface EventPageProps {
 
 export const dynamic = 'force-dynamic';
 
+function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address?: string }) {
+    const typeLabels = location.types.map(t => t === 'Virtual' ? 'Wirtualne' : 'Stacjonarne');
+    let locationString = typeLabels.join(' & ');
+    if (location.types.includes('On-site') && location.address) {
+        locationString += ` - ${location.address}`;
+    }
+    return locationString;
+}
+
 export default async function EventPage({ params }: EventPageProps) {
   const event = await getEventBySlug(params.slug);
 
@@ -48,7 +57,7 @@ export default async function EventPage({ params }: EventPageProps) {
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="w-5 h-5" />
-              <span>{event.location}</span>
+              <span>{formatLocation(event.location)}</span>
             </div>
           </div>
         </div>
