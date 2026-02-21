@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -34,10 +35,23 @@ const formFieldSchema = z.object({
   options: z.array(z.string()).optional(),
 });
 
+const dateStringSchema = z.string()
+  .regex(/^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/, {
+    message: "Please use DD/MM/YYYY format.",
+  })
+  .refine((val) => {
+    const [day, month, year] = val.split('/').map(Number);
+    const date = new Date(year, month - 1, day);
+    // Check if the constructed date is valid and matches the input parts
+    return date && date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  }, {
+    message: "Please enter a valid date."
+  });
+
 const eventFormSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
   dateType: z.enum(['single', 'range']).default('single'),
-  startDate: z.string().min(1, 'Date is required.'),
+  startDate: dateStringSchema,
   endDate: z.string().optional(),
   locationTypes: z.array(z.string()).nonempty({ message: 'Please select at least one event format.' }),
   locationAddress: z.string().optional(),
@@ -47,23 +61,60 @@ const eventFormSchema = z.object({
   heroImageHint: z.string().optional(),
   formFields: z.array(formFieldSchema),
   isActive: z.boolean(),
-}).refine((data) => {
-    if (data.dateType === 'range' && (!data.endDate || data.endDate.trim() === '')) {
-        return false;
+}).superRefine((data, ctx) => {
+  // If date type is range, end date is required and must be a valid date
+  if (data.dateType === 'range') {
+    if (!data.endDate || data.endDate.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'End date is required for a date range.',
+        path: ['endDate'],
+      });
+    } else {
+      const parseResult = dateStringSchema.safeParse(data.endDate);
+      if (!parseResult.success) {
+        // Manually add errors from the dateStringSchema to the 'endDate' path.
+        parseResult.error.errors.forEach(error => {
+            ctx.addIssue({
+                ...error,
+                path: ['endDate'],
+            });
+        });
+      }
     }
-    return true;
-}, {
-    message: 'End date is required for a date range.',
-    path: ['endDate'],
-}).refine(data => {
-  if (data.locationTypes.includes('On-site') && (!data.locationAddress || data.locationAddress.trim() === '')) {
-    return false;
   }
-  return true;
-}, {
-  message: 'Address is required for on-site events.',
-  path: ['locationAddress'],
+
+  // If location is On-site, address is required
+  if (data.locationTypes.includes('On-site') && (!data.locationAddress || data.locationAddress.trim() === '')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Address is required for on-site events.',
+      path: ['locationAddress'],
+    });
+  }
+
+  // If both dates are valid, check if start date is before end date
+  if (data.dateType === 'range' && data.startDate && data.endDate) {
+    const startParse = dateStringSchema.safeParse(data.startDate);
+    const endParse = dateStringSchema.safeParse(data.endDate);
+
+    if (startParse.success && endParse.success) {
+      const [startDay, startMonth, startYear] = startParse.data.split('/').map(Number);
+      const [endDay, endMonth, endYear] = endParse.data.split('/').map(Number);
+      const startDateObj = new Date(startYear, startMonth - 1, startDay);
+      const endDateObj = new Date(endYear, endMonth - 1, endDay);
+      
+      if (startDateObj > endDateObj) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'End date cannot be before start date.',
+          path: ['endDate'],
+        });
+      }
+    }
+  }
 });
+
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
 
@@ -112,6 +163,8 @@ export function EventForm({ event }: EventFormProps) {
         location: JSON.stringify({ types: locationTypes, address: locationAddress }),
         formFields: JSON.stringify(values.formFields, null, 2),
         isActive: String(values.isActive),
+        heroImageSrc: values.heroImageSrc,
+        heroImageHint: values.heroImageHint || '',
       };
 
       const formData = new FormData();
@@ -191,7 +244,7 @@ export function EventForm({ event }: EventFormProps) {
                         <FormControl>
                           <RadioGroupItem value="single" />
                         </FormControl>
-                        <FormLabel className="font-normal">Single day event</FormLabel>
+                        <FormLabel className="font-normal">Single-day event</FormLabel>
                       </FormItem>
                       <FormItem className="flex items-center space-x-2 space-y-0">
                         <FormControl>
@@ -571,3 +624,5 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
         </Card>
     );
 }
+
+    
