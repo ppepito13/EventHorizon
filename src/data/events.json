@@ -3,7 +3,7 @@
     "id": "clxsb7ncr000008l5heefd3jb",
     "name": "Tech Summit 2026",
     "slug": "tech-summit-2026",
-    "date": "15/03/2026",
+    "date": "01/01/2020",
     "location": {
       "types": [
         "Virtual"
@@ -21,14 +21,16 @@
         "label": "Full Name",
         "type": "text",
         "placeholder": "John Doe",
-        "required": true
+        "required": true,
+        "options": []
       },
       {
         "name": "email",
         "label": "Email Address",
         "type": "email",
         "placeholder": "john.doe@example.com",
-        "required": true
+        "required": true,
+        "options": []
       }
     ],
     "rodo": "By registering, you agree to our terms of service and privacy policy.",

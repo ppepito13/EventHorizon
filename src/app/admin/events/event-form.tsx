@@ -155,8 +155,8 @@ export function EventForm({ event }: EventFormProps) {
     defaultValues: {
       name: event?.name || '',
       dateType: isRange ? 'range' : 'single',
-      startDate: '',
-      endDate: '',
+      startDate: event ? (isRange ? dateParts[0] : event.date) : '',
+      endDate: event && isRange ? dateParts[1] : '',
       allowPastDates: false,
       locationTypes: event?.location.types || [],
       locationAddress: event?.location.address || '',
@@ -293,7 +293,7 @@ export function EventForm({ event }: EventFormProps) {
                             <FormItem>
                                 <FormLabel>
                                   Event Date *
-                                  {event?.date && !isRange && <span className="text-muted-foreground font-normal ml-2">(current: {event.date})</span>}
+                                  <span className="text-muted-foreground font-normal ml-2">(DD/MM/YYYY)</span>
                                 </FormLabel>
                                 <FormControl>
                                     <DateInput value={field.value} onChange={field.onChange} />
@@ -311,7 +311,7 @@ export function EventForm({ event }: EventFormProps) {
                                 <FormItem>
                                     <FormLabel>
                                       Start Date *
-                                      {event?.date && isRange && <span className="text-muted-foreground font-normal ml-2">(current: {dateParts[0]})</span>}
+                                      <span className="text-muted-foreground font-normal ml-2">(DD/MM/YYYY)</span>
                                     </FormLabel>
                                     <FormControl>
                                         <DateInput value={field.value} onChange={field.onChange} />
@@ -327,7 +327,7 @@ export function EventForm({ event }: EventFormProps) {
                                 <FormItem>
                                     <FormLabel>
                                       End Date *
-                                      {event?.date && isRange && <span className="text-muted-foreground font-normal ml-2">(current: {dateParts[1]})</span>}
+                                      <span className="text-muted-foreground font-normal ml-2">(DD/MM/YYYY)</span>
                                     </FormLabel>
                                     <FormControl>
                                         <DateInput value={field.value} onChange={field.onChange} />
