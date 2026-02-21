@@ -53,6 +53,7 @@ const eventFormSchema = z.object({
   dateType: z.enum(['single', 'range']).default('single'),
   startDate: dateStringSchema,
   endDate: z.string().optional(),
+  allowPastDates: z.boolean().default(false),
   locationTypes: z.array(z.string()).nonempty({ message: 'Please select at least one event format.' }),
   locationAddress: z.string().optional(),
   description: z.string().min(1, 'Description is required.'),
@@ -62,28 +63,6 @@ const eventFormSchema = z.object({
   formFields: z.array(formFieldSchema),
   isActive: z.boolean(),
 }).superRefine((data, ctx) => {
-  // If date type is range, end date is required and must be a valid date
-  if (data.dateType === 'range') {
-    if (!data.endDate || data.endDate.trim() === '') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'End date is required for a date range.',
-        path: ['endDate'],
-      });
-    } else {
-      const parseResult = dateStringSchema.safeParse(data.endDate);
-      if (!parseResult.success) {
-        // Manually add errors from the dateStringSchema to the 'endDate' path.
-        parseResult.error.errors.forEach(error => {
-            ctx.addIssue({
-                ...error,
-                path: ['endDate'],
-            });
-        });
-      }
-    }
-  }
-
   // If location is On-site, address is required
   if (data.locationTypes.includes('On-site') && (!data.locationAddress || data.locationAddress.trim() === '')) {
     ctx.addIssue({
@@ -92,24 +71,69 @@ const eventFormSchema = z.object({
       path: ['locationAddress'],
     });
   }
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  // If both dates are valid, check if start date is before end date
-  if (data.dateType === 'range' && data.startDate && data.endDate) {
-    const startParse = dateStringSchema.safeParse(data.startDate);
-    const endParse = dateStringSchema.safeParse(data.endDate);
+  const parseDate = (dateStr: string) => {
+    const [day, month, year] = dateStr.split('/').map(Number);
+    return new Date(year, month - 1, day);
+  }
 
-    if (startParse.success && endParse.success) {
-      const [startDay, startMonth, startYear] = startParse.data.split('/').map(Number);
-      const [endDay, endMonth, endYear] = endParse.data.split('/').map(Number);
-      const startDateObj = new Date(startYear, startMonth - 1, startDay);
-      const endDateObj = new Date(endYear, endMonth - 1, endDay);
-      
-      if (startDateObj > endDateObj) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'End date cannot be before start date.',
-          path: ['endDate'],
+  // Past date validation
+  if (!data.allowPastDates) {
+      const startParseResult = dateStringSchema.safeParse(data.startDate);
+      if (startParseResult.success) {
+          const startDateObj = parseDate(startParseResult.data);
+          if (startDateObj < today) {
+              ctx.addIssue({
+                  code: z.ZodIssueCode.custom,
+                  message: "Start date cannot be in the past.",
+                  path: ['startDate'],
+              });
+          }
+      }
+  }
+
+  // If date type is range, handle end date
+  if (data.dateType === 'range') {
+    if (!data.endDate || data.endDate.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'End date is required for a date range.',
+        path: ['endDate'],
+      });
+    } else {
+      const endParseResult = dateStringSchema.safeParse(data.endDate);
+      if (!endParseResult.success) {
+        endParseResult.error.errors.forEach(error => {
+            ctx.addIssue({ ...error, path: ['endDate'] });
         });
+      } else {
+        // End date after start date validation
+        const startParseResult = dateStringSchema.safeParse(data.startDate);
+        if (startParseResult.success) {
+          const startDateObj = parseDate(startParseResult.data);
+          const endDateObj = parseDate(endParseResult.data);
+          if (startDateObj > endDateObj) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'End date cannot be before start date.',
+              path: ['endDate'],
+            });
+          }
+        }
+        // Past date validation for end date
+        if (!data.allowPastDates) {
+            const endDateObj = parseDate(endParseResult.data);
+            if (endDateObj < today) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "End date cannot be in the past.",
+                    path: ['endDate'],
+                });
+            }
+        }
       }
     }
   }
@@ -133,6 +157,7 @@ export function EventForm({ event }: EventFormProps) {
       dateType: isRange ? 'range' : 'single',
       startDate: '',
       endDate: '',
+      allowPastDates: false,
       locationTypes: event?.location.types || [],
       locationAddress: event?.location.address || '',
       description: event?.description || '',
@@ -313,7 +338,29 @@ export function EventForm({ event }: EventFormProps) {
                         />
                     </div>
                 )}
-
+            </div>
+            
+            <div className="col-span-1 md:col-span-2">
+              <FormField
+                control={form.control}
+                name="allowPastDates"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                      <FormControl>
+                          <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                          <FormLabel>Allow Past Dates</FormLabel>
+                          <FormDescription>
+                              Allow setting an event date that is in the past.
+                          </FormDescription>
+                      </div>
+                  </FormItem>
+                )}
+              />
             </div>
 
 
