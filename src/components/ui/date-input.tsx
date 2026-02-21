@@ -12,25 +12,29 @@ interface DateInputProps {
 
 export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
   ({ value, onChange, className, id }, ref) => {
-    const [day, setDay] = useState('');
-    const [month, setMonth] = useState('');
-    const [year, setYear] = useState('');
+    // Initialize internal state from the `value` prop.
+    const [day, setDay] = useState(() => value?.split('/')[0] || '');
+    const [month, setMonth] = useState(() => value?.split('/')[1] || '');
+    const [year, setYear] = useState(() => value?.split('/')[2] || '');
 
     const dayRef = useRef<HTMLInputElement>(null);
     const monthRef = useRef<HTMLInputElement>(null);
     const yearRef = useRef<HTMLInputElement>(null);
     
-    // When the external value from react-hook-form changes, update the internal state
+    // This effect synchronizes the component's internal state if the `value`
+    // prop is changed externally (e.g., by a form reset).
     useEffect(() => {
       const [d = '', m = '', y = ''] = value?.split('/') || [];
       setDay(d);
       setMonth(m);
       setYear(y);
     }, [value]);
-
-    const triggerChange = (d: string, m: string, y: string) => {
+    
+    // This is the key change for the selection issue.
+    // We only notify the parent form when the user leaves the input group.
+    const handleBlur = () => {
       if (onChange) {
-         onChange(`${d}/${m}/${y}`);
+        onChange(`${day}/${month}/${year}`);
       }
     };
 
@@ -38,7 +42,6 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
       const val = e.target.value.replace(/[^0-9]/g, '');
       if (val.length <= 2) {
         setDay(val);
-        triggerChange(val, month, year);
         if (val.length === 2 && monthRef.current) {
           monthRef.current.focus();
         }
@@ -49,7 +52,6 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
       const val = e.target.value.replace(/[^0-9]/g, '');
       if (val.length <= 2) {
         setMonth(val);
-        triggerChange(day, val, year);
         if (val.length === 2 && yearRef.current) {
           yearRef.current.focus();
         }
@@ -60,7 +62,6 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
       const val = e.target.value.replace(/[^0-9]/g, '');
       if (val.length <= 4) {
         setYear(val);
-        triggerChange(day, month, val);
       }
     };
 
@@ -81,6 +82,7 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
       <div
         ref={ref}
         id={id}
+        onBlur={handleBlur} // Attach blur handler to the container
         onClick={() => dayRef.current?.focus()}
         className={cn(
           "flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 md:text-sm",
@@ -93,7 +95,7 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
           onChange={handleDayChange}
           onKeyDown={(e) => handleKeyDown(e, 'day')}
           placeholder="DD"
-          className="w-[2ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
+          className="w-[3ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
           maxLength={2}
         />
         <span className="text-muted-foreground">/</span>
@@ -103,7 +105,7 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
           onChange={handleMonthChange}
           onKeyDown={(e) => handleKeyDown(e, 'month')}
           placeholder="MM"
-          className="w-[2ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
+          className="w-[3ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
           maxLength={2}
         />
         <span className="text-muted-foreground">/</span>
@@ -113,7 +115,7 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
           onChange={handleYearChange}
           onKeyDown={(e) => handleKeyDown(e, 'year')}
           placeholder="YYYY"
-          className="w-[4.5ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
+          className="w-[5ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
           maxLength={4}
         />
       </div>
