@@ -40,29 +40,26 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
 
     const handleDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value.replace(/[^0-9]/g, '');
-      if (val.length <= 2) {
-        setDay(val);
-        if (val.length === 2 && monthRef.current) {
-          monthRef.current.focus();
-        }
+      const newDay = val.slice(0, 2);
+      setDay(newDay);
+      if (newDay.length === 2 && monthRef.current) {
+        monthRef.current.focus();
       }
     };
 
     const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value.replace(/[^0-9]/g, '');
-      if (val.length <= 2) {
-        setMonth(val);
-        if (val.length === 2 && yearRef.current) {
-          yearRef.current.focus();
-        }
+      const newMonth = val.slice(0, 2);
+      setMonth(newMonth);
+      if (newMonth.length === 2 && yearRef.current) {
+        yearRef.current.focus();
       }
     };
 
     const handleYearChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value.replace(/[^0-9]/g, '');
-      if (val.length <= 4) {
-        setYear(val);
-      }
+      const newYear = val.slice(0, 4);
+      setYear(newYear);
     };
 
     const handleKeyDown = (
@@ -96,7 +93,6 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
           onKeyDown={(e) => handleKeyDown(e, 'day')}
           placeholder="DD"
           className="w-[3ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
-          maxLength={2}
         />
         <span className="text-muted-foreground">/</span>
         <input
@@ -106,7 +102,6 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
           onKeyDown={(e) => handleKeyDown(e, 'month')}
           placeholder="MM"
           className="w-[3ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
-          maxLength={2}
         />
         <span className="text-muted-foreground">/</span>
         <input
@@ -116,7 +111,6 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
           onKeyDown={(e) => handleKeyDown(e, 'year')}
           placeholder="YYYY"
           className="w-[5ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
-          maxLength={4}
         />
       </div>
     );
