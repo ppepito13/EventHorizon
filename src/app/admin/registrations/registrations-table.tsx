@@ -224,7 +224,15 @@ export function RegistrationsTable({ event, registrations, userRole }: Registrat
                         <span className="col-span-2">{new Date(detailsViewReg.registrationDate).toLocaleString()}</span>
                     </div>
                     {event.formFields.map(field => {
-                        const value = detailsViewReg.formData[field.name];
+                        let value;
+                        if (field.name === fullNameKey) {
+                            value = getFullNameValue(detailsViewReg.formData);
+                        } else if (field.name === emailKey) {
+                            value = getEmailValue(detailsViewReg.formData);
+                        } else {
+                            value = detailsViewReg.formData[field.name];
+                        }
+                        
                         return (
                              <div key={field.name} className="grid grid-cols-3 gap-4 py-2 border-b">
                                  <span className="font-semibold text-muted-foreground">{field.label}</span>
