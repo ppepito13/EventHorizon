@@ -1,7 +1,8 @@
 'use client';
 
-import type { Event, Registration } from '@/lib/types';
+import type { Event, Registration, User } from '@/lib/types';
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import {
   Table,
   TableBody,
@@ -28,22 +29,38 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { MoreHorizontal, Trash2, Loader2, Eye, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deleteRegistrationAction } from './actions';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface RegistrationsTableProps {
   event: Event;
   registrations: Registration[];
+  userRole: User['role'];
 }
 
-export function RegistrationsTable({ event, registrations }: RegistrationsTableProps) {
+export function RegistrationsTable({ event, registrations, userRole }: RegistrationsTableProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
+  const [detailsViewReg, setDetailsViewReg] = useState<Registration | null>(null);
 
-  const headers = event.formFields;
+  // Find the actual keys for Full Name and Email from the event's form fields config
+  const fullNameField = event.formFields.find(f => f.label.toLowerCase().includes('full name'));
+  const emailField = event.formFields.find(f => f.label.toLowerCase().includes('email'));
+  
+  // Use a fallback to prevent crashes if fields are not found.
+  const fullNameKey = fullNameField ? fullNameField.name : 'full_name';
+  const emailKey = emailField ? emailField.name : 'email';
 
   const openDeleteDialog = (id: string) => {
     setRegistrationToDelete(id);
@@ -69,13 +86,14 @@ export function RegistrationsTable({ event, registrations }: RegistrationsTableP
   };
   
   const getDisplayValue = (value: any) => {
+    if (value === null || value === undefined || value === '') return <span className="text-muted-foreground/70">N/A</span>;
     if (Array.isArray(value)) {
       return value.join(', ');
     }
     if (typeof value === 'boolean') {
       return value ? 'Yes' : 'No';
     }
-    return value?.toString() || '';
+    return value.toString();
   };
   
   if (registrations.length === 0) {
@@ -93,23 +111,47 @@ export function RegistrationsTable({ event, registrations }: RegistrationsTableP
           <TableHeader>
             <TableRow>
               <TableHead>Registration Date</TableHead>
-              {headers.map(header => (
-                <TableHead key={header.name}>{header.label}</TableHead>
-              ))}
-              <TableHead className="text-right w-[100px]">Actions</TableHead>
+              <TableHead>Full Name</TableHead>
+              <TableHead>Email Address</TableHead>
+              <TableHead className="text-right w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {registrations.map(reg => (
               <TableRow key={reg.id}>
                 <TableCell>{new Date(reg.registrationDate).toLocaleString()}</TableCell>
-                {headers.map(header => (
-                  <TableCell key={header.name}>
-                    {getDisplayValue(reg.formData[header.name])}
-                  </TableCell>
-                ))}
+                <TableCell>{getDisplayValue(reg.formData[fullNameKey])}</TableCell>
+                <TableCell>{getDisplayValue(reg.formData[emailKey])}</TableCell>
                 <TableCell>
-                  <div className="flex items-center justify-end">
+                  <div className="flex items-center justify-end gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="outline" size="icon" onClick={() => setDetailsViewReg(reg)}>
+                          <Eye className="h-4 w-4" />
+                          <span className="sr-only">View Details</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>View Details</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    {userRole === 'Administrator' && (
+                        <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" asChild>
+                                <Link href={`/admin/registrations/${reg.id}/edit`}>
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="sr-only">Edit Registration</span>
+                                </Link>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Edit Registration</p>
+                        </TooltipContent>
+                        </Tooltip>
+                    )}
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
@@ -152,6 +194,42 @@ export function RegistrationsTable({ event, registrations }: RegistrationsTableP
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      <Dialog open={!!detailsViewReg} onOpenChange={(open) => !open && setDetailsViewReg(null)}>
+        <DialogContent className="max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Registration Details</DialogTitle>
+                <DialogDescription>
+                    Full registration data for event: "{event.name}".
+                </DialogDescription>
+            </DialogHeader>
+            {detailsViewReg && (
+                <div className="mt-4 space-y-2 text-sm max-h-[60vh] overflow-y-auto pr-4">
+                     <div className="grid grid-cols-3 gap-4 py-2 border-b">
+                        <span className="font-semibold text-muted-foreground">Registration ID</span>
+                        <span className="col-span-2 font-mono text-xs">{detailsViewReg.id}</span>
+                    </div>
+                     <div className="grid grid-cols-3 gap-4 py-2 border-b">
+                        <span className="font-semibold text-muted-foreground">Registration Date</span>
+                        <span className="col-span-2">{new Date(detailsViewReg.registrationDate).toLocaleString()}</span>
+                    </div>
+                    {event.formFields.map(field => {
+                        const value = detailsViewReg.formData[field.name];
+                        return (
+                             <div key={field.name} className="grid grid-cols-3 gap-4 py-2 border-b">
+                                 <span className="font-semibold text-muted-foreground">{field.label}</span>
+                                 <span className="col-span-2 break-words">{getDisplayValue(value)}</span>
+                             </div>
+                        )
+                    })}
+                     <div className="grid grid-cols-3 gap-4 py-2">
+                        <span className="font-semibold text-muted-foreground">Agreed to Terms</span>
+                        <span className="col-span-2">{getDisplayValue(detailsViewReg.formData.rodo)}</span>
+                     </div>
+                </div>
+            )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -9,5 +9,23 @@
     },
     "id": "reg_682e508e-c3c1-4207-a697-bb87c0ab7ace",
     "registrationDate": "2026-02-21T14:08:05.169Z"
+  },
+  {
+    "eventId": "elysb7ncr000008l5heefd3je",
+    "eventName": "Creative Design Workshop",
+    "formData": {
+      "full_name": "John Doe",
+      "email": "john.doe@example.com",
+      "phone_number": "+1123123123",
+      "experience_level": "Beginner",
+      "areas_of_interest": [
+        "UX Research",
+        "Graphic Design"
+      ],
+      "portfolio_url": "",
+      "rodo": true
+    },
+    "id": "reg_28a1cf07-2a64-445e-b4d1-d15294884148",
+    "registrationDate": "2026-02-21T14:16:20.974Z"
   }
 ]

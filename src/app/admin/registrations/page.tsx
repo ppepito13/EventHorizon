@@ -16,5 +16,5 @@ export default async function RegistrationsPage() {
   const userEventIds = new Set(userEvents.map(e => e.id));
   const userRegistrations = allRegistrations.filter(r => userEventIds.has(r.eventId));
 
-  return <RegistrationsClientPage events={userEvents} registrations={userRegistrations} />;
+  return <RegistrationsClientPage events={userEvents} registrations={userRegistrations} userRole={user.role} />;
 }

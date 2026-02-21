@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useTransition } from 'react';
-import type { Event, Registration } from '@/lib/types';
+import type { Event, Registration, User } from '@/lib/types';
 import {
   Card,
   CardContent,
@@ -25,9 +25,10 @@ import { useToast } from '@/hooks/use-toast';
 interface RegistrationsClientPageProps {
   events: Event[];
   registrations: Registration[];
+  userRole: User['role'];
 }
 
-export function RegistrationsClientPage({ events, registrations }: RegistrationsClientPageProps) {
+export function RegistrationsClientPage({ events, registrations, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isExporting, startExportTransition] = useTransition();
   const { toast } = useToast();
@@ -100,6 +101,7 @@ export function RegistrationsClientPage({ events, registrations }: Registrations
           <RegistrationsTable 
             event={selectedEvent} 
             registrations={filteredRegistrations} 
+            userRole={userRole}
           />
         ) : (
           <div className="text-center py-12 text-muted-foreground">
