@@ -22,7 +22,7 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
     const yearRef = useRef<HTMLInputElement>(null);
     
     // This effect synchronizes the component's internal state if the `value`
-    // prop is changed externally (e.g., by a form reset).
+    // prop is changed externally (e.g., by a form reset or pre-filling).
     useEffect(() => {
       const [d = '', m = '', y = ''] = value?.split('/') || [];
       setDay(d);
@@ -39,9 +39,8 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
 
     const handleDayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value.replace(/[^0-9]/g, '');
-      const newDay = val.slice(0, 2);
-      setDay(newDay);
-      if (newDay.length === 2) {
+      setDay(val);
+      if (val.length === 2) {
         // Defer focus change to prevent race condition
         setTimeout(() => monthRef.current?.focus(), 0);
       }
@@ -49,9 +48,8 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
 
     const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value.replace(/[^0-9]/g, '');
-      const newMonth = val.slice(0, 2);
-      setMonth(newMonth);
-      if (newMonth.length === 2) {
+      setMonth(val);
+      if (val.length === 2) {
         // Defer focus change to prevent race condition
         setTimeout(() => yearRef.current?.focus(), 0);
       }
@@ -59,8 +57,7 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
 
     const handleYearChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value.replace(/[^0-9]/g, '');
-      const newYear = val.slice(0, 4);
-      setYear(newYear);
+      setYear(val);
     };
 
     const handleKeyDown = (
@@ -81,7 +78,6 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
         ref={ref}
         id={id}
         onBlur={handleBlur} // Attach blur handler to the container
-        onClick={() => dayRef.current?.focus()}
         className={cn(
           "flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-within:outline-none focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 md:text-sm",
           className
@@ -94,6 +90,7 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
           onKeyDown={(e) => handleKeyDown(e, 'day')}
           placeholder="DD"
           className="w-[3ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
+          maxLength={2}
         />
         <span className="text-muted-foreground">/</span>
         <input
@@ -103,6 +100,7 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
           onKeyDown={(e) => handleKeyDown(e, 'month')}
           placeholder="MM"
           className="w-[3ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
+          maxLength={2}
         />
         <span className="text-muted-foreground">/</span>
         <input
@@ -112,6 +110,7 @@ export const DateInput = React.forwardRef<HTMLDivElement, DateInputProps>(
           onKeyDown={(e) => handleKeyDown(e, 'year')}
           placeholder="YYYY"
           className="w-[5ch] bg-transparent text-center outline-none placeholder:text-muted-foreground"
+          maxLength={4}
         />
       </div>
     );
