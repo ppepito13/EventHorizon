@@ -30,17 +30,25 @@ export async function registerForEvent(
           case 'checkbox':
             zodType = z.boolean();
             break;
+          case 'radio':
+            zodType = z.string();
+            break;
+          case 'multiple-choice':
+            zodType = z.array(z.string());
+            break;
+          case 'textarea':
           default:
             zodType = z.string();
             break;
         }
 
         if (field.required) {
-          if (field.type === 'text' || field.type === 'tel') {
-            zodType = zodType.min(1, { message: `${field.label} is required.` });
-          }
-          if(field.type === 'checkbox'){
-            zodType = zodType.refine(val => val === true, { message: `You must accept ${field.label}.` });
+          if (zodType instanceof z.ZodString) {
+              zodType = zodType.min(1, { message: `${field.label} is required.` });
+          } else if (zodType instanceof z.ZodArray) {
+              zodType = zodType.min(1, { message: `Please select at least one option for ${field.label}.` });
+          } else if (zodType instanceof z.ZodBoolean && field.type === 'checkbox') {
+               zodType = zodType.refine((val) => val === true, { message: `You must check this box.` });
           }
         } else {
           zodType = zodType.optional();
