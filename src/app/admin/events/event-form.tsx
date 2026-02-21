@@ -19,6 +19,7 @@ import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { DateInput } from '@/components/ui/date-input';
 
 
 interface EventFormProps {
@@ -151,11 +152,6 @@ export function EventForm({ event }: EventFormProps) {
   const watchedLocationTypes = form.watch('locationTypes');
   const dateType = form.watch('dateType');
 
-  const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>, fieldOnChange: (value: string) => void) => {
-    const filteredValue = e.target.value.replace(/[^0-9/]/g, '');
-    fieldOnChange(filteredValue);
-  };
-
   const onSubmit = (values: EventFormValues) => {
     startTransition(async () => {
       const { dateType, startDate, endDate, locationTypes, locationAddress, ...restOfValues } = values;
@@ -275,12 +271,7 @@ export function EventForm({ event }: EventFormProps) {
                                   {event?.date && !isRange && <span className="text-muted-foreground font-normal ml-2">(current: {event.date})</span>}
                                 </FormLabel>
                                 <FormControl>
-                                    <Input
-                                        placeholder="DD/MM/YYYY"
-                                        {...field}
-                                        onChange={(e) => handleDateInputChange(e, field.onChange)}
-                                        maxLength={10}
-                                    />
+                                    <DateInput value={field.value} onChange={field.onChange} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -298,12 +289,7 @@ export function EventForm({ event }: EventFormProps) {
                                       {event?.date && isRange && <span className="text-muted-foreground font-normal ml-2">(current: {dateParts[0]})</span>}
                                     </FormLabel>
                                     <FormControl>
-                                        <Input
-                                            placeholder="DD/MM/YYYY"
-                                            {...field}
-                                            onChange={(e) => handleDateInputChange(e, field.onChange)}
-                                            maxLength={10}
-                                        />
+                                        <DateInput value={field.value} onChange={field.onChange} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -319,12 +305,7 @@ export function EventForm({ event }: EventFormProps) {
                                       {event?.date && isRange && <span className="text-muted-foreground font-normal ml-2">(current: {dateParts[1]})</span>}
                                     </FormLabel>
                                     <FormControl>
-                                        <Input
-                                            placeholder="DD/MM/YYYY"
-                                            {...field}
-                                            onChange={(e) => handleDateInputChange(e, field.onChange)}
-                                            maxLength={10}
-                                        />
+                                        <DateInput value={field.value} onChange={field.onChange} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
