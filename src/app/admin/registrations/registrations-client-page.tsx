@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query, doc, setDoc, where, limit, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, type Auth, createUserWithEmailAndPassword, getAuth, onIdTokenChanged } from 'firebase/auth';
 
 import {
@@ -43,6 +43,7 @@ import {
 import {
     exportRegistrationsAction,
     generateFakeRegistrationsAction,
+    deleteRegistrationAction,
 } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,8 +73,18 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   }>({ isOpen: false, eventId: null, regId: null });
 
   const firestore = useFirestore();
-  const { auth, user: firebaseUser, isUserLoading } = useFirebase();
+  const auth = useAuth();
+  const [firebaseUser, setFirebaseUser] = useState<import('firebase/auth').User | null>(auth.currentUser);
+  const [isUserLoading, setIsUserLoading] = useState(true);
   
+  useEffect(() => {
+    const unsubscribe = onIdTokenChanged(auth, (user) => {
+      setFirebaseUser(user);
+      setIsUserLoading(false);
+    });
+    return () => unsubscribe();
+  }, [auth]);
+
   useEffect(() => {
     if (auth && !isUserLoading && (!firebaseUser || firebaseUser.isAnonymous) && userRole === 'Administrator') {
       const adminUser = demoUsers.find(u => u.role === 'Administrator');
@@ -125,46 +136,25 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     setDialogState({ isOpen: true, eventId, regId: registrationId });
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!dialogState.eventId || !dialogState.regId || !firestore) return;
-
+  const handleDeleteConfirm = () => {
+    if (!dialogState.eventId || !dialogState.regId) return;
     const { eventId, regId } = dialogState;
-    
+
     startDeleteTransition(async () => {
-        try {
-            const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
-
-            // First, get the registration to find its qrId, for two-step deletion
-            const regSnapshot = await getDoc(registrationDocRef);
-            if (!regSnapshot.exists()) {
-                throw new Error("Registration not found.");
-            }
-            const registrationData = regSnapshot.data() as Registration;
-
-            // Delete the main registration document
-            await deleteDoc(registrationDocRef);
-            
-            // If there's an associated QR code, delete it too
-            if (registrationData.qrId) {
-                const qrDocRef = doc(firestore, 'qrcodes', registrationData.qrId);
-                await deleteDoc(qrDocRef);
-            }
-            
+        const result = await deleteRegistrationAction(eventId, regId);
+        if (result.success) {
             toast({
                 title: "Success",
-                description: "Registration deleted successfully.",
+                description: result.message,
             });
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "An unknown server error occurred.";
+        } else {
             toast({
                 variant: "destructive",
                 title: "Deletion Failed",
-                description: message,
+                description: result.message,
             });
-            console.error("Deletion Error:", error);
-        } finally {
-            setDialogState({ isOpen: false, eventId: null, regId: null });
         }
+        setDialogState({ isOpen: false, eventId: null, regId: null });
     });
   };
   
@@ -308,7 +298,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
         event={selectedEvent!}
         userRole={userRole}
         onDelete={handleDeleteRequest}
-        isLoading={isLoading}
+        isLoading={isDeleting}
       />
     );
   }
