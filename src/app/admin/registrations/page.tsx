@@ -1,4 +1,4 @@
-import { getEvents, getRegistrations } from '@/lib/data';
+import { getEvents } from '@/lib/data';
 import { getSessionUser } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { RegistrationsClientPage } from './registrations-client-page';
@@ -11,10 +11,6 @@ export default async function RegistrationsPage() {
 
   // getEvents already handles filtering for organizers
   const userEvents = await getEvents(user);
-  const allRegistrations = await getRegistrations();
 
-  const userEventIds = new Set(userEvents.map(e => e.id));
-  const userRegistrations = allRegistrations.filter(r => userEventIds.has(r.eventId));
-
-  return <RegistrationsClientPage events={userEvents} registrations={userRegistrations} userRole={user.role} />;
+  return <RegistrationsClientPage events={userEvents} userRole={user.role} />;
 }

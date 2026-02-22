@@ -27,28 +27,34 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { exportRegistrationsAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
+import { useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
 
 interface RegistrationsClientPageProps {
   events: Event[];
-  registrations: Registration[];
   userRole: User['role'];
 }
 
-export function RegistrationsClientPage({ events, registrations, userRole }: RegistrationsClientPageProps) {
+export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isExporting, startExportTransition] = useTransition();
   const { toast } = useToast();
+  const firestore = useFirestore();
 
   const handleEventChange = (eventId: string) => {
     setSelectedEventId(eventId);
   };
   
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
-  
-  const filteredRegistrations = useMemo(() => {
-    if (!selectedEventId) return [];
-    return registrations.filter(r => r.eventId === selectedEventId);
-  }, [registrations, selectedEventId]);
+
+  const registrationsQuery = useMemoFirebase(() => {
+    if (!selectedEventId) return null;
+    return query(collection(firestore, 'registrations'), where('eventId', '==', selectedEventId));
+  }, [firestore, selectedEventId]);
+
+  const { data: registrations, isLoading } = useCollection<Registration>(registrationsQuery);
+
 
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
@@ -94,7 +100,7 @@ export function RegistrationsClientPage({ events, registrations, userRole }: Reg
           </Select>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" disabled={isExporting || !selectedEventId || filteredRegistrations.length === 0}>
+                <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
                     {isExporting ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -112,15 +118,16 @@ export function RegistrationsClientPage({ events, registrations, userRole }: Reg
         </div>
       </CardHeader>
       <CardContent>
-        {selectedEvent ? (
+        {isLoading && <div className="text-center py-12 text-muted-foreground">Loading registrations...</div>}
+        {!isLoading && selectedEvent && registrations ? (
           <RegistrationsTable 
             event={selectedEvent} 
-            registrations={filteredRegistrations} 
+            registrations={registrations} 
             userRole={userRole}
           />
         ) : (
           <div className="text-center py-12 text-muted-foreground">
-            <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>
+             {!isLoading && <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
           </div>
         )}
       </CardContent>

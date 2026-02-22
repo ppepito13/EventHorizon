@@ -1,308 +1,299 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  deleteDoc,
+  updateDoc,
+  writeBatch,
+  query,
+  where,
+  serverTimestamp,
+} from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
+
+import { initializeFirebase } from '@/firebase';
+
 import { unstable_noStore as noStore } from 'next/cache';
 import type { Event, User, Registration } from './types';
+import {
+  addDocumentNonBlocking,
+  deleteDocumentNonBlocking,
+  setDocumentNonBlocking,
+  updateDocumentNonBlocking,
+} from '@/firebase';
 
-// The path to the JSON file where events are stored.
-const eventsFilePath = path.join(process.cwd(), 'src', 'data', 'events.json');
-const usersFilePath = path.join(process.cwd(), 'src', 'data', 'users.json');
-const registrationsFilePath = path.join(process.cwd(), 'src', 'data', 'registrations.json');
-
-/**
- * Reads all events from the JSON file.
- * Caching is disabled to ensure fresh data is always read.
- */
-async function readEventsFromFile(): Promise<Event[]> {
-  noStore();
-  try {
-    const fileContent = await fs.readFile(eventsFilePath, 'utf8');
-    return JSON.parse(fileContent) as Event[];
-  } catch (error) {
-    // If file doesn't exist or is empty, return an empty array.
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
-    }
-    console.error('Error reading from events.json:', error);
-    // In case of other errors (e.g., malformed JSON), we might want to fail loudly
-    // but for now, returning an empty array is safer for rendering.
-    return [];
-  }
-}
+// Initialize Firebase
+const { firestore } = initializeFirebase();
 
 /**
- * Writes the entire events array to the JSON file.
+ * Reads all users from Firestore.
  */
-async function writeEventsToFile(events: Event[]): Promise<void> {
-  try {
-    // Ensure the directory exists
-    await fs.mkdir(path.dirname(eventsFilePath), { recursive: true });
-    await fs.writeFile(eventsFilePath, JSON.stringify(events, null, 2), 'utf8');
-  } catch (error) {
-    console.error('Error writing to events.json:', error);
-    throw new Error('Could not save event data.');
-  }
-}
-
-async function readUsersFromFile(): Promise<User[]> {
-  noStore();
-  try {
-    const fileContent = await fs.readFile(usersFilePath, 'utf8');
-    return JSON.parse(fileContent) as User[];
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
-    }
-    console.error('Error reading from users.json:', error);
-    return [];
-  }
-}
-
-async function writeUsersToFile(users: User[]): Promise<void> {
-    try {
-      await fs.mkdir(path.dirname(usersFilePath), { recursive: true });
-      await fs.writeFile(usersFilePath, JSON.stringify(users, null, 2), 'utf8');
-    } catch (error) {
-      console.error('Error writing to users.json:', error);
-      throw new Error('Could not save user data.');
-    }
-}
-
-async function readRegistrationsFromFile(): Promise<Registration[]> {
-  noStore();
-  try {
-    const fileContent = await fs.readFile(registrationsFilePath, 'utf8');
-    return JSON.parse(fileContent) as Registration[];
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
-    }
-    console.error('Error reading from registrations.json:', error);
-    return [];
-  }
-}
-
-async function writeRegistrationsToFile(registrations: Registration[]): Promise<void> {
-  try {
-    await fs.mkdir(path.dirname(registrationsFilePath), { recursive: true });
-    await fs.writeFile(registrationsFilePath, JSON.stringify(registrations, null, 2), 'utf8');
-  } catch (error) {
-    console.error('Error writing to registrations.json:', error);
-    throw new Error('Could not save registration data.');
-  }
-}
-
 export async function getUsers(): Promise<User[]> {
-  return await readUsersFromFile();
+  noStore();
+  const usersCol = collection(firestore, 'users');
+  const snapshot = await getDocs(usersCol);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 }
 
+/**
+ * Reads a single user from Firestore by ID.
+ */
 export async function getUserById(id: string): Promise<User | null> {
-    const users = await readUsersFromFile();
-    const user = users.find(user => user.id === id);
-    return user || null;
+  noStore();
+  const userDocRef = doc(firestore, 'users', id);
+  const docSnap = await getDoc(userDocRef);
+  if (docSnap.exists()) {
+    return { id: docSnap.id, ...docSnap.data() } as User;
+  }
+  return null;
 }
 
+/**
+ * Reads a single user from Firestore by email.
+ */
 export async function getUserByEmail(email: string): Promise<User | null> {
-    const users = await readUsersFromFile();
-    const user = users.find(user => user.email.toLowerCase() === email.toLowerCase());
-    return user || null;
+  noStore();
+  const usersCol = collection(firestore, 'users');
+  const q = query(usersCol, where('email', '==', email.toLowerCase()));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) {
+    return null;
+  }
+  const userDoc = snapshot.docs[0];
+  return { id: userDoc.id, ...userDoc.data() } as User;
 }
 
+/**
+ * Reads events from Firestore, filtered by user access.
+ */
 export async function getEvents(user?: User | null): Promise<Event[]> {
-  const allEvents = await readEventsFromFile();
+  noStore();
+  const eventsCol = collection(firestore, 'events');
+  const snapshot = await getDocs(eventsCol);
+  const allEvents = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, slug: doc.data().slug || doc.id } as Event));
+
   if (user?.role === 'Organizer') {
-    // If assigned 'All', show all events
     if (user.assignedEvents.includes('All')) {
       return allEvents;
     }
     return allEvents.filter(event => user.assignedEvents.includes(event.name));
   }
-  // Admins see all events
   return allEvents;
 }
 
+/**
+ * Reads all active events from Firestore.
+ */
 export async function getActiveEvents(): Promise<Event[]> {
-  const events = await readEventsFromFile();
-  return events.filter(event => event.isActive);
+  noStore();
+  const eventsCol = collection(firestore, 'events');
+  const q = query(eventsCol, where('isActive', '==', true));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, slug: doc.data().slug || doc.id } as Event));
 }
 
+/**
+ * Reads a single event from Firestore by ID.
+ */
 export async function getEventById(id: string): Promise<Event | null> {
-  const events = await readEventsFromFile();
-  const event = events.find(event => event.id === id);
-  return event || null;
+  noStore();
+  const eventDocRef = doc(firestore, 'events', id);
+  const docSnap = await getDoc(eventDocRef);
+  if (docSnap.exists()) {
+    return { ...docSnap.data(), id: docSnap.id, slug: docSnap.data().slug || docSnap.id } as Event;
+  }
+  return null;
 }
 
+/**
+ * Reads a single event from Firestore by slug.
+ */
 export async function getEventBySlug(slug: string): Promise<Event | null> {
-  const events = await readEventsFromFile();
-  const event = events.find(event => event.slug === slug);
-  return event || null;
+  noStore();
+  const eventsCol = collection(firestore, 'events');
+  const q = query(eventsCol, where('slug', '==', slug));
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) {
+    return null;
+  }
+  const eventDoc = snapshot.docs[0];
+  return { ...eventDoc.data(), id: eventDoc.id, slug: eventDoc.data().slug || eventDoc.id } as Event;
 }
 
+/**
+ * Creates a new event in Firestore.
+ */
 export async function createEvent(
   eventData: Omit<Event, 'id' | 'slug'>
 ): Promise<Event> {
-  const events = await readEventsFromFile();
+  const newDocRef = doc(collection(firestore, 'events'));
+  const slug = eventData.name.toLowerCase().replace(/\s+/g, '-');
   const newEvent: Event = {
     ...eventData,
-    id: crypto.randomUUID(),
-    slug: eventData.name.toLowerCase().replace(/\s+/g, '-'),
+    id: newDocRef.id,
+    slug,
   };
-  const updatedEvents = [...events, newEvent];
-  await writeEventsToFile(updatedEvents);
+  addDocumentNonBlocking(collection(firestore, 'events'), newEvent);
   return newEvent;
 }
 
+/**
+ * Updates an event in Firestore.
+ */
 export async function updateEvent(
   id: string,
   eventData: Partial<Omit<Event, 'id' | 'slug'>>
 ): Promise<Event | null> {
-  const events = await readEventsFromFile();
-  let updatedEvent: Event | null = null;
-
-  const updatedEvents = events.map(event => {
-    if (event.id === id) {
-      updatedEvent = {
-        ...event,
-        ...eventData,
-        slug: eventData.name
-          ? eventData.name.toLowerCase().replace(/\s+/g, '-')
-          : event.slug,
-      };
-      return updatedEvent;
-    }
-    return event;
-  });
-
-  if (!updatedEvent) {
-    return null;
+  const eventDocRef = doc(firestore, 'events', id);
+  const slug = eventData.name ? eventData.name.toLowerCase().replace(/\s+/g, '-') : undefined;
+  
+  const updateData = { ...eventData };
+  if (slug) {
+    (updateData as Event).slug = slug;
   }
 
-  await writeEventsToFile(updatedEvents);
-  return updatedEvent;
+  updateDocumentNonBlocking(eventDocRef, updateData);
+  const updatedDoc = await getDoc(eventDocRef);
+  if (updatedDoc.exists()) {
+    return { ...updatedDoc.data(), id: updatedDoc.id } as Event
+  }
+  return null
 }
 
+/**
+ * Deletes an event from Firestore.
+ */
 export async function deleteEvent(id: string): Promise<boolean> {
-  const events = await readEventsFromFile();
-  const updatedEvents = events.filter(event => event.id !== id);
-
-  if (events.length === updatedEvents.length) {
-    return false; // Nothing was deleted
-  }
-
-  await writeEventsToFile(updatedEvents);
+  const eventDocRef = doc(firestore, 'events', id);
+  deleteDocumentNonBlocking(eventDocRef);
   return true;
 }
 
+/**
+ * Sets an event to active in Firestore.
+ */
 export async function setActiveEvent(id: string): Promise<Event | null> {
-  const events = await readEventsFromFile();
-  let activeEvent: Event | null = null;
+    const events = await getEvents();
+    const batch = writeBatch(firestore);
 
-  const updatedEvents = events.map(event => {
-    if (event.id === id) {
-      // Set the target event to active
-      activeEvent = { ...event, isActive: true };
-      return activeEvent;
-    }
-    // Leave other events as they are
-    return event;
-  });
-
-  if (!activeEvent) {
-    return null; // The event ID to activate was not found.
-  }
-
-  await writeEventsToFile(updatedEvents);
-  return activeEvent;
-}
-
-export async function deactivateEvent(id: string): Promise<Event | null> {
-  const events = await readEventsFromFile();
-  let deactivatedEvent: Event | null = null;
-
-  const eventExists = events.some(e => e.id === id);
-  if (!eventExists) return null;
-
-  const updatedEvents = events.map(event => {
-    if (event.id === id) {
-      deactivatedEvent = { ...event, isActive: false };
-      return deactivatedEvent;
-    }
-    return event;
-  });
-
-  await writeEventsToFile(updatedEvents);
-  return deactivatedEvent;
-}
-
-
-export async function createUser(userData: Omit<User, 'id'>): Promise<User> {
-    const users = await readUsersFromFile();
-    const newUser: User = {
-        ...userData,
-        id: `usr_${crypto.randomUUID()}`,
-    };
-    const updatedUsers = [...users, newUser];
-    await writeUsersToFile(updatedUsers);
-    return newUser;
-}
-
-export async function updateUser(id: string, userData: Partial<Omit<User, 'id' | 'password'>> & { password?: string }): Promise<User | null> {
-    const users = await readUsersFromFile();
-    let updatedUser: User | null = null;
-    const updatedUsers = users.map(user => {
-        if (user.id === id) {
-            const newUserData = { ...user, ...userData };
-            if (!userData.password) {
-              newUserData.password = user.password; // Keep old password if not provided
-            }
-            updatedUser = newUserData;
-            return updatedUser;
+    let activeEvent: Event | null = null;
+    
+    events.forEach(event => {
+        const eventRef = doc(firestore, "events", event.id);
+        if (event.id === id) {
+            batch.update(eventRef, { isActive: true });
+            activeEvent = { ...event, isActive: true };
+        } else if (event.isActive) {
+            // Deactivate any other currently active event
+            batch.update(eventRef, { isActive: false });
         }
-        return user;
     });
-    if (!updatedUser) {
-        return null;
+
+    if (!activeEvent) {
+        // If the event to be activated wasn't in the list, it's an error.
+        throw new Error("Event not found.");
     }
-    await writeUsersToFile(updatedUsers);
-    return updatedUser;
+
+    await batch.commit();
+    return activeEvent;
 }
 
-export async function deleteUser(id: string): Promise<boolean> {
-    const users = await readUsersFromFile();
-    const updatedUsers = users.filter(user => user.id !== id);
-    if (users.length === updatedUsers.length) {
-        return false;
-    }
-    await writeUsersToFile(updatedUsers);
-    return true;
-}
-
-export async function getRegistrations(eventId?: string): Promise<Registration[]> {
-  const registrations = await readRegistrationsFromFile();
-  if (eventId) {
-    return registrations.filter(r => r.eventId === eventId);
+/**
+ * Deactivates an event in Firestore.
+ */
+export async function deactivateEvent(id: string): Promise<Event | null> {
+  const eventDocRef = doc(firestore, 'events', id);
+  updateDocumentNonBlocking(eventDocRef, { isActive: false });
+  const updatedDoc = await getDoc(eventDocRef);
+  if(updatedDoc.exists()) {
+      return { ...updatedDoc.data(), id: updatedDoc.id } as Event;
   }
-  return registrations;
+  return null;
 }
 
+/**
+ * Creates a new user in Firestore.
+ */
+export async function createUser(userData: Omit<User, 'id'>): Promise<User> {
+  const newUserRef = doc(collection(firestore, 'users'));
+  const newUser: User = {
+    ...userData,
+    id: newUserRef.id,
+  };
+  addDocumentNonBlocking(collection(firestore, 'users'), newUser);
+  return newUser;
+}
+
+/**
+ * Updates a user in Firestore.
+ */
+export async function updateUser(id: string, userData: Partial<Omit<User, 'id' | 'password'>> & { password?: string }): Promise<User | null> {
+  const userDocRef = doc(firestore, 'users', id);
+  const updateData = { ...userData };
+  if(!updateData.password) {
+      delete updateData.password;
+  }
+  updateDocumentNonBlocking(userDocRef, updateData);
+
+  const updatedDoc = await getDoc(userDocRef);
+  if(updatedDoc.exists()){
+      return { ...updatedDoc.data(), id: updatedDoc.id } as User;
+  }
+
+  return null;
+}
+
+/**
+ * Deletes a user from Firestore.
+ */
+export async function deleteUser(id: string): Promise<boolean> {
+  const userDocRef = doc(firestore, 'users', id);
+  deleteDocumentNonBlocking(userDocRef);
+  return true;
+}
+
+/**
+ * Reads registrations from Firestore, optionally filtered by eventId.
+ */
+export async function getRegistrations(eventId?: string): Promise<Registration[]> {
+  noStore();
+  const registrationsCol = collection(firestore, 'registrations');
+  let q = query(registrationsCol);
+  if (eventId) {
+    q = query(registrationsCol, where('eventId', '==', eventId));
+  }
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Registration));
+}
+
+/**
+ * Creates a new registration in Firestore.
+ */
 export async function createRegistration(data: { eventId: string; eventName: string; formData: { [key: string]: any; } }): Promise<Registration> {
-    const registrations = await readRegistrationsFromFile();
-    const newRegistration: Registration = {
-        ...data,
-        id: `reg_${crypto.randomUUID()}`,
-        registrationDate: new Date().toISOString(),
-    };
-    const updatedRegistrations = [...registrations, newRegistration];
-    await writeRegistrationsToFile(updatedRegistrations);
-    return newRegistration;
+  const newRegRef = doc(collection(firestore, 'registrations'));
+  const newRegistration: Registration = {
+    ...data,
+    id: newRegRef.id,
+    registrationDate: new Date().toISOString(),
+  };
+  
+  addDocumentNonBlocking(collection(firestore, 'registrations'), {
+    ...data,
+    id: newRegRef.id,
+    registrationDate: serverTimestamp(),
+  });
+  
+  return newRegistration;
 }
 
+/**
+ * Deletes a registration from Firestore.
+ */
 export async function deleteRegistration(id: string): Promise<boolean> {
-    const registrations = await readRegistrationsFromFile();
-    const updatedRegistrations = registrations.filter(reg => reg.id !== id);
-
-    if (registrations.length === updatedRegistrations.length) {
-        return false;
-    }
-    await writeRegistrationsToFile(updatedRegistrations);
-    return true;
+  const regDocRef = doc(firestore, 'registrations', id);
+  deleteDocumentNonBlocking(regDocRef);
+  return true;
 }
