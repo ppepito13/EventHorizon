@@ -43,22 +43,25 @@ interface RegistrationsClientPageProps {
   userRole: User['role'];
 }
 
+type DeletionResult = {
+  success: boolean;
+  message?: string;
+} | null;
+
+
 export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isExporting, startExportTransition] = useTransition();
-  const [isDeleting, startDeleteTransition] = useTransition();
   const { toast } = useToast();
 
-  // State for the delete dialog has been lifted from the table to this parent component.
+  const [isExporting, startExportTransition] = useTransition();
+  const [isDeleting, startDeleteTransition] = useTransition();
+
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
+  const [deletionResult, setDeletionResult] = useState<DeletionResult>(null);
 
-  const handleEventChange = (eventId: string) => {
-    setSelectedEventId(eventId);
-  };
-  
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
   const fetchRegistrations = useCallback(async () => {
@@ -90,24 +93,30 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const handleDeleteConfirm = () => {
     if (!registrationToDelete) return;
-
     startDeleteTransition(async () => {
       const result = await deleteRegistrationAction(registrationToDelete);
-      setAlertOpen(false);
+      setDeletionResult(result);
+    });
+  };
 
-      if (result.success) {
-        toast({ title: 'Success', description: result.message });
-        await fetchRegistrations();
+  useEffect(() => {
+    if (!isDeleting && deletionResult) {
+      if (deletionResult.success) {
+        toast({ title: 'Success', description: deletionResult.message });
+        fetchRegistrations(); // Refresh data
       } else {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: result.message,
+          description: deletionResult.message,
         });
       }
+      setAlertOpen(false);
       setRegistrationToDelete(null);
-    });
-  };
+      setDeletionResult(null);
+    }
+  }, [isDeleting, deletionResult, fetchRegistrations, toast]);
+
 
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
@@ -142,7 +151,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             View and manage event registrations. Select an event to see its attendees.
           </CardDescription>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <Select onValueChange={handleEventChange} defaultValue={selectedEventId}>
+            <Select onValueChange={setSelectedEventId} defaultValue={selectedEventId}>
               <SelectTrigger className="w-full sm:w-[280px]">
                 <SelectValue placeholder="Select an event" />
               </SelectTrigger>
@@ -178,6 +187,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
               registrations={registrations} 
               userRole={userRole}
               onDelete={handleDeleteRequest}
+              isLoading={isLoading}
             />
           ) : (
             <div className="text-center py-12 text-muted-foreground">

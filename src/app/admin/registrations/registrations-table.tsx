@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MoreHorizontal, Trash2, Eye, Pencil } from 'lucide-react';
+import { MoreHorizontal, Trash2, Eye, Pencil, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 
@@ -37,9 +37,10 @@ interface RegistrationsTableProps {
   registrations: Registration[];
   userRole: User['role'];
   onDelete: (id: string) => void;
+  isLoading: boolean;
 }
 
-export function RegistrationsTable({ event, registrations, userRole, onDelete }: RegistrationsTableProps) {
+export function RegistrationsTable({ event, registrations, userRole, onDelete, isLoading }: RegistrationsTableProps) {
   const [detailsViewReg, setDetailsViewReg] = useState<Registration | null>(null);
   const [detailsQrCode, setDetailsQrCode] = useState<string>('');
 
@@ -86,6 +87,14 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete }:
     return value.toString();
   };
   
+  if (isLoading && registrations.length === 0) {
+      return (
+          <div className="text-center py-12 text-muted-foreground">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+          </div>
+      );
+  }
+
   if (registrations.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
