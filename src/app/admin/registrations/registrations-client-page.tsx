@@ -37,30 +37,28 @@ import {
 } from '@/components/ui/alert-dialog';
 import { exportRegistrationsAction, getRegistrationsAction, deleteRegistrationAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface RegistrationsClientPageProps {
   events: Event[];
   userRole: User['role'];
 }
 
-type DeletionResult = {
-  success: boolean;
-  message?: string;
-} | null;
-
-
 export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const [isExporting, startExportTransition] = useTransition();
-  const [isDeleting, startDeleteTransition] = useTransition();
 
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
-  const [deletionResult, setDeletionResult] = useState<DeletionResult>(null);
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
@@ -69,7 +67,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         setRegistrations([]);
         return;
     }
-    setIsLoading(true);
     const result = await getRegistrationsAction(selectedEventId);
     if (result.success) {
         setRegistrations(result.data as Registration[]);
@@ -79,43 +76,43 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           toast({ variant: 'destructive', title: 'Error', description: result.error });
         }
     }
-    setIsLoading(false);
   }, [selectedEventId, toast]);
 
   useEffect(() => {
-    fetchRegistrations();
-  }, [fetchRegistrations]);
+    if (isMounted) {
+      setIsLoading(true);
+      fetchRegistrations().finally(() => setIsLoading(false));
+    }
+  }, [fetchRegistrations, isMounted]);
 
   const handleDeleteRequest = (id: string) => {
     setRegistrationToDelete(id);
     setAlertOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!registrationToDelete) return;
-    startDeleteTransition(async () => {
-      const result = await deleteRegistrationAction(registrationToDelete);
-      setDeletionResult(result);
-    });
-  };
+    
+    const result = await deleteRegistrationAction(registrationToDelete);
 
-  useEffect(() => {
-    if (!isDeleting && deletionResult) {
-      if (deletionResult.success) {
-        toast({ title: 'Success', description: deletionResult.message });
-        fetchRegistrations(); // Refresh data
-      } else {
+    // We MUST close the dialog regardless of success or failure to avoid a stuck UI
+    setAlertOpen(false);
+
+    if (result.success) {
+        toast({ title: 'Success', description: result.message });
+        // After a successful delete, refetch the data to update the list
+        setIsLoading(true);
+        fetchRegistrations().finally(() => setIsLoading(false));
+    } else {
         toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: deletionResult.message,
+            variant: 'destructive',
+            title: 'Error',
+            description: result.message,
         });
-      }
-      setAlertOpen(false);
-      setRegistrationToDelete(null);
-      setDeletionResult(null);
     }
-  }, [isDeleting, deletionResult, fetchRegistrations, toast]);
+    // Reset the ID after the operation
+    setRegistrationToDelete(null);
+  }, [registrationToDelete, fetchRegistrations, toast]);
 
 
   const handleExport = (format: 'excel' | 'plain') => {
@@ -151,33 +148,42 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             View and manage event registrations. Select an event to see its attendees.
           </CardDescription>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <Select onValueChange={setSelectedEventId} defaultValue={selectedEventId}>
-              <SelectTrigger className="w-full sm:w-[280px]">
-                <SelectValue placeholder="Select an event" />
-              </SelectTrigger>
-              <SelectContent>
-                {events.map(event => (
-                  <SelectItem key={event.id} value={event.id}>{event.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                  <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
-                      {isExporting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="mr-2 h-4 w-4" />
-                      )}
-                      Export
-                      <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                  <DropdownMenuItem onSelect={() => handleExport('excel')}>For Excel</DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isMounted ? (
+                <>
+                    <Select onValueChange={setSelectedEventId} defaultValue={selectedEventId}>
+                    <SelectTrigger className="w-full sm:w-[280px]">
+                        <SelectValue placeholder="Select an event" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {events.map(event => (
+                        <SelectItem key={event.id} value={event.id}>{event.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
+                            {isExporting ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                            <Download className="mr-2 h-4 w-4" />
+                            )}
+                            Export
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onSelect={() => handleExport('excel')}>For Excel</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
+                    </DropdownMenuContent>
+                    </DropdownMenu>
+                </>
+            ) : (
+                <>
+                    <Skeleton className="h-10 w-full sm:w-[280px]" />
+                    <Skeleton className="h-10 w-[128px]" />
+                </>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -205,9 +211,8 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>
               Continue
             </AlertDialogAction>
           </AlertDialogFooter>
