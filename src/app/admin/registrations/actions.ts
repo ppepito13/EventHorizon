@@ -5,7 +5,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { revalidatePath } from 'next/cache';
 import { getEventById, getRegistrationsFromFirestore } from '@/lib/data';
-import type { Registration, Event } from '@/lib/types';
+import type { Registration, Event, User } from '@/lib/types';
 import { initializeFirebase } from '@/firebase/init';
 import { doc, deleteDoc } from 'firebase/firestore';
 
@@ -13,21 +13,24 @@ const { firestore } = initializeFirebase();
 
 export async function getSeedDataAction(): Promise<{ 
     success: boolean; 
-    data?: { events: Event[], registrations: Registration[] };
+    data?: { events: Event[], registrations: Registration[], users: User[] };
     message?: string;
 }> {
   try {
     const dataDir = path.join(process.cwd(), 'src', 'data');
     const eventsPath = path.join(dataDir, 'events.json');
     const regsPath = path.join(dataDir, 'registrations.json');
+    const usersPath = path.join(dataDir, 'users.json');
 
     const eventsContent = await fs.readFile(eventsPath, 'utf8');
     const regsContent = await fs.readFile(regsPath, 'utf8');
+    const usersContent = await fs.readFile(usersPath, 'utf8');
 
     const events = JSON.parse(eventsContent);
     const registrations = JSON.parse(regsContent);
+    const users = JSON.parse(usersContent);
     
-    return { success: true, data: { events, registrations } };
+    return { success: true, data: { events, registrations, users } };
   } catch (error) {
      console.error("Seeding data read error:", error);
      const message = error instanceof Error ? error.message : 'An unknown server error occurred while reading seed data.';

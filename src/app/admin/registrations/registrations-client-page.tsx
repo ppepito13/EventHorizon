@@ -77,7 +77,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     return query(collection(firestore, 'events', selectedEventId, 'registrations'));
   }, [firestore, selectedEventId, user, isUserLoading]);
 
-  const { data: firestoreRegistrations, isLoading: isLoadingFirestore } = useCollection<Registration>(registrationsQuery);
+  const { data: firestoreRegistrations, isLoading: isLoadingFirestore, error: firestoreError } = useCollection<Registration>(registrationsQuery);
   
   const allRegistrations = useMemo(() => {
     if (!firestoreRegistrations) return [];
@@ -92,7 +92,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   };
 
   const handleDeleteConfirm = async () => {
-    if (!registrationToDelete || !selectedEventId) return;
+    if (!registrationToDelete || !selectedEventId || !firestore) return;
 
     setIsDeleting(true);
     try {
@@ -151,6 +151,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         return;
       }
 
+      toast({ title: "Seeding...", description: "Fetching local seed data files..." });
       const result = await getSeedDataAction();
 
       if (!result.success || !result.data) {
@@ -158,7 +159,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         return;
       }
 
-      const { events: seedEvents, registrations: seedRegistrations } = result.data;
+      const { events: seedEvents, registrations: seedRegistrations, users: seedUsers } = result.data;
 
       if (!seedEvents.length && !seedRegistrations.length) {
          toast({ title: "No Data to Seed", description: "The seed files are empty." });
@@ -167,37 +168,42 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
       try {
         // Step 1: Write all event documents first and wait for them to complete.
+        toast({ title: "Seeding Step 1/3", description: `Seeding ${seedEvents.length} events...` });
         const eventPromises: Promise<void>[] = [];
         const eventsToSeed = seedEvents.map(event => ({
           ...event,
-          ownerId: user.uid, // Use the authenticated Firebase user's UID
+          ownerId: user.uid, // Use the authenticated Firebase user's UID for ownership
           members: {},
         }));
 
-        toast({ title: "Seeding Step 1/2", description: `Seeding ${eventsToSeed.length} events...` });
         for (const event of eventsToSeed) {
             const eventRef = doc(firestore, 'events', event.id);
             eventPromises.push(setDoc(eventRef, event));
         }
-
         await Promise.all(eventPromises);
-        toast({ title: "Seeding Step 2/2", description: `Seeding ${seedRegistrations.length} registrations...` });
 
         // Step 2: Once events are created, write all registration documents.
+        toast({ title: "Seeding Step 2/3", description: `Seeding ${seedRegistrations.length} registrations...` });
         const registrationPromises: Promise<void>[] = [];
         for (const reg of seedRegistrations) {
             if (reg.id && reg.eventId) {
-                // Ensure eventId from registration is included in the document data
                 const regData = { ...reg };
                 const regRef = doc(firestore, 'events', reg.eventId, 'registrations', reg.id);
                 registrationPromises.push(setDoc(regRef, regData));
             }
         }
-
         await Promise.all(registrationPromises);
 
+        // Step 3: Configure admin role in Firestore to satisfy security rules
+        const adminUserFromFile = seedUsers.find(u => u.role === 'Administrator');
+        if (adminUserFromFile && user.email === adminUserFromFile.email) {
+          toast({ title: "Seeding Step 3/3", description: "Configuring admin role..." });
+          const adminRef = doc(firestore, 'app_admins', user.uid);
+          await setDoc(adminRef, { role: 'admin', seededAt: new Date().toISOString() });
+        }
+
         toast({ title: "Success!", description: `Seeding complete. ${eventsToSeed.length} events and ${seedRegistrations.length} registrations have been seeded.` });
-        // Data will appear automatically via the real-time listener.
+        
       } catch (e: any) {
         console.error("Seeding error:", e);
         toast({ variant: 'destructive', title: 'Seeding Failed', description: e.message || 'An unknown error occurred during seeding.' });
@@ -212,6 +218,22 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       return <RegistrationsTable registrations={[]} event={selectedEvent!} userRole={userRole} onDelete={()=>{}} isLoading={true} />;
     }
 
+    if (firestoreError) {
+      return (
+          <div className="text-center py-12 text-destructive-foreground bg-destructive/90 rounded-md">
+              <p className="font-bold">Permission Denied</p>
+              <p className="text-sm mt-2 max-w-md mx-auto">Could not load registrations. This is likely a security rule issue.</p>
+              <div className='mt-4'>
+                <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading || !user} variant='secondary'>
+                  {(isSeeding || isUserLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed Data & Permissions'}
+                </Button>
+                <p className="text-xs mt-2 text-destructive-foreground/80">Click to configure the database with required permissions.</p>
+              </div>
+          </div>
+      );
+    }
+    
     if (selectedEvent && allRegistrations.length > 0) {
       return (
         <RegistrationsTable 
