@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
+import { useFormStatus, useActionState } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,66 +15,31 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TicketPercent, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
-import { createSessionByEmail } from './actions';
+import { loginAction } from './actions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import type { User } from '@/lib/types';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
 
 
 interface LoginFormProps {
     demoUsers: User[];
 }
 
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button className="w-full" type="submit" disabled={pending}>
+        {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {pending ? 'Logging in...' : 'Log in'}
+    </Button>
+  );
+}
+
 export function LoginForm({ demoUsers }: LoginFormProps) {
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [state, formAction] = useActionState(loginAction, undefined);
   const { toast } = useToast();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-
-  const auth = useAuth();
-  const router = useRouter();
-
-  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    const formData = new FormData(event.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-
-    if (!email || !password) {
-        setError("Email and password are required.");
-        return;
-    }
-
-    startTransition(async () => {
-        try {
-            // 1. Sign in with Firebase
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            
-            // 2. Create server-side session
-            if (userCredential.user) {
-                const result = await createSessionByEmail(email);
-                if (result.success) {
-                    // 3. Redirect to admin
-                    router.replace('/admin');
-                } else {
-                    setError(result.error || "Failed to create a server session.");
-                }
-            }
-        } catch (e: any) {
-            if (e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-password') {
-                 setError('Invalid email or password.');
-            } else {
-                 setError('An unexpected error occurred during login.');
-                 console.error(e);
-            }
-        }
-    });
-  };
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -90,7 +56,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
       </Link>
       
       <Card className="w-full max-w-sm shadow-xl">
-        <form onSubmit={handleLogin}>
+        <form action={formAction}>
           <CardHeader>
             <CardTitle className="text-center text-2xl font-headline">
               Admin Panel
@@ -100,11 +66,11 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {error && (
+             {state?.error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {error}
+                  {state.error}
                 </AlertDescription>
               </Alert>
             )}
@@ -130,10 +96,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button className="w-full" type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isPending ? 'Logging in...' : 'Log in'}
-            </Button>
+            <SubmitButton />
           </CardFooter>
         </form>
       </Card>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
@@ -166,7 +165,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         return;
       }
       if (!user) {
-        toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to seed data. No user found.' });
+        toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to seed data. No Firebase user found.' });
         return;
       }
       if (!firestore) {
@@ -182,7 +181,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         return;
       }
 
-      const { events: seedEvents, registrations: seedRegistrations, users: seedUsers } = result.data;
+      const { events: seedEvents, registrations: seedRegistrations } = result.data;
 
       if (!seedEvents.length && !seedRegistrations.length) {
          toast({ title: "No Data to Seed", description: "The seed files are empty." });
@@ -230,8 +229,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         await Promise.all(registrationPromises);
 
         // Step 3: Configure admin role in Firestore to satisfy security rules
-        const adminUserFromFile = seedUsers.find(u => u.role === 'Administrator');
-        if (adminUserFromFile && user.email === adminUserFromFile.email) {
+        if (userRole === 'Administrator' && user) {
           toast({ title: "Seeding Step 3/3", description: "Configuring admin role..." });
           const adminRef = doc(firestore, 'app_admins', user.uid);
           await setDoc(adminRef, { role: 'admin', seededAt: new Date().toISOString() });
@@ -315,7 +313,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const debugStates = {
       isMounted,
       isUserLoading,
-      user: user ? { email: user.email, uid: user.uid } : null,
+      user: user ? { email: user.email, uid: user.uid, isAnonymous: user.isAnonymous } : null,
       userError: userError?.message || null,
       firebaseAppName: firebaseApp?.name,
       firebaseAppApiKey: firebaseApp?.options.apiKey,

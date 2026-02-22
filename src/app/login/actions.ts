@@ -3,31 +3,47 @@
 import { getUserByEmail } from '@/lib/data';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { z } from 'zod';
+import { redirect } from 'next/navigation';
 
-// This is no longer the main login action.
-// It's a helper to create the session file after successful Firebase client login.
-export async function createSessionByEmail(email: string): Promise<{ success: boolean; error?: string }> {
-  if (!email) {
-    return { success: false, error: 'Email is required.' };
+async function createSession(userId: string) {
+  const sessionFilePath = path.join(process.cwd(), '.tmp', 'session.json');
+  const sessionData = { userId };
+  await fs.mkdir(path.dirname(sessionFilePath), { recursive: true });
+  await fs.writeFile(sessionFilePath, JSON.stringify(sessionData, null, 2), 'utf8');
+}
+
+const FormSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(1, { message: 'Password cannot be empty.' }),
+});
+
+export async function loginAction(prevState: { error: string } | undefined, formData: FormData) {
+  const validatedFields = FormSchema.safeParse(
+    Object.fromEntries(formData.entries())
+  );
+
+  if (!validatedFields.success) {
+    const fieldErrors = validatedFields.error.flatten().fieldErrors;
+    return {
+      error: fieldErrors.email?.[0] || fieldErrors.password?.[0] || 'Invalid input.',
+    };
   }
+
+  const { email, password } = validatedFields.data;
 
   try {
     const user = await getUserByEmail(email);
-
-    if (!user) {
-      return { success: false, error: 'User not found in the system.' };
+    if (!user || user.password !== password) {
+      return { error: 'Invalid credentials. Please try again.' };
     }
-
-    // Set session by writing to file
-    const sessionFilePath = path.join(process.cwd(), '.tmp', 'session.json');
-    const sessionData = { userId: user.id };
-    await fs.mkdir(path.dirname(sessionFilePath), { recursive: true });
-    await fs.writeFile(sessionFilePath, JSON.stringify(sessionData, null, 2), 'utf8');
-
-    return { success: true };
+    
+    await createSession(user.id);
 
   } catch (error) {
     console.error(error);
-    return { success: false, error: 'A server error occurred while creating the session.' };
+    return { error: 'An unexpected server error occurred.' };
   }
+  
+  redirect('/admin');
 }
