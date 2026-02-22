@@ -162,9 +162,8 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       }
 
       try {
-        const writePromises: Promise<void>[] = [];
-
-        // Prepare event writes
+        // Step 1: Write all event documents first and wait for them to complete.
+        const eventPromises: Promise<void>[] = [];
         const eventsToSeed = seedEvents.map(event => ({
           ...event,
           ownerId: user.uid,
@@ -173,21 +172,25 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
         eventsToSeed.forEach(event => {
           const eventRef = doc(firestore, 'events', event.id);
-          writePromises.push(setDoc(eventRef, event));
+          eventPromises.push(setDoc(eventRef, event));
         });
 
-        // Prepare registration writes
+        await Promise.all(eventPromises);
+        toast({ title: "Step 1 Complete", description: `${eventsToSeed.length} events seeded.` });
+
+        // Step 2: Once events are created, write all registration documents.
+        const registrationPromises: Promise<void>[] = [];
         seedRegistrations.forEach(reg => {
           if (reg.id && reg.eventId) {
             const regRef = doc(firestore, 'events', reg.eventId, 'registrations', reg.id);
-            writePromises.push(setDoc(regRef, reg));
+            registrationPromises.push(setDoc(regRef, reg));
           }
         });
 
-        await Promise.all(writePromises);
+        await Promise.all(registrationPromises);
 
-        toast({ title: "Success!", description: `${eventsToSeed.length} events and ${seedRegistrations.length} registrations seeded.` });
-        // Data will appear automatically via the real-time listener if the user is viewing a seeded event.
+        toast({ title: "Success!", description: `${seedRegistrations.length} registrations have been seeded.` });
+        // Data will appear automatically via the real-time listener.
       } catch (e: any) {
         console.error("Seeding error:", e);
         toast({ variant: 'destructive', title: 'Seeding Failed', description: e.message || 'An unknown error occurred during seeding.' });
