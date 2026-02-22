@@ -12,9 +12,8 @@ import {
   where,
   serverTimestamp,
 } from 'firebase/firestore';
-import { getFirestore } from 'firebase/firestore';
 
-import { initializeFirebase } from '@/firebase';
+import { initializeFirebase } from '@/firebase/init';
 
 import { unstable_noStore as noStore } from 'next/cache';
 import type { Event, User, Registration } from './types';
