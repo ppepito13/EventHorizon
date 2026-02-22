@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
@@ -54,8 +53,8 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
-  const router = useRouter();
-
+  
+  const [jsonRegistrations, setJsonRegistrations] = useState<Registration[]>(initialJsonRegistrations);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, startExportTransition] = useTransition();
 
@@ -64,6 +63,11 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
 
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+
+  // Sync local state if the initial props from the server change
+  useEffect(() => {
+    setJsonRegistrations(initialJsonRegistrations);
+  }, [initialJsonRegistrations]);
 
   const registrationsQuery = useMemoFirebase(() => {
     if (!firestore || !selectedEventId || !user || isUserLoading) return null;
@@ -75,14 +79,14 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
   const allRegistrations = useMemo(() => {
     if (!selectedEventId) return [];
 
-    const jsonForEvent = initialJsonRegistrations.filter(r => r.eventId === selectedEventId);
+    const jsonForEvent = jsonRegistrations.filter(r => r.eventId === selectedEventId);
     
     const merged = new Map<string, Registration>();
     jsonForEvent.forEach(reg => merged.set(reg.id, reg));
     (firestoreRegistrations || []).forEach(reg => merged.set(reg.id, reg));
     
     return Array.from(merged.values()).sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
-  }, [selectedEventId, initialJsonRegistrations, firestoreRegistrations]);
+  }, [selectedEventId, jsonRegistrations, firestoreRegistrations]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -103,7 +107,8 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
 
     if (result.success) {
         toast({ title: 'Success', description: result.message });
-        router.refresh(); // Refresh server props to get updated JSON data
+        // Manually update the client-side state for JSON registrations
+        setJsonRegistrations(prev => prev.filter(r => r.id !== registrationToDelete));
     } else {
         toast({
             variant: 'destructive',
@@ -115,7 +120,7 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
     setIsDeleting(false);
     setAlertOpen(false);
     setRegistrationToDelete(null);
-  }, [registrationToDelete, selectedEventId, toast, router]);
+  }, [registrationToDelete, selectedEventId, toast]);
 
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
