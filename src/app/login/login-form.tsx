@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useAuth } from '@/firebase';
@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import type { User } from '@/lib/types';
+import { seedAuthUsersAction } from './actions';
 
 interface LoginFormProps {
     demoUsers: User[];
@@ -22,7 +23,7 @@ interface LoginFormProps {
 
 export function LoginForm({ demoUsers }: LoginFormProps) {
   const router = useRouter();
-  const auth = useAuth(); // Get the client-side auth instance
+  const auth = useAuth();
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -30,6 +31,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [isSeeding, startSeedTransition] = useTransition();
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -43,19 +45,13 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
     }
 
     try {
-      // 1. Sign in with Firebase on the client
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
-      // 2. Get the ID token
       const token = await user.getIdToken();
 
-      // 3. Send the token to our API route to create a session
       const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       });
 
@@ -64,14 +60,13 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
         throw new Error(data.error || 'Session creation failed.');
       }
 
-      // 4. Redirect to the admin panel on success
       router.push('/admin');
-      router.refresh(); // Ensure the page reloads to get new session data
+      router.refresh();
 
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-          setError('Invalid credentials. Please try again.');
+          setError('Invalid credentials. Have you synced the demo users?');
       } else {
           setError(err.message || 'An unexpected error occurred.');
       }
@@ -84,6 +79,24 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
     toast({ title: 'Copied to clipboard!' });
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
+  };
+  
+  const handleSeedUsers = () => {
+    startSeedTransition(async () => {
+      const result = await seedAuthUsersAction();
+      if (result.success) {
+        toast({
+          title: 'Success!',
+          description: result.message,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Seeding Failed',
+          description: result.message,
+        });
+      }
+    });
   };
 
   return (
@@ -145,6 +158,23 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
           </CardFooter>
         </form>
       </Card>
+
+      <div className="w-full max-w-sm space-y-2">
+        <Card>
+            <CardHeader className='pb-4'>
+                <CardTitle className="text-lg font-headline">First time login?</CardTitle>
+                <CardDescription>
+                    If login fails, your demo users may not exist in the authentication system. Click the button below to create them.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+            <Button variant="outline" className="w-full" onClick={handleSeedUsers} disabled={isSeeding}>
+                {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSeeding ? 'Creating users...' : 'Sync & Create Demo Users'}
+            </Button>
+            </CardContent>
+        </Card>
+      </div>
       
       <Card className="w-full max-w-sm shadow-xl">
         <CardHeader>
