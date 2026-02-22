@@ -134,6 +134,10 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const handleSeedData = () => {
     startSeedingTransition(async () => {
+      if (isUserLoading) {
+        toast({ title: "Please wait", description: "Authentication is still initializing." });
+        return;
+      }
       if (!user) {
         toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to seed data.' });
         return;
@@ -214,9 +218,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       return (
         <div className="text-center py-12 text-muted-foreground space-y-4">
           <p>No registrations found for this event in Firestore.</p>
-          <Button onClick={handleSeedData} disabled={isSeeding}>
-            {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Seed Test Data
+          <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading}>
+            {(isSeeding || isUserLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed Test Data'}
           </Button>
           <p className="text-xs text-muted-foreground/80">This will migrate test data from JSON files into the database.</p>
         </div>
