@@ -116,10 +116,14 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   };
 
   const handleDeleteConfirm = () => {
-    if (!registrationToDelete || !selectedEventId || !firestore) return;
+    if (!registrationToDelete || !selectedEventId || !firestore) {
+      console.log('handleDeleteConfirm: Aborted. Missing required data.');
+      return;
+    }
   
     const regRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationToDelete);
     
+    // Log for debugging that the action is starting.
     setLastDeleteAttempt({ 
       id: registrationToDelete, 
       time: new Date().toISOString(), 
@@ -129,38 +133,29 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     // Close the dialog immediately to keep the UI responsive.
     setAlertOpen(false);
     
-    // Fire-and-forget, but now with proper error handling to prevent crashes.
+    // Fire the delete command. The .catch() block is critical to prevent a crash from an unhandled promise rejection.
     deleteDoc(regRef)
-      .then(() => {
-        // This is optimistic. The listener will eventually remove the item.
-        // We can log success for debugging.
-        setLastDeleteAttempt({ 
-          id: registrationToDelete, 
-          time: new Date().toISOString(), 
-          status: 'delete command sent successfully' 
-        });
-        toast({
-          title: "Deletion Sent",
-          description: "The request to delete the registration has been sent.",
-        });
-      })
       .catch((error) => {
-        // THIS IS THE CRITICAL FIX: Catch the unhandled rejection.
-        console.error("Delete operation failed:", error);
+        // This block catches the permission error from Firestore, preventing a page freeze.
+        console.error("[handleDeleteConfirm] Firestore delete operation failed. This error was caught to prevent a crash.", error);
+        
+        // Provide user feedback via a toast notification.
         toast({
           variant: "destructive",
           title: "Deletion Failed",
-          description: error.message || "Could not delete registration due to a permission error.",
+          description: error.message || "Could not delete registration. Check permissions.",
         });
+        
+        // Update the debug panel with the specific error for diagnostics.
         setLastDeleteAttempt({ 
           id: registrationToDelete, 
           time: new Date().toISOString(), 
-          status: 'error',
+          status: 'error (from promise.catch)',
           message: error.message
         });
       });
 
-    // Reset the state *immediately* after initiating the delete.
+    // Reset the state for the next operation.
     setRegistrationToDelete(null);
   };
   
@@ -453,5 +448,3 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     </>
   );
 }
-
-    
