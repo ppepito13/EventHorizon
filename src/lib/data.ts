@@ -24,8 +24,6 @@ const eventsFilePath = path.join(dataDir, 'events.json');
 const usersFilePath = path.join(dataDir, 'users.json');
 
 
-const { firestore } = initializeFirebase();
-
 // --- Helper Functions ---
 async function readData<T>(filePath: string): Promise<T> {
   noStore(); // Ensures data is fetched on every request
@@ -203,6 +201,7 @@ export async function deactivateEvent(id: string): Promise<Event | null> {
 // --- Registration Functions ---
 
 export async function getRegistrationsFromFirestore(eventId: string): Promise<Registration[]> {
+  const { firestore } = initializeFirebase();
   noStore();
   const registrationsColRef = collection(firestore, 'events', eventId, 'registrations');
   const snapshot = await getDocs(registrationsColRef);
@@ -214,6 +213,7 @@ export async function getRegistrationsFromFirestore(eventId: string): Promise<Re
 
 
 export async function getRegistrationFromFirestore(eventId: string, registrationId: string): Promise<Registration | null> {
+  const { firestore } = initializeFirebase();
   noStore();
   const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
   const docSnap = await getDoc(registrationDocRef);

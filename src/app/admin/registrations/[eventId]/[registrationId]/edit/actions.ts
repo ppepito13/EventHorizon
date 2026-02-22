@@ -5,13 +5,12 @@ import { revalidatePath } from 'next/cache';
 import { initializeFirebase } from '@/firebase/init';
 import { doc, updateDoc } from 'firebase/firestore';
 
-const { firestore } = initializeFirebase();
-
 export async function updateRegistrationAction(
     eventId: string,
     registrationId: string,
     formData: { [key: string]: any }
 ) {
+  const { firestore } = initializeFirebase();
   if (!eventId || !registrationId) {
     return { success: false, message: 'Event ID and Registration ID are required.' };
   }

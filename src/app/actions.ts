@@ -5,11 +5,8 @@ import { z } from 'zod';
 import { getEventById } from '@/lib/data';
 import type { Registration } from '@/lib/types';
 import { initializeFirebase } from '@/firebase/init';
-import { collection, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc } from 'firebase/firestore';
 import { randomUUID } from 'crypto';
-
-const { firestore } = initializeFirebase();
-
 
 export async function registerForEvent(
   eventId: string,
@@ -19,6 +16,7 @@ export async function registerForEvent(
   registration?: Registration;
   errors?: { [key:string]: string[] } | { _form: string[] };
 }> {
+  const { firestore } = initializeFirebase();
   try {
     const event = await getEventById(eventId);
     if (!event) {
