@@ -9,16 +9,10 @@ import { firebaseConfig } from './config';
 
 // This function ensures a singleton instance of Firebase on the client-side.
 function initializeClientApp() {
-  const apps = getApps();
-  // Use a unique name for the client app to avoid conflicts with server-side instances
-  const clientAppName = 'event-platform-client';
-  
-  const clientApp = apps.find(app => app.name === clientAppName);
-  if (clientApp) {
-    return clientApp;
+  if (getApps().length) {
+    return getApp();
   }
-  
-  return initializeApp(firebaseConfig, clientAppName);
+  return initializeApp(firebaseConfig);
 }
 
 

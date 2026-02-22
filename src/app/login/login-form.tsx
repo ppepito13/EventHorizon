@@ -59,7 +59,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                 const result = await createSessionByEmail(email);
                 if (result.success) {
                     // 3. Redirect to admin
-                    router.push('/admin');
+                    router.replace('/admin');
                 } else {
                     setError(result.error || "Failed to create a server session.");
                 }
