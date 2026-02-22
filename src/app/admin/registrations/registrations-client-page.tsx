@@ -25,7 +25,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { exportRegistrationsAction, getRegistrationsAction } from './actions';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { exportRegistrationsAction, getRegistrationsAction, deleteRegistrationAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 
 interface RegistrationsClientPageProps {
@@ -38,7 +48,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, startExportTransition] = useTransition();
+  const [isDeleting, startDeleteTransition] = useTransition();
   const { toast } = useToast();
+
+  // State for the delete dialog has been lifted from the table to this parent component.
+  const [isAlertOpen, setAlertOpen] = useState(false);
+  const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
 
   const handleEventChange = (eventId: string) => {
     setSelectedEventId(eventId);
@@ -51,7 +66,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         setRegistrations([]);
         return;
     }
-
     setIsLoading(true);
     const result = await getRegistrationsAction(selectedEventId);
     if (result.success) {
@@ -68,11 +82,32 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   useEffect(() => {
     fetchRegistrations();
   }, [fetchRegistrations]);
-  
-  const handleRegistrationDeleted = () => {
-    fetchRegistrations();
+
+  const handleDeleteRequest = (id: string) => {
+    setRegistrationToDelete(id);
+    setAlertOpen(true);
   };
 
+  const handleDeleteConfirm = () => {
+    if (!registrationToDelete) return;
+
+    startDeleteTransition(async () => {
+      const result = await deleteRegistrationAction(registrationToDelete);
+      setAlertOpen(false);
+
+      if (result.success) {
+        toast({ title: 'Success', description: result.message });
+        await fetchRegistrations();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: result.message,
+        });
+      }
+      setRegistrationToDelete(null);
+    });
+  };
 
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
@@ -99,56 +134,75 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Registrations</CardTitle>
-        <CardDescription>
-          View and manage event registrations. Select an event to see its attendees.
-        </CardDescription>
-        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-          <Select onValueChange={handleEventChange} defaultValue={selectedEventId}>
-            <SelectTrigger className="w-full sm:w-[280px]">
-              <SelectValue placeholder="Select an event" />
-            </SelectTrigger>
-            <SelectContent>
-              {events.map(event => (
-                <SelectItem key={event.id} value={event.id}>{event.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
-                    {isExporting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Download className="mr-2 h-4 w-4" />
-                    )}
-                    Export
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => handleExport('excel')}>For Excel</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {selectedEvent ? (
-          <RegistrationsTable 
-            event={selectedEvent} 
-            registrations={registrations} 
-            userRole={userRole}
-            onRegistrationDeleted={handleRegistrationDeleted}
-          />
-        ) : (
-          <div className="text-center py-12 text-muted-foreground">
-             {isLoading ? <p>Loading...</p> : <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Registrations</CardTitle>
+          <CardDescription>
+            View and manage event registrations. Select an event to see its attendees.
+          </CardDescription>
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <Select onValueChange={handleEventChange} defaultValue={selectedEventId}>
+              <SelectTrigger className="w-full sm:w-[280px]">
+                <SelectValue placeholder="Select an event" />
+              </SelectTrigger>
+              <SelectContent>
+                {events.map(event => (
+                  <SelectItem key={event.id} value={event.id}>{event.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
+                      {isExporting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="mr-2 h-4 w-4" />
+                      )}
+                      Export
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => handleExport('excel')}>For Excel</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardHeader>
+        <CardContent>
+          {selectedEvent ? (
+            <RegistrationsTable 
+              event={selectedEvent} 
+              registrations={registrations} 
+              userRole={userRole}
+              onDelete={handleDeleteRequest}
+            />
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this registration.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

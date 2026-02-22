@@ -1,7 +1,7 @@
 'use client';
 
 import type { Event, Registration, User } from '@/lib/types';
-import { useState, useTransition } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import QRCode from 'qrcode';
@@ -22,42 +22,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MoreHorizontal, Trash2, Loader2, Eye, Pencil } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { deleteRegistrationAction } from './actions';
+import { MoreHorizontal, Trash2, Eye, Pencil } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
-import { useEffect } from 'react';
-
 
 interface RegistrationsTableProps {
   event: Event;
   registrations: Registration[];
   userRole: User['role'];
-  onRegistrationDeleted: () => void;
+  onDelete: (id: string) => void;
 }
 
-export function RegistrationsTable({ event, registrations, userRole, onRegistrationDeleted }: RegistrationsTableProps) {
-  const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
-  const [isAlertOpen, setAlertOpen] = useState(false);
-  const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
+export function RegistrationsTable({ event, registrations, userRole, onDelete }: RegistrationsTableProps) {
   const [detailsViewReg, setDetailsViewReg] = useState<Registration | null>(null);
   const [detailsQrCode, setDetailsQrCode] = useState<string>('');
 
@@ -76,7 +58,6 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
     }
   }, [detailsViewReg]);
 
-  // Find the actual keys for Full Name and Email from the event's form fields config
   const fullNameField = event.formFields.find(f => f.label.toLowerCase().includes('full name'));
   const emailField = event.formFields.find(f => f.label.toLowerCase().includes('email'));
   
@@ -84,7 +65,6 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
     if (fullNameField && formData[fullNameField.name]) {
       return formData[fullNameField.name];
     }
-    // Fallback for older data structures
     return formData['fullName'] || formData['full_name'];
   };
 
@@ -92,39 +72,9 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
     if (emailField && formData[emailField.name]) {
       return formData[emailField.name];
     }
-    // Fallback for older data structures
     return formData['email'];
   };
 
-
-  const openDeleteDialog = (id: string) => {
-    setRegistrationToDelete(id);
-    setAlertOpen(true);
-  };
-
-  const handleDelete = () => {
-    if (!registrationToDelete) return;
-
-    startTransition(async () => {
-      const result = await deleteRegistrationAction(registrationToDelete);
-
-      setAlertOpen(false);
-
-      if (result.success) {
-        toast({ title: 'Success', description: result.message });
-        onRegistrationDeleted();
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: result.message,
-        });
-      }
-      
-      setRegistrationToDelete(null);
-    });
-  };
-  
   const getDisplayValue = (value: any) => {
     if (value === null || value === undefined || value === '') return <span className="text-muted-foreground/70">N/A</span>;
     if (Array.isArray(value)) {
@@ -203,7 +153,7 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => openDeleteDialog(reg.id)}
+                          onClick={() => onDelete(reg.id)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
@@ -217,23 +167,6 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
           </TableBody>
         </Table>
       </div>
-      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this registration.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Continue
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       
       <Dialog open={!!detailsViewReg} onOpenChange={(open) => !open && setDetailsViewReg(null)}>
         <DialogContent className="max-w-lg">
