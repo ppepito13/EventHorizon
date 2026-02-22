@@ -35,7 +35,7 @@ function convertToCSV(data: Registration[], headers: {key: string, label: string
     return [headerRow, ...rows].join('\n');
 }
 
-export async function exportRegistrationsAction(eventId: string) {
+export async function exportRegistrationsAction(eventId: string, format: 'excel' | 'plain' = 'plain') {
     if (!eventId) {
         return { success: false, error: 'Event ID is required.' };
     }
@@ -52,7 +52,11 @@ export async function exportRegistrationsAction(eventId: string) {
         }
 
         const headers = event.formFields.map(field => ({ key: field.name, label: field.label }));
-        const csvData = convertToCSV(registrations, headers);
+        let csvData = convertToCSV(registrations, headers);
+
+        if (format === 'excel') {
+            csvData = `sep=|\n${csvData}`;
+        }
 
         return { success: true, csvData, eventName: event.name };
     } catch (error) {

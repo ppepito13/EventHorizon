@@ -18,7 +18,13 @@ import {
 } from '@/components/ui/select';
 import { RegistrationsTable } from './registrations-table';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { exportRegistrationsAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 
@@ -44,13 +50,13 @@ export function RegistrationsClientPage({ events, registrations, userRole }: Reg
     return registrations.filter(r => r.eventId === selectedEventId);
   }, [registrations, selectedEventId]);
 
-  const handleExport = () => {
+  const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
         toast({ variant: 'destructive', title: 'Error', description: 'Please select an event to export.' });
         return;
     }
     startExportTransition(async () => {
-        const result = await exportRegistrationsAction(selectedEventId);
+        const result = await exportRegistrationsAction(selectedEventId, format);
         if (result.success && result.csvData) {
             const blob = new Blob([result.csvData], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
@@ -86,14 +92,23 @@ export function RegistrationsClientPage({ events, registrations, userRole }: Reg
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={handleExport} disabled={isExporting || !selectedEventId || filteredRegistrations.length === 0}>
-            {isExporting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="mr-2 h-4 w-4" />
-            )}
-            Export CSV
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={isExporting || !selectedEventId || filteredRegistrations.length === 0}>
+                    {isExporting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Export
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => handleExport('excel')}>For Excel</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent>
