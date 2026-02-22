@@ -64,12 +64,15 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    if (events.length > 0 && !selectedEventId) {
+      setSelectedEventId(events[0].id);
+    }
+  }, [events, selectedEventId]);
 
   const registrationsQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedEventId || !user || isUserLoading) return null;
+    if (!firestore || !selectedEventId) return null;
     return query(collection(firestore, 'events', selectedEventId, 'registrations'));
-  }, [firestore, selectedEventId, user, isUserLoading]);
+  }, [firestore, selectedEventId]);
 
   const { data: firestoreRegistrations, isLoading: isLoadingFirestore } = useCollection<Registration>(registrationsQuery);
   
@@ -102,7 +105,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         });
     }
     
-    // This logic ensures the dialog closes *after* the action is complete, preventing race conditions.
     setIsDeleting(false);
     setAlertOpen(false);
     setRegistrationToDelete(null);
@@ -166,17 +168,18 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         const eventPromises: Promise<void>[] = [];
         const eventsToSeed = seedEvents.map(event => ({
           ...event,
-          ownerId: user.uid,
+          ownerId: user.uid, // Use the authenticated Firebase user's UID
           members: {},
         }));
 
+        toast({ title: "Seeding Step 1/2", description: `Seeding ${eventsToSeed.length} events...` });
         eventsToSeed.forEach(event => {
           const eventRef = doc(firestore, 'events', event.id);
           eventPromises.push(setDoc(eventRef, event));
         });
 
         await Promise.all(eventPromises);
-        toast({ title: "Step 1 Complete", description: `${eventsToSeed.length} events seeded.` });
+        toast({ title: "Seeding Step 2/2", description: `Seeding ${seedRegistrations.length} registrations...` });
 
         // Step 2: Once events are created, write all registration documents.
         const registrationPromises: Promise<void>[] = [];
@@ -189,7 +192,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
         await Promise.all(registrationPromises);
 
-        toast({ title: "Success!", description: `${seedRegistrations.length} registrations have been seeded.` });
+        toast({ title: "Success!", description: `Seeding complete. ${eventsToSeed.length} events and ${seedRegistrations.length} registrations have been seeded.` });
         // Data will appear automatically via the real-time listener.
       } catch (e: any) {
         console.error("Seeding error:", e);
@@ -198,7 +201,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
   
-  const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
+  const isLoading = !isMounted || isLoadingFirestore;
 
   const renderContent = () => {
     if (isLoading) {
@@ -289,7 +292,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         </CardContent>
       </Card>
       <AlertDialog open={isAlertOpen} onOpenChange={(open) => {
-        // Prevent closing the dialog while the deletion is in progress
         if (isDeleting) return;
         setAlertOpen(open);
         if (!open) {
