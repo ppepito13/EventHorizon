@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useTransition } from 'react';
+import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
@@ -38,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { exportRegistrationsAction, deleteRegistrationAction, getJsonRegistrationsAction } from './actions';
+import { exportRegistrationsAction, deleteRegistrationAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -58,42 +58,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  const [jsonRegistrations, setJsonRegistrations] = useState<Registration[]>([]);
-  const [isLoadingJson, setIsLoadingJson] = useState(false);
-
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  const fetchJsonRegistrations = useCallback(async () => {
-    if (!selectedEventId) {
-      setJsonRegistrations([]);
-      return;
-    }
-    setIsLoadingJson(true);
-    try {
-      const result = await getJsonRegistrationsAction(selectedEventId);
-      if (result.success && result.data) {
-        setJsonRegistrations(result.data);
-      } else {
-        throw new Error(result.error || 'Failed to fetch local registrations.');
-      }
-    } catch (error: any) {
-      console.error("Failed to fetch JSON registrations:", error);
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
-    } finally {
-      setIsLoadingJson(false);
-    }
-  }, [selectedEventId, toast]);
-
-  useEffect(() => {
-    if (selectedEventId) {
-      fetchJsonRegistrations();
-    }
-  }, [selectedEventId, fetchJsonRegistrations]);
 
   const registrationsQuery = useMemoFirebase(() => {
     if (!firestore || !selectedEventId || !user || isUserLoading) return null;
@@ -103,19 +73,18 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const { data: firestoreRegistrations, isLoading: isLoadingFirestore } = useCollection<Registration>(registrationsQuery);
   
   const allRegistrations = useMemo(() => {
-    const combined = [...(firestoreRegistrations || []), ...jsonRegistrations];
-    const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
-    return unique.sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
-  }, [firestoreRegistrations, jsonRegistrations]);
+    if (!firestoreRegistrations) return [];
+    return [...firestoreRegistrations].sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
+  }, [firestoreRegistrations]);
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
-  const handleDeleteRequest = useCallback((id: string) => {
+  const handleDeleteRequest = (id: string) => {
     setRegistrationToDelete(id);
     setAlertOpen(true);
-  }, []);
+  };
 
-  const handleDeleteConfirm = useCallback(async () => {
+  const handleDeleteConfirm = async () => {
     if (!registrationToDelete || !selectedEventId) return;
 
     setIsDeleting(true);
@@ -123,9 +92,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     
     if (result.success) {
         toast({ title: 'Success', description: result.message });
-        // Instead of a full refresh, just remove the item from the local state
-        setJsonRegistrations(prev => prev.filter(reg => reg.id !== registrationToDelete));
-        // The firestore listener will handle its own update.
+        // The real-time listener from useCollection will automatically update the UI.
     } else {
         toast({
             variant: 'destructive',
@@ -133,11 +100,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             description: result.message || 'An unknown error occurred.',
         });
     }
+    
+    // This logic ensures the dialog closes *after* the action is complete, preventing race conditions.
     setIsDeleting(false);
     setAlertOpen(false);
     setRegistrationToDelete(null);
-
-  }, [registrationToDelete, selectedEventId, toast]);
+  };
   
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
@@ -163,7 +131,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
   
-  const isLoading = !isMounted || isLoadingFirestore || isLoadingJson || isUserLoading;
+  const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
 
   return (
     <>
@@ -228,7 +196,14 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           )}
         </CardContent>
       </Card>
-      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+      <AlertDialog open={isAlertOpen} onOpenChange={(open) => {
+        // Prevent closing the dialog while the deletion is in progress
+        if (isDeleting) return;
+        setAlertOpen(open);
+        if (!open) {
+          setRegistrationToDelete(null);
+        }
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
