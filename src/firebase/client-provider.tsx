@@ -2,7 +2,25 @@
 
 import React, { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
-import { initializeFirebase } from '@/firebase/init';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { firebaseConfig } from './config';
+
+// This function ensures a singleton instance of Firebase on the client-side.
+function initializeClientApp() {
+  const apps = getApps();
+  // Use a unique name for the client app to avoid conflicts with server-side instances
+  const clientAppName = 'event-platform-client';
+  
+  const clientApp = apps.find(app => app.name === clientAppName);
+  if (clientApp) {
+    return clientApp;
+  }
+  
+  return initializeApp(firebaseConfig, clientAppName);
+}
+
 
 interface FirebaseClientProviderProps {
   children: ReactNode;
@@ -10,9 +28,13 @@ interface FirebaseClientProviderProps {
 
 export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
   const firebaseServices = useMemo(() => {
-    // Initialize Firebase on the client side, once per component mount.
-    return initializeFirebase();
-  }, []); // Empty dependency array ensures this runs only once on mount
+    const app = initializeClientApp();
+    return {
+      firebaseApp: app,
+      auth: getAuth(app),
+      firestore: getFirestore(app),
+    };
+  }, []);
 
   return (
     <FirebaseProvider

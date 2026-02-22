@@ -214,7 +214,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoading && !firestoreError) {
       return <RegistrationsTable registrations={[]} event={selectedEvent!} userRole={userRole} onDelete={()=>{}} isLoading={true} />;
     }
 
@@ -224,7 +224,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
               <p className="font-bold">Permission Denied</p>
               <p className="text-sm mt-2 max-w-md mx-auto">Could not load registrations. This is likely a security rule issue.</p>
               <div className='mt-4'>
-                <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading || !user} variant='secondary'>
+                <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading} variant='secondary'>
                   {(isSeeding || isUserLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed Data & Permissions'}
                 </Button>
@@ -250,7 +250,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       return (
         <div className="text-center py-12 text-muted-foreground space-y-4">
           <p>No registrations found for this event in Firestore.</p>
-          <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading || !user}>
+          <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading}>
             {(isSeeding || isUserLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed Test Data'}
           </Button>
