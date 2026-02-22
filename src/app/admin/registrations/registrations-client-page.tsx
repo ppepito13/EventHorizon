@@ -141,7 +141,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       .finally(() => {
           setIsDeleting(false);
           setAlertOpen(false);
-          setRegistrationToDelete(null);
       });
   };
   
@@ -312,16 +311,25 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Registrations</CardTitle>
-          <CardDescription>
-            View and manage event registrations.
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+              <div>
+                  <CardTitle>Registrations</CardTitle>
+                  <CardDescription>
+                      View and manage event registrations.
+                  </CardDescription>
+              </div>
+              {userRole === 'Administrator' && isMounted && (
+                  <Button onClick={handleSeedData} disabled={isSeedButtonDisabled} size="sm">
+                      {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed/Repair Data'}
+                  </Button>
+              )}
+          </div>
           <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
             {!isMounted ? (
                 <>
                     <Skeleton className="h-10 w-full sm:w-[280px]" />
                     <Skeleton className="h-10 w-[128px]" />
-                    <Skeleton className="h-10 w-[160px]" />
                 </>
             ) : (
                 <>
@@ -352,12 +360,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                         <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
                     </DropdownMenuContent>
                     </DropdownMenu>
-                    {userRole === 'Administrator' && (
-                      <Button onClick={handleSeedData} disabled={isSeedButtonDisabled}>
-                        {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed/Repair Data'}
-                      </Button>
-                    )}
                 </>
             )}
           </div>
@@ -369,11 +371,11 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       
       <DebugInfo states={debugStates} />
       
-      <AlertDialog open={isAlertOpen} onOpenChange={(open) => {
-        if (isDeleting) return;
-        setAlertOpen(open);
-        if (!open) {
-          setRegistrationToDelete(null);
+      <AlertDialog open={isAlertOpen} onOpenChange={(isOpen) => {
+        if (isDeleting) return; // Prevent closing while operation is in progress
+        setAlertOpen(isOpen);
+        if (!isOpen) {
+            setRegistrationToDelete(null); // Reset when dialog is closed
         }
       }}>
         <AlertDialogContent>
@@ -395,5 +397,3 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     </>
   );
 }
-
-    
