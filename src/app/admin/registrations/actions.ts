@@ -5,27 +5,36 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { revalidatePath } from 'next/cache';
 import { getEventById, getRegistrationsFromFirestore } from '@/lib/data';
-import type { Registration } from '@/lib/types';
+import type { Registration, Event } from '@/lib/types';
 import { initializeFirebase } from '@/firebase/init';
-import { doc, deleteDoc, setDoc } from 'firebase/firestore';
+import { doc, deleteDoc } from 'firebase/firestore';
 
 const { firestore } = initializeFirebase();
 
-// Local implementation to avoid client-side bundling of 'fs'
-async function getJsonRegistrations(): Promise<Registration[]> {
-  const dataDir = path.join(process.cwd(), 'src', 'data');
-  const filePath = path.join(dataDir, 'registrations.json');
+export async function getSeedDataAction(): Promise<{ 
+    success: boolean; 
+    data?: { events: Event[], registrations: Registration[] };
+    message?: string;
+}> {
   try {
-    const fileContent = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(fileContent);
+    const dataDir = path.join(process.cwd(), 'src', 'data');
+    const eventsPath = path.join(dataDir, 'events.json');
+    const regsPath = path.join(dataDir, 'registrations.json');
+
+    const eventsContent = await fs.readFile(eventsPath, 'utf8');
+    const regsContent = await fs.readFile(regsPath, 'utf8');
+
+    const events = JSON.parse(eventsContent);
+    const registrations = JSON.parse(regsContent);
+    
+    return { success: true, data: { events, registrations } };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
-    }
-    console.error(`Error reading data from ${filePath}:`, error);
-    throw new Error(`Could not read data from ${filePath}.`);
+     console.error("Seeding data read error:", error);
+     const message = error instanceof Error ? error.message : 'An unknown server error occurred while reading seed data.';
+     return { success: false, message };
   }
 }
+
 
 export async function deleteRegistrationAction(eventId: string, registrationId: string) {
   if (!eventId || !registrationId) {
@@ -96,37 +105,4 @@ export async function exportRegistrationsAction(eventId: string, format: 'excel'
         console.error("Export error: ", error);
         return { success: false, error: 'Failed to export data.' };
     }
-}
-
-
-export async function seedRegistrationsFromJSON() {
-  try {
-    const registrations = await getJsonRegistrations();
-
-    if (registrations.length === 0) {
-      return { success: true, message: 'The registrations.json file is empty. No data to seed.' };
-    }
-
-    const writePromises = [];
-    for (const reg of registrations) {
-      const { id, ...dataToWrite } = reg;
-      if (!id || !dataToWrite.eventId) continue;
-      
-      const regDocRef = doc(firestore, 'events', dataToWrite.eventId, 'registrations', id);
-      writePromises.push(setDoc(regDocRef, dataToWrite));
-    }
-
-    await Promise.all(writePromises);
-
-    revalidatePath('/admin/registrations');
-    return { success: true, message: `${registrations.length} registrations successfully seeded to Firestore.` };
-
-  } catch (error) {
-    if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return { success: false, message: 'data/registrations.json not found.' };
-    }
-    console.error("Seeding error:", error);
-    const message = error instanceof Error ? error.message : 'An unknown server error occurred during seeding.';
-    return { success: false, message };
-  }
 }

@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, doc, setDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import {
   Card,
@@ -38,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { exportRegistrationsAction, deleteRegistrationAction, seedRegistrationsFromJSON } from './actions';
+import { exportRegistrationsAction, deleteRegistrationAction, getSeedDataAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -132,15 +132,62 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
 
-   const handleSeedData = () => {
+  const handleSeedData = () => {
     startSeedingTransition(async () => {
-        const result = await seedRegistrationsFromJSON();
-        if (result.success) {
-            toast({ title: "Success!", description: result.message });
-            // Data will appear automatically via the real-time listener.
-        } else {
-            toast({ variant: 'destructive', title: 'Seeding Failed', description: result.message });
-        }
+      if (!user) {
+        toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to seed data.' });
+        return;
+      }
+      if (!firestore) {
+         toast({ variant: 'destructive', title: 'Firestore Error', description: 'Firestore is not available.' });
+        return;
+      }
+
+      const result = await getSeedDataAction();
+
+      if (!result.success || !result.data) {
+        toast({ variant: 'destructive', title: 'Seeding Failed', description: result.message || 'Could not fetch seed data.' });
+        return;
+      }
+
+      const { events: seedEvents, registrations: seedRegistrations } = result.data;
+
+      if (!seedEvents.length && !seedRegistrations.length) {
+         toast({ title: "No Data to Seed", description: "The seed files are empty." });
+         return;
+      }
+
+      try {
+        const writePromises: Promise<void>[] = [];
+
+        // Prepare event writes
+        const eventsToSeed = seedEvents.map(event => ({
+          ...event,
+          ownerId: user.uid,
+          members: {},
+        }));
+
+        eventsToSeed.forEach(event => {
+          const eventRef = doc(firestore, 'events', event.id);
+          writePromises.push(setDoc(eventRef, event));
+        });
+
+        // Prepare registration writes
+        seedRegistrations.forEach(reg => {
+          if (reg.id && reg.eventId) {
+            const regRef = doc(firestore, 'events', reg.eventId, 'registrations', reg.id);
+            writePromises.push(setDoc(regRef, reg));
+          }
+        });
+
+        await Promise.all(writePromises);
+
+        toast({ title: "Success!", description: `${eventsToSeed.length} events and ${seedRegistrations.length} registrations seeded.` });
+        // Data will appear automatically via the real-time listener if the user is viewing a seeded event.
+      } catch (e: any) {
+        console.error("Seeding error:", e);
+        toast({ variant: 'destructive', title: 'Seeding Failed', description: e.message || 'An unknown error occurred during seeding.' });
+      }
     });
   };
   
@@ -171,7 +218,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Seed Test Data
           </Button>
-          <p className="text-xs text-muted-foreground/80">This will migrate test data from `registrations.json` into the database.</p>
+          <p className="text-xs text-muted-foreground/80">This will migrate test data from JSON files into the database.</p>
         </div>
       );
     }
