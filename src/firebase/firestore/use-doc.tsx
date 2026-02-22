@@ -36,10 +36,13 @@ export interface UseDocResult<T> {
  * @template T Optional type for document data. Defaults to any.
  * @param {DocumentReference<DocumentData> | null | undefined} docRef -
  * The Firestore DocumentReference. Waits if null/undefined.
+ * @param {object} [options] - Options for the hook.
+ * @param {boolean} [options.skip] - If true, the hook will not fetch data.
  * @returns {UseDocResult<T>} Object with data, isLoading, error.
  */
 export function useDoc<T = any>(
   memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
+  options?: { skip?: boolean }
 ): UseDocResult<T> {
   type StateDataType = WithId<T> | null;
 
@@ -48,16 +51,15 @@ export function useDoc<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    if (!memoizedDocRef) {
+    if (!memoizedDocRef || options?.skip) {
       setData(null);
-      setIsLoading(false);
+      setIsLoading(!!options?.skip ? false : !memoizedDocRef);
       setError(null);
       return;
     }
 
     setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
@@ -87,7 +89,7 @@ export function useDoc<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
+  }, [memoizedDocRef, options?.skip]); // Re-run if the memoizedDocRef or skip option changes.
 
   return { data, isLoading, error };
 }

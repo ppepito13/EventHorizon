@@ -92,14 +92,15 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }, [events, selectedEventId]);
 
   const registrationsQuery = useMemoFirebase(() => {
-    // Wait until Firebase is initialized, auth is complete, and an event is selected
-    if (!firestore || !selectedEventId || isUserLoading || !user) {
+    // This query no longer needs to check for user/loading state, as the hook will be skipped.
+    if (!firestore || !selectedEventId) {
       return null;
     }
     return query(collection(firestore, 'events', selectedEventId, 'registrations'));
-  }, [firestore, selectedEventId, user, isUserLoading]);
+  }, [firestore, selectedEventId]);
 
-  const { data: firestoreRegistrations, isLoading: isLoadingFirestore, error: firestoreError } = useCollection<Registration>(registrationsQuery);
+  // The useCollection hook is now told to skip execution if authentication is in progress.
+  const { data: firestoreRegistrations, isLoading: isLoadingFirestore, error: firestoreError } = useCollection<Registration>(registrationsQuery, { skip: isUserLoading });
   
   const allRegistrations = useMemo(() => {
     if (!firestoreRegistrations) return [];
@@ -244,7 +245,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
   
-  const isLoading = !isMounted || isLoadingFirestore;
+  const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
   const isSeedButtonDisabled = isSeeding || isUserLoading || !user;
 
   const getSeedButtonDisabledReason = () => {
@@ -256,7 +257,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const renderContent = () => {
     // Show a skeleton while the user auth is loading, to prevent flicker
-    if (isUserLoading) {
+    if (isLoading) {
       return <RegistrationsTable registrations={[]} event={selectedEvent!} userRole={userRole} onDelete={()=>{}} isLoading={true} />;
     }
 
