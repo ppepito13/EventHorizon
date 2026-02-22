@@ -5,13 +5,23 @@ import { unstable_noStore as noStore } from 'next/cache';
 import type { Event, User, Registration } from './types';
 import { randomUUID } from 'crypto';
 import { initializeFirebase } from '@/firebase/init';
-import { collection, addDoc } from 'firebase/firestore';
+import { 
+  collection, 
+  addDoc, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  getDoc,
+  getDocs,
+  query,
+  where,
+  limit
+} from 'firebase/firestore';
 
 // Use a directory not watched by the dev server for the session file.
 const dataDir = path.join(process.cwd(), 'src', 'data');
 const eventsFilePath = path.join(dataDir, 'events.json');
 const usersFilePath = path.join(dataDir, 'users.json');
-const registrationsFilePath = path.join(dataDir, 'registrations.json');
 
 const { firestore } = initializeFirebase();
 
@@ -88,7 +98,7 @@ export async function deleteUser(id: string): Promise<boolean> {
   return true;
 }
 
-// --- Event Functions ---
+// --- Event Functions (Still from JSON) ---
 export async function getEvents(user?: User | null): Promise<Event[]> {
     const events = await readData<Event[]>(eventsFilePath);
     if (user?.role === 'Organizer') {
@@ -113,8 +123,10 @@ export async function getEventById(id: string): Promise<Event | null> {
 
 export async function getEventBySlug(slug: string): Promise<Event | null> {
   const events = await getEvents();
-  return events.find(event => event.slug === slug) || null;
+  // Find the first active event that matches the slug.
+  return events.find(event => event.slug === slug && event.isActive) || null;
 }
+
 
 export async function createEvent(eventData: Omit<Event, 'id' | 'slug'>): Promise<Event> {
   const events = await getEvents();
@@ -162,9 +174,7 @@ export async function setActiveEvent(id: string): Promise<Event | null> {
             activeEvent = { ...event, isActive: true };
             return activeEvent;
         }
-        if (event.isActive) {
-            return { ...event, isActive: false };
-        }
+        // No need to deactivate other events for now, assuming multiple can be active
         return event;
     });
 
@@ -189,42 +199,25 @@ export async function deactivateEvent(id: string): Promise<Event | null> {
 }
 
 
-// --- Registration Functions ---
-export async function getRegistrations(eventId?: string): Promise<Registration[]> {
-  const allRegistrations = await readData<Registration[]>(registrationsFilePath);
-  if (eventId) {
-    return allRegistrations.filter(reg => reg.eventId === eventId);
+// --- Registration Functions (Now on Firestore) ---
+
+export async function getRegistrationsFromFirestore(eventId: string): Promise<Registration[]> {
+  noStore();
+  const registrationsColRef = collection(firestore, 'events', eventId, 'registrations');
+  const snapshot = await getDocs(registrationsColRef);
+  if (snapshot.empty) {
+    return [];
   }
-  return allRegistrations;
+  return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
 }
 
-export async function createRegistration(data: { eventId: string; eventName: string; formData: { [key: string]: any; } }): Promise<Registration> {
-  const qrCodeData = {
-    eventId: data.eventId,
-    eventName: data.eventName,
-    formData: data.formData,
-    registrationDate: new Date().toISOString(),
-  };
 
-  const docRef = await addDoc(collection(firestore, "qrcodes"), qrCodeData);
-
-  const registrations = await getRegistrations();
-  const newRegistration: Registration = {
-    ...data,
-    id: `reg_${randomUUID()}`,
-    qrId: docRef.id,
-    registrationDate: qrCodeData.registrationDate,
-  };
-  registrations.push(newRegistration);
-  await writeData(registrationsFilePath, registrations);
-  return newRegistration;
-}
-
-export async function deleteRegistration(id: string): Promise<boolean> {
-  let registrations = await getRegistrations();
-  const initialLength = registrations.length;
-  registrations = registrations.filter(reg => reg.id !== id);
-  if (registrations.length === initialLength) return false;
-  await writeData(registrationsFilePath, registrations);
-  return true;
+export async function getRegistrationFromFirestore(eventId: string, registrationId: string): Promise<Registration | null> {
+  noStore();
+  const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
+  const docSnap = await getDoc(registrationDocRef);
+  if (!docSnap.exists()) {
+    return null;
+  }
+  return { id: docSnap.id, ...docSnap.data() } as Registration;
 }

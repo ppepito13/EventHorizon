@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Event, Registration, User } from '@/lib/types';
@@ -31,6 +32,8 @@ import {
 import { MoreHorizontal, Trash2, Eye, Pencil, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { format, parseISO } from 'date-fns';
+
 
 interface RegistrationsTableProps {
   event: Event;
@@ -86,11 +89,25 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
     }
     return value.toString();
   };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), "dd/MM/yyyy, HH:mm:ss");
+    } catch (error) {
+      // Fallback for potentially non-ISO strings from old data
+      const d = new Date(dateString);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleString();
+      }
+      return dateString;
+    }
+  };
   
-  if (isLoading && registrations.length === 0) {
+  if (isLoading) {
       return (
           <div className="text-center py-12 text-muted-foreground">
               <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+              <p>Loading registrations...</p>
           </div>
       );
   }
@@ -118,7 +135,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
           <TableBody>
             {registrations.map(reg => (
               <TableRow key={reg.id}>
-                <TableCell>{new Date(reg.registrationDate).toLocaleString()}</TableCell>
+                <TableCell>{formatDate(reg.registrationDate)}</TableCell>
                 <TableCell>{getDisplayValue(getFullNameValue(reg.formData))}</TableCell>
                 <TableCell>{getDisplayValue(getEmailValue(reg.formData))}</TableCell>
                 <TableCell>
@@ -139,7 +156,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                         <Tooltip>
                         <TooltipTrigger asChild>
                             <Button variant="outline" size="icon" asChild>
-                                <Link href={`/admin/registrations/${reg.id}/edit`}>
+                                <Link href={`/admin/registrations/${event.id}/${reg.id}/edit`}>
                                     <Pencil className="h-4 w-4" />
                                     <span className="sr-only">Edit Registration</span>
                                 </Link>
@@ -193,7 +210,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                     </div>
                      <div className="grid grid-cols-3 gap-4 py-2 border-b">
                         <span className="font-semibold text-muted-foreground">Registration Date</span>
-                        <span className="col-span-2">{new Date(detailsViewReg.registrationDate).toLocaleString()}</span>
+                        <span className="col-span-2">{formatDate(detailsViewReg.registrationDate)}</span>
                     </div>
                     {event.formFields.map(field => {
                         let value;

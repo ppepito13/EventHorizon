@@ -1,27 +1,41 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { deleteRegistration, getEventById, getRegistrations } from '@/lib/data';
+import { getEventById, getRegistrationsFromFirestore } from '@/lib/data';
 import type { Registration } from '@/lib/types';
+import { initializeFirebase } from '@/firebase/init';
+import { doc, deleteDoc } from 'firebase/firestore';
 
-export async function deleteRegistrationAction(id: string) {
+const { firestore } = initializeFirebase();
+
+export async function deleteRegistrationAction(eventId: string, registrationId: string) {
+  if (!eventId || !registrationId) {
+    return { success: false, message: 'Event ID and Registration ID are required.' };
+  }
+
   try {
-    await deleteRegistration(id);
+    const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
+    await deleteDoc(registrationDocRef);
+    
+    // Revalidate the path to ensure the client refetches data.
     revalidatePath('/admin/registrations');
+    
     return { success: true, message: 'Registration deleted successfully.' };
   } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'An unknown error occurred.',
-    };
+    console.error("Delete registration error:", error);
+    const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    return { success: false, message };
   }
 }
 
 function convertToCSV(data: Registration[], headers: {key: string, label: string}[]) {
-    const headerRow = ['Registration Date', ...headers.map(h => h.label)].join('|');
+    const headerRow = ['Registration Date', 'QR ID', ...headers.map(h => h.label)].join('|');
     const rows = data.map(reg => {
+        const date = reg.registrationDate ? new Date(reg.registrationDate).toLocaleString() : 'N/A';
         const values = [
-            new Date(reg.registrationDate).toLocaleString(),
+            date,
+            reg.qrId ?? '',
             ...headers.map(h => {
                 let value = reg.formData[h.key];
                 if (Array.isArray(value)) {
@@ -46,7 +60,8 @@ export async function exportRegistrationsAction(eventId: string, format: 'excel'
             return { success: false, error: 'Event not found.' };
         }
         
-        const registrations = await getRegistrations(eventId);
+        // Fetch from Firestore
+        const registrations = await getRegistrationsFromFirestore(eventId);
         if (registrations.length === 0) {
             return { success: false, error: 'No registrations to export for this event.' };
         }
@@ -60,18 +75,7 @@ export async function exportRegistrationsAction(eventId: string, format: 'excel'
 
         return { success: true, csvData, eventName: event.name };
     } catch (error) {
+        console.error("Export error: ", error);
         return { success: false, error: 'Failed to export data.' };
-    }
-}
-
-export async function getRegistrationsAction(eventId: string) {
-    if (!eventId) {
-        return { success: false, data: [], error: 'Event ID is required.' };
-    }
-    try {
-        const registrations = await getRegistrations(eventId);
-        return { success: true, data: registrations };
-    } catch (error) {
-        return { success: false, data: [], error: 'Failed to fetch registrations.' };
     }
 }

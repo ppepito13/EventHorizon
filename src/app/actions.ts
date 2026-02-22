@@ -1,8 +1,15 @@
+
 'use server';
 
 import { z } from 'zod';
-import { createRegistration, getEventById } from '@/lib/data';
+import { getEventById } from '@/lib/data';
 import type { Registration } from '@/lib/types';
+import { initializeFirebase } from '@/firebase/init';
+import { collection, addDoc, serverTimestamp, doc, setDoc } from 'firebase/firestore';
+import { randomUUID } from 'crypto';
+
+const { firestore } = initializeFirebase();
+
 
 export async function registerForEvent(
   eventId: string,
@@ -10,7 +17,7 @@ export async function registerForEvent(
 ): Promise<{
   success: boolean;
   registration?: Registration;
-  errors?: { [key: string]: string[] } | { _form: string[] };
+  errors?: { [key:string]: string[] } | { _form: string[] };
 }> {
   try {
     const event = await getEventById(eventId);
@@ -80,14 +87,35 @@ export async function registerForEvent(
       };
     }
     
-    // Save the new registration to the data file and create QR code entry in Firestore.
-    const newRegistration = await createRegistration({
-      eventId: event.id,
-      eventName: event.name,
-      formData: validated.data,
-    });
+    // 1. Create QR code document
+    const qrCodeData = {
+        eventId: event.id,
+        eventName: event.name,
+        formData: validated.data,
+        registrationDate: serverTimestamp(), // Use server timestamp
+    };
+    const qrDocRef = await addDoc(collection(firestore, "qrcodes"), qrCodeData);
 
-    return { success: true, registration: newRegistration };
+    // 2. Create the main registration document
+    const registrationId = `reg_${randomUUID()}`;
+    const newRegistrationData: Omit<Registration, 'id'> = {
+        eventId: event.id,
+        eventName: event.name,
+        formData: validated.data,
+        qrId: qrDocRef.id,
+        registrationDate: new Date().toISOString(), // Keep ISO string for client
+    };
+    
+    // Use the custom registrationId as the document ID
+    const registrationDocRef = doc(firestore, 'events', event.id, 'registrations', registrationId);
+    await setDoc(registrationDocRef, newRegistrationData);
+
+    const finalRegistration: Registration = {
+      ...newRegistrationData,
+      id: registrationId,
+    };
+
+    return { success: true, registration: finalRegistration };
 
   } catch (error) {
     console.error('Registration failed:', error);

@@ -1,7 +1,11 @@
+
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useTransition } from 'react';
+import { useState, useMemo, useEffect, useTransition, useCallback } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
+import { collection, query } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+
 import {
   Card,
   CardContent,
@@ -35,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { exportRegistrationsAction, getRegistrationsAction, deleteRegistrationAction } from './actions';
+import { exportRegistrationsAction, deleteRegistrationAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -46,80 +50,65 @@ interface RegistrationsClientPageProps {
 
 export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
   
-  const [isMounted, setIsMounted] = useState(false);
+  const [isExporting, startExportTransition] = useTransition();
+  const [isDeleting, startDeleteTransition] = useTransition();
+  
+  const [dialogState, setDialogState] = useState<{ isOpen: boolean; registrationId: string | null }>({
+    isOpen: false,
+    registrationId: null,
+  });
+
+  const firestore = useFirestore();
+
+  // Memoize the Firestore query
+  const registrationsQuery = useMemoFirebase(() => {
+    if (!firestore || !selectedEventId) return null;
+    return query(collection(firestore, 'events', selectedEventId, 'registrations'));
+  }, [firestore, selectedEventId]);
+
+  // Subscribe to the real-time collection data
+  const { data: registrations, isLoading: isLoadingRegistrations } = useCollection<Registration>(registrationsQuery);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  const [isExporting, startExportTransition] = useTransition();
-
-  const [isAlertOpen, setAlertOpen] = useState(false);
-  const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
-  const fetchRegistrations = useCallback(async () => {
-    if (!selectedEventId) {
-        setRegistrations([]);
-        return;
-    }
-    setIsLoading(true);
-    const result = await getRegistrationsAction(selectedEventId);
-    if (result.success) {
-        setRegistrations(result.data as Registration[]);
-    } else {
-        setRegistrations([]);
-        if (result.error) {
-          toast({ variant: 'destructive', title: 'Error', description: result.error });
-        }
-    }
-    setIsLoading(false);
-  }, [selectedEventId, toast]);
-
-  useEffect(() => {
-    if (isMounted && selectedEventId) {
-      fetchRegistrations();
-    } else if (!selectedEventId) {
-      setRegistrations([]);
-    }
-  }, [selectedEventId, isMounted, fetchRegistrations]);
-
-
   const handleDeleteRequest = (id: string) => {
-    setRegistrationToDelete(id);
-    setAlertOpen(true);
+    setDialogState({ isOpen: true, registrationId: id });
   };
 
-  const handleDeleteConfirm = async (event: React.MouseEvent) => {
-    event.preventDefault(); // Prevent dialog from closing automatically, which causes a race condition.
-    if (!registrationToDelete || isDeleting) return;
+  const handleDialogClose = () => {
+    if (isDeleting) return; // Don't close while deletion is in progress
+    setDialogState({ isOpen: false, registrationId: null });
+  }
 
-    setIsDeleting(true);
-    
-    const result = await deleteRegistrationAction(registrationToDelete);
+  const handleDeleteConfirm = () => {
+    if (!dialogState.registrationId || !selectedEventId) return;
 
-    if (result.success) {
-      toast({ title: 'Success', description: result.message });
-      await fetchRegistrations(); // Refetch data after successful deletion
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: result.message || 'An unknown error occurred.',
-      });
-    }
-    
-    // Now that all async operations are done, it's safe to close the dialog and reset the state.
-    setAlertOpen(false);
-    setIsDeleting(false);
-    setRegistrationToDelete(null);
+    const { registrationId } = dialogState;
+    const eventId = selectedEventId;
+
+    startDeleteTransition(async () => {
+      const result = await deleteRegistrationAction(eventId, registrationId);
+
+      if (result.success) {
+        toast({ title: 'Success', description: result.message });
+        handleDialogClose();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: result.message || 'An unknown error occurred.',
+        });
+        handleDialogClose(); // Close dialog even on error
+      }
+    });
   };
-
 
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
@@ -144,6 +133,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         }
     });
   };
+  
 
   return (
     <>
@@ -151,7 +141,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         <CardHeader>
           <CardTitle>Registrations</CardTitle>
           <CardDescription>
-            View and manage event registrations. Select an event to see its attendees.
+            View and manage event registrations. The list updates in real-time.
           </CardDescription>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             {isMounted ? (
@@ -195,11 +185,11 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         <CardContent>
           {selectedEvent ? (
             <RegistrationsTable 
-              registrations={registrations} 
+              registrations={registrations || []} 
               event={selectedEvent}
               userRole={userRole}
               onDelete={handleDeleteRequest}
-              isLoading={isLoading}
+              isLoading={isLoadingRegistrations && registrations === null}
             />
           ) : (
             <div className="text-center py-12 text-muted-foreground">
@@ -209,7 +199,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           )}
         </CardContent>
       </Card>
-      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+      <AlertDialog open={dialogState.isOpen} onOpenChange={handleDialogClose}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -218,7 +208,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={handleDialogClose} disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Continue
