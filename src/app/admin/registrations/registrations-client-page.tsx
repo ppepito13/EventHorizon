@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
@@ -119,13 +120,47 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   
     const regRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationToDelete);
     
+    setLastDeleteAttempt({ 
+      id: registrationToDelete, 
+      time: new Date().toISOString(), 
+      status: 'initiated' 
+    });
+
     // Close the dialog immediately to keep the UI responsive.
     setAlertOpen(false);
     
-    // Use "fire-and-forget". The `useCollection` hook will handle the UI update.
-    deleteDoc(regRef);
+    // Fire-and-forget, but now with proper error handling to prevent crashes.
+    deleteDoc(regRef)
+      .then(() => {
+        // This is optimistic. The listener will eventually remove the item.
+        // We can log success for debugging.
+        setLastDeleteAttempt({ 
+          id: registrationToDelete, 
+          time: new Date().toISOString(), 
+          status: 'delete command sent successfully' 
+        });
+        toast({
+          title: "Deletion Sent",
+          description: "The request to delete the registration has been sent.",
+        });
+      })
+      .catch((error) => {
+        // THIS IS THE CRITICAL FIX: Catch the unhandled rejection.
+        console.error("Delete operation failed:", error);
+        toast({
+          variant: "destructive",
+          title: "Deletion Failed",
+          description: error.message || "Could not delete registration due to a permission error.",
+        });
+        setLastDeleteAttempt({ 
+          id: registrationToDelete, 
+          time: new Date().toISOString(), 
+          status: 'error',
+          message: error.message
+        });
+      });
 
-    // Reset the state after initiating the delete.
+    // Reset the state *immediately* after initiating the delete.
     setRegistrationToDelete(null);
   };
   
@@ -418,3 +453,5 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     </>
   );
 }
+
+    
