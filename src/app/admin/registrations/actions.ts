@@ -1,13 +1,31 @@
 
 'use server';
 
+import { promises as fs } from 'fs';
+import path from 'path';
 import { revalidatePath } from 'next/cache';
-import { getEventById, getRegistrationsFromFirestore, getJsonRegistrations } from '@/lib/data';
+import { getEventById, getRegistrationsFromFirestore } from '@/lib/data';
 import type { Registration } from '@/lib/types';
 import { initializeFirebase } from '@/firebase/init';
-import { doc, deleteDoc, setDoc, getDocs, collection } from 'firebase/firestore';
+import { doc, deleteDoc, setDoc } from 'firebase/firestore';
 
 const { firestore } = initializeFirebase();
+
+// Local implementation to avoid client-side bundling of 'fs'
+async function getJsonRegistrations(): Promise<Registration[]> {
+  const dataDir = path.join(process.cwd(), 'src', 'data');
+  const filePath = path.join(dataDir, 'registrations.json');
+  try {
+    const fileContent = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(fileContent);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return [];
+    }
+    console.error(`Error reading data from ${filePath}:`, error);
+    throw new Error(`Could not read data from ${filePath}.`);
+  }
+}
 
 export async function deleteRegistrationAction(eventId: string, registrationId: string) {
   if (!eventId || !registrationId) {
@@ -59,16 +77,15 @@ export async function exportRegistrationsAction(eventId: string, format: 'excel'
             return { success: false, error: 'Event not found.' };
         }
         
-        const jsonRegistrations = await getJsonRegistrations(eventId);
+        // Use only Firestore as the source of truth
         const firestoreRegistrations = await getRegistrationsFromFirestore(eventId);
-        const allRegistrations = [...jsonRegistrations, ...firestoreRegistrations];
 
-        if (allRegistrations.length === 0) {
+        if (firestoreRegistrations.length === 0) {
             return { success: false, error: 'No registrations to export for this event.' };
         }
 
         const headers = event.formFields.map(field => ({ key: field.name, label: field.label }));
-        let csvData = convertToCSV(allRegistrations, headers);
+        let csvData = convertToCSV(firestoreRegistrations, headers);
 
         if (format === 'excel') {
             csvData = `sep=|\n${csvData}`;
@@ -92,12 +109,10 @@ export async function seedRegistrationsFromJSON() {
 
     const writePromises = [];
     for (const reg of registrations) {
-      // The `id` is used for the document ID, and the rest of the `reg` object (which includes eventId) is used as the data.
       const { id, ...dataToWrite } = reg;
-      if (!id || !dataToWrite.eventId) continue; // Skip if essential data is missing
+      if (!id || !dataToWrite.eventId) continue;
       
       const regDocRef = doc(firestore, 'events', dataToWrite.eventId, 'registrations', id);
-      // Use setDoc to either create or overwrite, making the operation idempotent.
       writePromises.push(setDoc(regDocRef, dataToWrite));
     }
 
