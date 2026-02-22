@@ -92,15 +92,16 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }, [events, selectedEventId]);
 
   const registrationsQuery = useMemoFirebase(() => {
-    // This query no longer needs to check for user/loading state, as the hook will be skipped.
-    if (!firestore || !selectedEventId) {
+    // The query is only created when all dependencies, including the user, are available.
+    // This prevents requests with a null authentication state.
+    if (!firestore || !selectedEventId || isUserLoading || !user) {
       return null;
     }
     return query(collection(firestore, 'events', selectedEventId, 'registrations'));
-  }, [firestore, selectedEventId]);
+  }, [firestore, selectedEventId, user, isUserLoading]);
 
-  // The useCollection hook is now told to skip execution if authentication is in progress.
-  const { data: firestoreRegistrations, isLoading: isLoadingFirestore, error: firestoreError } = useCollection<Registration>(registrationsQuery, { skip: isUserLoading });
+  // useCollection now waits for a valid query object before executing.
+  const { data: firestoreRegistrations, isLoading: isLoadingFirestore, error: firestoreError } = useCollection<Registration>(registrationsQuery);
   
   const allRegistrations = useMemo(() => {
     if (!firestoreRegistrations) return [];

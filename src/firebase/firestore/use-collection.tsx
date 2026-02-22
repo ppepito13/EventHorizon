@@ -49,13 +49,10 @@ export interface InternalQuery extends Query<DocumentData> {
  * @template T Optional type for document data. Defaults to any.
  * @param {CollectionReference<DocumentData> | Query<DocumentData> | null | undefined} targetRefOrQuery -
  * The Firestore CollectionReference or Query. Waits if null/undefined.
- * @param {object} [options] - Options for the hook.
- * @param {boolean} [options.skip] - If true, the hook will not fetch data.
  * @returns {UseCollectionResult<T>} Object with data, isLoading, error.
  */
 export function useCollection<T = any>(
-    memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
-    options?: { skip?: boolean }
+    memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined
 ): UseCollectionResult<T> {
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
@@ -65,10 +62,9 @@ export function useCollection<T = any>(
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
-    if (!memoizedTargetRefOrQuery || options?.skip) {
+    if (!memoizedTargetRefOrQuery) {
       setData(null);
-      // Set loading to false if we are skipping, unless the query itself is null, in which case it might still be preparing.
-      setIsLoading(!!options?.skip ? false : !memoizedTargetRefOrQuery);
+      setIsLoading(!memoizedTargetRefOrQuery);
       setError(null);
       return;
     }
@@ -110,7 +106,7 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery, options?.skip]); // Re-run if the target query/reference or skip option changes.
+  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference or skip option changes.
 
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
