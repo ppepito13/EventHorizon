@@ -4,7 +4,8 @@
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useFirebaseApp } from '@/firebase';
+import { getApps } from 'firebase/app';
 import {
   Card,
   CardContent,
@@ -82,6 +83,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   
   const firestore = useFirestore();
   const { user, isUserLoading, userError } = useUser();
+  const firebaseApp = useFirebaseApp();
 
   useEffect(() => {
     setIsMounted(true);
@@ -308,11 +310,16 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     );
   }
 
+  const allApps = getApps();
+
   const debugStates = {
       isMounted,
       isUserLoading,
-      user: user ? user.email : null,
+      user: user ? { email: user.email, uid: user.uid } : null,
       userError: userError?.message || null,
+      firebaseAppName: firebaseApp?.name,
+      firebaseAppApiKey: firebaseApp?.options.apiKey,
+      allFirebaseApps: allApps.map(app => ({ name: app.name, apiKey: app.options.apiKey })),
       selectedEventId,
       isLoadingFirestore,
       firestoreError: firestoreError?.message || null,
