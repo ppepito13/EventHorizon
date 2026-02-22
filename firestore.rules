@@ -155,7 +155,7 @@ service cloud.firestore {
      */
     match /events/{eventId}/registrations/{registrationId} {
       allow get: if isAdmin() || isDenormalizedEventOrganizer(resource.data);
-      allow list: if isAdmin() || isParentEventMember(eventId);
+      allow list: if isSignedIn();
       allow create: if hasValidSubcollectionCreateData(eventId);
       allow update: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null && subcollectionFieldsAreImmutable();
       allow delete: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null;
