@@ -7,12 +7,18 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
-// This function ensures a singleton instance of Firebase on the client-side.
+// This function ensures a singleton instance of a uniquely named Firebase app on the client-side.
+// This prevents conflicts with any server-side Firebase instances.
 function initializeClientApp() {
-  if (getApps().length) {
-    return getApp();
+  const clientAppName = 'event-horizon-client';
+  const apps = getApps();
+  const clientApp = apps.find(app => app.name === clientAppName);
+  
+  if (clientApp) {
+    return clientApp;
   }
-  return initializeApp(firebaseConfig);
+  
+  return initializeApp(firebaseConfig, clientAppName);
 }
 
 
