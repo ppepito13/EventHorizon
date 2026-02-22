@@ -82,46 +82,43 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }, [selectedEventId, toast]);
 
   useEffect(() => {
-    if (isMounted) {
+    if (isMounted && selectedEventId) {
       fetchRegistrations();
+    } else if (!selectedEventId) {
+      setRegistrations([]);
     }
-  }, [fetchRegistrations, isMounted]);
+  }, [selectedEventId, isMounted, fetchRegistrations]);
+
 
   const handleDeleteRequest = (id: string) => {
     setRegistrationToDelete(id);
     setAlertOpen(true);
   };
 
-  const handleDeleteConfirm = useCallback(async () => {
-    if (!registrationToDelete) return;
+  const handleDeleteConfirm = async (event: React.MouseEvent) => {
+    event.preventDefault(); // Prevent dialog from closing automatically, which causes a race condition.
+    if (!registrationToDelete || isDeleting) return;
 
     setIsDeleting(true);
-    try {
-      const result = await deleteRegistrationAction(registrationToDelete);
+    
+    const result = await deleteRegistrationAction(registrationToDelete);
 
-      if (result.success) {
-        toast({ title: 'Success', description: result.message });
-        await fetchRegistrations(); // Refetch after successful deletion
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: result.message,
-        });
-      }
-    } catch (error) {
-       toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'An unexpected error occurred during deletion.',
-        });
-    } finally {
-      // This sequence ensures the dialog closes safely after the operation.
-      setIsDeleting(false);
-      setAlertOpen(false);
-      setRegistrationToDelete(null);
+    if (result.success) {
+      toast({ title: 'Success', description: result.message });
+      await fetchRegistrations(); // Refetch data after successful deletion
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: result.message || 'An unknown error occurred.',
+      });
     }
-  }, [registrationToDelete, fetchRegistrations, toast]);
+    
+    // Now that all async operations are done, it's safe to close the dialog and reset the state.
+    setAlertOpen(false);
+    setIsDeleting(false);
+    setRegistrationToDelete(null);
+  };
 
 
   const handleExport = (format: 'excel' | 'plain') => {
@@ -202,17 +199,17 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
               event={selectedEvent}
               userRole={userRole}
               onDelete={handleDeleteRequest}
-              isLoading={isLoading && registrations.length === 0}
+              isLoading={isLoading}
             />
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              {isMounted && !isLoading && <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
-               {isLoading && <Loader2 className="mx-auto h-8 w-8 animate-spin" />}
+              {isMounted && <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
+               {!isMounted && <Loader2 className="mx-auto h-8 w-8 animate-spin" />}
             </div>
           )}
         </CardContent>
       </Card>
-      <AlertDialog open={isAlertOpen} onOpenChange={(open) => !isDeleting && setAlertOpen(open)}>
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
