@@ -46,15 +46,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface RegistrationsClientPageProps {
   events: Event[];
   userRole: User['role'];
-  initialJsonRegistrations: Registration[];
 }
 
-export function RegistrationsClientPage({ events, userRole, initialJsonRegistrations }: RegistrationsClientPageProps) {
+export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
   
-  const [jsonRegistrations, setJsonRegistrations] = useState<Registration[]>(initialJsonRegistrations);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, startExportTransition] = useTransition();
 
@@ -64,10 +62,9 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
-  // Sync local state if the initial props from the server change
   useEffect(() => {
-    setJsonRegistrations(initialJsonRegistrations);
-  }, [initialJsonRegistrations]);
+    setIsMounted(true);
+  }, []);
 
   const registrationsQuery = useMemoFirebase(() => {
     if (!firestore || !selectedEventId || !user || isUserLoading) return null;
@@ -76,21 +73,11 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
 
   const { data: firestoreRegistrations, isLoading: isLoadingFirestore } = useCollection<Registration>(registrationsQuery);
   
-  const allRegistrations = useMemo(() => {
-    if (!selectedEventId) return [];
+  const sortedRegistrations = useMemo(() => {
+    if (!firestoreRegistrations) return [];
+    return [...firestoreRegistrations].sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
+  }, [firestoreRegistrations]);
 
-    const jsonForEvent = jsonRegistrations.filter(r => r.eventId === selectedEventId);
-    
-    const merged = new Map<string, Registration>();
-    jsonForEvent.forEach(reg => merged.set(reg.id, reg));
-    (firestoreRegistrations || []).forEach(reg => merged.set(reg.id, reg));
-    
-    return Array.from(merged.values()).sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
-  }, [selectedEventId, jsonRegistrations, firestoreRegistrations]);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
@@ -107,8 +94,6 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
 
     if (result.success) {
         toast({ title: 'Success', description: result.message });
-        // Manually update the client-side state for JSON registrations
-        setJsonRegistrations(prev => prev.filter(r => r.id !== registrationToDelete));
     } else {
         toast({
             variant: 'destructive',
@@ -117,6 +102,8 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
         });
     }
 
+    // The useCollection hook will automatically update the UI.
+    // We just need to reset the state and close the dialog.
     setIsDeleting(false);
     setAlertOpen(false);
     setRegistrationToDelete(null);
@@ -176,7 +163,7 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
                     </Select>
                     <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" disabled={isExporting || !selectedEventId || allRegistrations.length === 0}>
+                        <Button variant="outline" disabled={isExporting || !selectedEventId || !sortedRegistrations || sortedRegistrations.length === 0}>
                             {isExporting ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             ) : (
@@ -198,7 +185,7 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
         <CardContent>
           {selectedEvent ? (
             <RegistrationsTable 
-              registrations={allRegistrations} 
+              registrations={sortedRegistrations} 
               event={selectedEvent}
               userRole={userRole}
               onDelete={handleDeleteRequest}
@@ -211,7 +198,7 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
           )}
         </CardContent>
       </Card>
-      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+      <AlertDialog open={isAlertOpen} onOpenChange={(open) => !open && setAlertOpen(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -220,7 +207,7 @@ export function RegistrationsClientPage({ events, userRole, initialJsonRegistrat
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting} onClick={() => setAlertOpen(false)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Continue
