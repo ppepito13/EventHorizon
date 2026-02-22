@@ -87,12 +87,14 @@ export async function registerForEvent(
       };
     }
     
+    const registrationTime = new Date();
+
     // 1. Create QR code document
     const qrCodeData = {
         eventId: event.id,
         eventName: event.name,
         formData: validated.data,
-        registrationDate: serverTimestamp(), // Use server timestamp
+        registrationDate: registrationTime.toISOString(),
     };
     const qrDocRef = await addDoc(collection(firestore, "qrcodes"), qrCodeData);
 
@@ -103,7 +105,7 @@ export async function registerForEvent(
         eventName: event.name,
         formData: validated.data,
         qrId: qrDocRef.id,
-        registrationDate: new Date().toISOString(), // Keep ISO string for client
+        registrationDate: registrationTime.toISOString(), // Use the same ISO string
     };
     
     // Use the custom registrationId as the document ID
