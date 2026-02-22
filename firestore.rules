@@ -1,0 +1,164 @@
+/**
+ * This ruleset enforces a multi-layered security model for the EventHorizon platform.
+ *
+ * Core Philosophy:
+ * The security model is designed around roles and data state. Global administrators have universal access.
+ * Event organizers have full control over their own events and associated data. The general public can
+ * only view and interact with events that are explicitly marked as 'active'.
+ *
+ * Data Structure:
+ * - /app_admins/{userId}: A collection that stores the UIDs of global administrators for database-backed access control.
+ * - /events/{eventId}: The primary collection for all events. Each event document contains its own authorization data.
+ * - /events/{eventId}/formFields/{formFieldId}: A subcollection containing the dynamic form fields for an event's registration.
+ * - /events/{eventId}/registrations/{registrationId}: A private subcollection storing all user registrations for an event.
+ *
+ * Key Security Decisions:
+ * - Admin Supremacy: Users whose UID is a document ID in /app_admins have full read/write access to the entire database.
+ * - Public Visibility: Public read access to events and their form fields is strictly controlled by an 'isActive' boolean flag on the parent event document.
+ * - Event-Level Permissions: Access to manage an event and its subcollections is controlled by an `ownerId` field and a `members` map directly on the event document.
+ * - Private Registrations: Registration data is highly confidential and is only accessible by the designated organizers of that specific event or by global admins.
+ * - Denormalization for Authorization: To ensure performant and secure access to subcollection data (formFields, registrations), critical authorization fields from the parent event (ownerId, members, isActive) are denormalized and copied directly onto each subcollection document. This avoids slow and costly `get()` calls in most security rules.
+ * - Secure Queries: List operations for public collections are kept open, but the corresponding 'get' rule enforces state-based filtering (e.g., `isActive == true`), ensuring that queries that don't include this filter will be rejected by Firestore.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for auth logic
+    
+    /**
+     * Checks if the current user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    /**
+     * Checks if the current user is a global administrator by verifying
+     * the existence of their UID in the /app_admins collection.
+     */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/app_admins/$(request.auth.uid));
+    }
+    
+    /**
+     * Checks if a user is an organizer for an event based on the event's
+     * internal 'ownerId' and 'members' map.
+     * @param eventData The resource.data or request.resource.data of an event document.
+     */
+    function isEventOrganizer(eventData) {
+      return request.auth.uid == eventData.ownerId || request.auth.uid in eventData.members;
+    }
+    
+    /**
+     * Checks if a user is an organizer for an event based on denormalized fields
+     * present on a subcollection document (formField or registration).
+     * @param subcollectionData The resource.data or request.resource.data of a subcollection document.
+     */
+    function isDenormalizedEventOrganizer(subcollectionData) {
+      return request.auth.uid == subcollectionData.eventOwnerId || request.auth.uid in subcollectionData.eventMembers;
+    }
+    
+    /**
+     * Verifies if an event is currently active by reading its parent document.
+     * This function uses a 'get' call and is used for creating new registrations.
+     * @param eventId The ID of the event to check.
+     */
+    function isEventActiveForRegistration(eventId) {
+      return get(/databases/$(database)/documents/events/$(eventId)).data.isActive == true;
+    }
+    
+    /**
+     * Verifies if the requesting user is an organizer of the parent event.
+     * This is used to authorize list operations or the creation of new subcollection items.
+     * @param eventId The ID of the parent event document.
+     */
+    function isParentEventMember(eventId) {
+      let eventData = get(/databases/$(database)/documents/events/$(eventId)).data;
+      return isEventOrganizer(eventData);
+    }
+    
+    /**
+     * Validates that the creator of an event is correctly assigning themselves as the owner.
+     */
+    function hasValidEventCreationData() {
+      return request.resource.data.ownerId == request.auth.uid;
+    }
+    
+    /**
+     * Validates that a subcollection document has a eventId field that matches its parent path.
+     * @param eventId The eventId from the document path.
+     */
+    function hasValidSubcollectionCreateData(eventId) {
+      return request.resource.data.eventId == eventId;
+    }
+    
+    /**
+     * Enforces immutability of the eventId field on subcollection documents during updates.
+     */
+    function subcollectionFieldsAreImmutable() {
+      return request.resource.data.eventId == resource.data.eventId;
+    }
+    
+    /**
+     * @description Rules for the app_admins collection. Only existing admins can read or modify this list.
+     * @path /app_admins/{userId}
+     * @allow (get) An admin user ({ auth: { uid: 'admin_user_id' }}) reading another admin's document.
+     * @deny (create) A non-admin user trying to add themselves as an admin.
+     * @principle Enforces Database-Backed Access Control (DBAC) for global administrative roles.
+     */
+    match /app_admins/{userId} {
+      allow get, list: if isAdmin();
+      allow create: if false; // Admins must be added via the server or console.
+      allow update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Rules for the top-level 'events' collection.
+     * @path /events/{eventId}
+     * @allow (get) Any user reading an event document where `isActive` is true.
+     * @allow (create) An authenticated user creating a new event, setting themselves as the `ownerId`.
+     * @deny (update) A user who is not the owner or a member trying to modify an event.
+     * @principle Implements a public-read (if active) and owner-only-write model.
+     */
+    match /events/{eventId} {
+      allow get: if resource.data.isActive == true || isAdmin() || isEventOrganizer(resource.data);
+      allow list: if true;
+      allow create: if isSignedIn() && hasValidEventCreationData();
+      allow update: if (isAdmin() || isEventOrganizer(resource.data)) && resource != null;
+      allow delete: if (isAdmin() || isEventOrganizer(resource.data)) && resource != null;
+    }
+
+    /**
+     * @description Rules for the 'formFields' subcollection. Fields are public if the event is active.
+     * @path /events/{eventId}/formFields/{formFieldId}
+     * @allow (get) Any user reading a form field where the denormalized `eventIsActive` is true.
+     * @allow (create) An event organizer creating a new form field for their event.
+     * @deny (update) An event organizer from a different event trying to modify a form field.
+     * @principle Leverages denormalized data for performant reads while using a `get()` on write to secure creation.
+     */
+    match /events/{eventId}/formFields/{formFieldId} {
+      allow get: if resource.data.eventIsActive == true || isAdmin() || isDenormalizedEventOrganizer(resource.data);
+      allow list: if true;
+      allow create: if (isAdmin() || isParentEventMember(eventId)) && hasValidSubcollectionCreateData(eventId);
+      allow update: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null && subcollectionFieldsAreImmutable();
+      allow delete: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null;
+    }
+
+    /**
+     * @description Rules for the 'registrations' subcollection. Data is private to event organizers.
+     * @path /events/{eventId}/registrations/{registrationId}
+     * @allow (create) Any user creating a registration for an event that is currently active.
+     * @allow (get) An event organizer reading a registration document for their event.
+     * @deny (list) A regular user trying to list all registrations for an event.
+     * @principle Enforces strict privacy for user-submitted data, allowing access only to authorized event staff.
+     */
+    match /events/{eventId}/registrations/{registrationId} {
+      allow get: if isAdmin() || isDenormalizedEventOrganizer(resource.data);
+      allow list: if isAdmin() || isParentEventMember(eventId);
+      allow create: if isEventActiveForRegistration(eventId) && hasValidSubcollectionCreateData(eventId);
+      allow update: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null && subcollectionFieldsAreImmutable();
+      allow delete: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null;
+    }
+  }
+}

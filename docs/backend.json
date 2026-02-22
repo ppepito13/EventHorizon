@@ -1,0 +1,279 @@
+{
+  "entities": {
+    "Event": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Event",
+      "type": "object",
+      "description": "Represents a single event for which users can register, including its thematic and logistical details.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Event entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title or name of the event."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed description of the event, potentially enhanced by AI content generation."
+        },
+        "startDate": {
+          "type": "string",
+          "description": "The date and time when the event begins.",
+          "format": "date-time"
+        },
+        "endDate": {
+          "type": "string",
+          "description": "The date and time when the event concludes.",
+          "format": "date-time"
+        },
+        "location": {
+          "type": "string",
+          "description": "The physical or virtual location where the event will take place."
+        },
+        "themeColorPrimary": {
+          "type": "string",
+          "description": "The primary brand color for the event's unique UI theme (e.g., hex code #002E3C)."
+        },
+        "themeColorAccent": {
+          "type": "string",
+          "description": "The accent color for highlighting key elements in the event's UI theme (e.g., hex code #FFD700)."
+        },
+        "themeColorBackground": {
+          "type": "string",
+          "description": "The background color for the event's UI theme (e.g., hex code #E0F4F7)."
+        },
+        "headlineFont": {
+          "type": "string",
+          "description": "The name of the font family used for headlines on the event page (e.g., 'Space Grotesk')."
+        },
+        "bodyFont": {
+          "type": "string",
+          "description": "The name of the font family used for body text on the event page (e.g., 'Inter')."
+        },
+        "graphicsUrl": {
+          "type": "string",
+          "description": "URL to custom graphics or a banner image for the event's page, contributing to its unique theme.",
+          "format": "uri"
+        },
+        "rodoInformation": {
+          "type": "string",
+          "description": "GDPR (RODO) specific information and consent text tailored for this particular event's registration process."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "A flag indicating whether the event page is currently active and visible to the public for registration."
+        },
+        "registrationDeadline": {
+          "type": "string",
+          "description": "The date and time by which attendees must complete their registration for the event.",
+          "format": "date-time"
+        },
+        "maxAttendees": {
+          "type": "number",
+          "description": "The maximum number of participants allowed to register for the event. (Optional)"
+        },
+        "organizerContactEmail": {
+          "type": "string",
+          "description": "The primary email address for event organizers to receive inquiries.",
+          "format": "email"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "startDate",
+        "endDate",
+        "location",
+        "themeColorPrimary",
+        "themeColorAccent",
+        "themeColorBackground",
+        "headlineFont",
+        "bodyFont",
+        "rodoInformation",
+        "isActive",
+        "registrationDeadline",
+        "organizerContactEmail"
+      ]
+    },
+    "EventFormField": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EventFormField",
+      "type": "object",
+      "description": "Defines the structure and validation rules for a single dynamic field within an event's registration form.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the EventFormField entity."
+        },
+        "eventId": {
+          "type": "string",
+          "description": "Reference to the Event this form field is associated with. (Relationship: Event 1:N EventFormField)"
+        },
+        "fieldName": {
+          "type": "string",
+          "description": "The internal, programmatic name for the form field (e.g., 'fullName', 'email', 'companyName')."
+        },
+        "fieldType": {
+          "type": "string",
+          "description": "The type of input field to render (e.g., 'text', 'email', 'number', 'textarea', 'checkbox', 'radio', 'select')."
+        },
+        "label": {
+          "type": "string",
+          "description": "The human-readable label displayed next to the form field on the UI."
+        },
+        "placeholder": {
+          "type": "string",
+          "description": "Optional placeholder text displayed within the form field before user input."
+        },
+        "isRequired": {
+          "type": "boolean",
+          "description": "A flag indicating whether this form field must be filled out by the registrant."
+        },
+        "validationRegex": {
+          "type": "string",
+          "description": "An optional regular expression string used to validate the input for this field."
+        },
+        "options": {
+          "type": "array",
+          "description": "A list of predefined string options for field types like 'select', 'radio', or 'checkbox'.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "order": {
+          "type": "number",
+          "description": "The numerical order in which this field should appear within the registration form."
+        }
+      },
+      "required": [
+        "id",
+        "eventId",
+        "fieldName",
+        "fieldType",
+        "label",
+        "isRequired",
+        "order"
+      ]
+    },
+    "Registration": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Registration",
+      "type": "object",
+      "description": "Records a single user's registration for a specific event, storing all submitted dynamic form data.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Registration entity."
+        },
+        "eventId": {
+          "type": "string",
+          "description": "Reference to the Event for which the user registered. (Relationship: Event 1:N Registration)"
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "The date and time when the user successfully completed the registration.",
+          "format": "date-time"
+        },
+        "formData": {
+          "type": "array",
+          "description": "An array of objects, where each object represents a submitted field from the dynamic form, storing its fieldName and fieldValue.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "eventId",
+        "registrationDate",
+        "formData"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/app_admins/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Collection storing the UIDs of global application administrators. The document ID is the user's UID, and the document itself can be empty or a minimal placeholder. Used for Database-Backed Access Control (DBAC) to grant global administrative privileges.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier (UID) of the administrative user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}",
+        "definition": {
+          "entityName": "Event",
+          "schema": {
+            "$ref": "#/backend/entities/Event"
+          },
+          "description": "Top-level collection for all events. Each document represents a single event. Documents in this collection MUST include an 'ownerId' field (string, the UID of the event creator/primary organizer) and a 'members' map (object, e.g., {'uid': 'role'}) for collaborative access control. The 'isActive' field dictates public visibility. Includes denormalized 'ownerId' and 'members' map for authorization independence.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "The unique identifier for the event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}/formFields/{formFieldId}",
+        "definition": {
+          "entityName": "EventFormField",
+          "schema": {
+            "$ref": "#/backend/entities/EventFormField"
+          },
+          "description": "Subcollection defining the dynamic form fields for a specific event's registration form. Each document represents a single form field. Documents in this subcollection MUST include denormalized 'eventId' (string), 'eventOwnerId' (string), 'eventMembers' (map), and 'eventIsActive' (boolean) from the parent Event document for robust authorization independence and public listability checks.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "The unique identifier of the parent event."
+            },
+            {
+              "name": "formFieldId",
+              "description": "The unique identifier for the form field."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}/registrations/{registrationId}",
+        "definition": {
+          "entityName": "Registration",
+          "schema": {
+            "$ref": "#/backend/entities/Registration"
+          },
+          "description": "Subcollection storing individual user registrations for a specific event. Each document represents one completed registration. Documents in this subcollection MUST include denormalized 'eventId' (string), 'eventOwnerId' (string), and 'eventMembers' (map) from the parent Event document for secure, organizer-only access and authorization independence. The 'formData' field is an ordered array of submitted string values, interpreted based on the corresponding EventFormField's 'order'.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "The unique identifier of the parent event."
+            },
+            {
+              "name": "registrationId",
+              "description": "The unique identifier for the registration."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure for EventHorizon is designed to prioritize secure, scalable, and debuggable authorization, adhering strictly to the core design principles. \n\n**Authorization Independence (CRITICAL):**\nTo achieve authorization independence and eliminate the need for `get()` calls in security rules, the `Event` entity will include an `ownerId` field (representing the UID of the primary organizer) and a `members` map (e.g., `{ 'uid1': 'organizer', 'uid2': 'editor' }`) for collaborative event management. This `ownerId` and `members` map will be denormalized and copied into every `EventFormField` and `Registration` document within their respective subcollections. This ensures that a security rule evaluating access to a `formField` or `registration` document can directly check `request.auth.uid` against the document's own `eventOwnerId` or `eventMembers` map without querying the parent `Event` document. This design supports atomic batch writes/updates across related documents, improving performance and reliability.\n\n**QAPs (Rules are not Filters):**\nSecure `list` operations are enabled through structural segregation and explicit state modeling:\n1.  **Public Events (`/events`):** The main `/events` collection will store all events. Public access (read and list) will be granted only to events where the `isActive` field is `true`. Security rules will enforce this, ensuring that unauthenticated users or general visitors can only discover and view active events. The UI will then filter to show only one active event if that's the current business logic.\n2.  **Event Form Fields (`/events/{eventId}/formFields`):** For an active event, its `formFields` must be publicly readable to allow anonymous users to view and fill out the registration form. Rules will verify that the denormalized `eventIsActive` field in the `EventFormField` document is `true` for public reads. \n3.  **Registrations (`/events/{eventId}/registrations`):** Registrations are private. Only the `ownerId` (or members in the `members` map) of the respective `Event` can read and list these documents. The denormalized `eventOwnerId` and `eventMembers` within each `Registration` document will be used to enforce this, preventing unauthorized users from accessing sensitive registration data. \n4.  **Admin Roles (`/app_admins`):** Global administrators, defined in a separate top-level collection (`/app_admins`), will have broader access to manage all events, regardless of their `isActive` status. This allows `list` operations for the admin dashboard to retrieve all events securely. The existence of `request.auth.uid` in this collection will grant global admin privileges.\n\n**DBAC (Database-Backed Access Control):**\nAuthorization roles are stored directly in the database. Global administrators are identified by their `uid` existing as a document in the `/app_admins` collection. Event-specific organizers are identified by the `ownerId` field and `members` map within each `Event` document (and denormalized into subcollection documents). This keeps authorization logic transparent and auditable within Firestore.\n\n**Structural Segregation:**\nEvents are primarily segregated by their `isActive` status via security rules rather than separate collections, as the `isActive` field clearly models the state. `EventFormField` and `Registration` data are kept in subcollections, ensuring they are logically grouped and scoped to their parent `Event`.\n\n**Data Clarity and Predictability:**\nExplicit fields like `isActive` are used for state management. Path parameters are descriptive (e.g., `{eventId}`, `{formFieldId}`). The `Registration.formData` field, as per the provided schema (`array of string`), will store an ordered list of submitted values. Its interpretation will rely on the `order` field of `EventFormField` entities to correctly map values to their corresponding fields. While this schema is less explicit than an array of objects for dynamic forms, the reliance on a consistent `order` field maintains predictability within the schema's constraints.\n\n**Required Schema Enhancements for Authorization:**\nFor robust authorization, the `Event` schema implicitly requires `ownerId` (string, `request.auth.uid` of creator) and a `members` map (object `{uid: role}`). These fields must be denormalized to `EventFormField` and `Registration` documents as `eventOwnerId` (string) and `eventMembers` (map) respectively, along with `eventIsActive` (boolean). These additions are critical for implementing the recommended security rules."
+  }
+}
