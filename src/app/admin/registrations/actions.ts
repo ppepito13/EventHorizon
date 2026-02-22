@@ -7,45 +7,10 @@ import { revalidatePath } from 'next/cache';
 import { getEventById } from '@/lib/data';
 import type { Registration, Event, User, FormField } from '@/lib/types';
 import { initializeFirebase } from '@/firebase/init';
-import { doc, getDoc, addDoc, setDoc, collection, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, addDoc, setDoc, collection } from 'firebase/firestore';
 import { randomUUID } from 'crypto';
 
 const { firestore } = initializeFirebase();
-
-export async function deleteRegistrationAction(eventId: string, registrationId: string): Promise<{ success: boolean, message: string }> {
-    if (!eventId || !registrationId) {
-        return { success: false, message: 'Event ID and Registration ID are required.' };
-    }
-
-    const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
-
-    try {
-        // First, get the registration to find its qrId for two-step deletion
-        const regSnapshot = await getDoc(registrationDocRef);
-        if (!regSnapshot.exists()) {
-            throw new Error("Registration not found.");
-        }
-        const registrationData = regSnapshot.data() as Registration;
-
-        // Delete the main registration document
-        await deleteDoc(registrationDocRef);
-        
-        // If there's an associated QR code, delete it too
-        if (registrationData.qrId) {
-            const qrDocRef = doc(firestore, 'qrcodes', registrationData.qrId);
-            await deleteDoc(qrDocRef);
-        }
-        
-        revalidatePath('/admin/registrations');
-        return { success: true, message: 'Registration deleted successfully.' };
-
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "An unknown server error occurred.";
-        console.error("Deletion Error in Server Action:", error);
-        return { success: false, message: `Deletion Failed: ${message}` };
-    }
-}
-
 
 export async function getSeedDataAction(): Promise<{ 
     success: boolean; 

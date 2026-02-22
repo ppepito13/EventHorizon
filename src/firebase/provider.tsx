@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -78,16 +79,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const unsubscribe = onIdTokenChanged(
       auth,
       (firebaseUser) => {
-        if (firebaseUser) {
-            // User is signed in, set the state
-            setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
-        } else {
-            // User is signed out, so automatically sign them in anonymously
-            signInAnonymously(auth).catch((error) => {
-                console.error("FirebaseProvider: Anonymous sign-in failed:", error);
-                setUserAuthState({ user: null, isUserLoading: false, userError: error });
-            });
-        }
+        // This is the only place where the user state is set.
+        // It reflects the true, current state from Firebase Auth.
+        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: Auth state change error:", error);

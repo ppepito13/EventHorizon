@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query, doc, setDoc, where, limit, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useAuth, useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword, type Auth, createUserWithEmailAndPassword, getAuth, onIdTokenChanged } from 'firebase/auth';
 
 import {
@@ -43,7 +43,6 @@ import {
 import {
     exportRegistrationsAction,
     generateFakeRegistrationsAction,
-    deleteRegistrationAction,
 } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -64,7 +63,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const [isExporting, startExportTransition] = useTransition();
   const [isSeeding, startSeedingTransition] = useTransition();
   const [isGenerating, startGeneratingTransition] = useTransition();
-  const [isDeleting, startDeleteTransition] = useTransition();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [dialogState, setDialogState] = useState<{
     isOpen: boolean;
@@ -73,18 +72,8 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   }>({ isOpen: false, eventId: null, regId: null });
 
   const firestore = useFirestore();
-  const auth = useAuth();
-  const [firebaseUser, setFirebaseUser] = useState<import('firebase/auth').User | null>(auth.currentUser);
-  const [isUserLoading, setIsUserLoading] = useState(true);
+  const { auth, user: firebaseUser, isUserLoading } = useFirebase();
   
-  useEffect(() => {
-    const unsubscribe = onIdTokenChanged(auth, (user) => {
-      setFirebaseUser(user);
-      setIsUserLoading(false);
-    });
-    return () => unsubscribe();
-  }, [auth]);
-
   useEffect(() => {
     if (auth && !isUserLoading && (!firebaseUser || firebaseUser.isAnonymous) && userRole === 'Administrator') {
       const adminUser = demoUsers.find(u => u.role === 'Administrator');
@@ -136,26 +125,45 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     setDialogState({ isOpen: true, eventId, regId: registrationId });
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!dialogState.eventId || !dialogState.regId) return;
     const { eventId, regId } = dialogState;
 
-    startDeleteTransition(async () => {
-        const result = await deleteRegistrationAction(eventId, regId);
-        if (result.success) {
-            toast({
-                title: "Success",
-                description: result.message,
-            });
-        } else {
-            toast({
-                variant: "destructive",
-                title: "Deletion Failed",
-                description: result.message,
-            });
+    setIsDeleting(true);
+    try {
+        const regDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
+        const regSnap = await getDoc(regDocRef);
+
+        if (!regSnap.exists()) {
+            throw new Error("Registration not found.");
         }
+        const regData = regSnap.data() as Registration;
+
+        // Start both delete operations
+        const deletePromises: Promise<void>[] = [deleteDoc(regDocRef)];
+        if (regData.qrId) {
+            const qrDocRef = doc(firestore, 'qrcodes', regData.qrId);
+            deletePromises.push(deleteDoc(qrDocRef));
+        }
+
+        // Wait for both to complete
+        await Promise.all(deletePromises);
+
+        toast({
+            title: "Success",
+            description: "Registration and associated QR code deleted.",
+        });
+    } catch (error: any) {
+        console.error("Deletion Error:", error);
+        toast({
+            variant: "destructive",
+            title: "Deletion Failed",
+            description: error.message || "An unknown error occurred. Check permissions.",
+        });
+    } finally {
+        setIsDeleting(false);
         setDialogState({ isOpen: false, eventId: null, regId: null });
-    });
+    }
   };
   
   const handleSeedData = () => {
