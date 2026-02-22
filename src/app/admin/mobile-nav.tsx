@@ -37,7 +37,7 @@ export function MobileNav({ navItems }: MobileNavProps) {
                             <Link
                                 key={href}
                                 href={href}
-                                className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-primary"
+                                className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground"
                             >
                                 <Icon className="h-5 w-5" />
                                 {label}
