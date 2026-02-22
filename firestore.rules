@@ -109,7 +109,7 @@ service cloud.firestore {
      */
     match /app_admins/{userId} {
       allow get, list: if isAdmin();
-      allow create: if false; // Admins must be added via the server or console.
+      allow create: if request.auth.uid == userId;
       allow update, delete: if isAdmin();
     }
 
