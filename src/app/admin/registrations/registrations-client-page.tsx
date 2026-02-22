@@ -115,20 +115,24 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   };
 
   const handleDeleteConfirm = () => {
-    if (!registrationToDelete || !selectedEventId || !firestore) return;
+    if (!registrationToDelete || !selectedEventId || !firestore || !auth) return;
 
+    // Set loading state to disable button
     setIsDeleting(true);
+
     const regRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationToDelete);
 
+    // Fire-and-forget the delete operation. The real-time listener will update the UI.
     deleteDoc(regRef)
       .then(() => {
         toast({ title: 'Success', description: 'Registration deleted successfully.' });
       })
       .catch((serverError) => {
+        // Error handling remains crucial.
         console.error("Delete failed:", serverError);
         const permissionError = new FirestorePermissionError({
-          path: regRef.path,
-          operation: 'delete',
+            path: regRef.path,
+            operation: 'delete',
         }, auth);
         errorEmitter.emit('permission-error', permissionError);
 
@@ -139,9 +143,13 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         });
       })
       .finally(() => {
-          setIsDeleting(false);
-          setAlertOpen(false);
+        // Re-enable button once operation is complete, regardless of outcome.
+        setIsDeleting(false);
       });
+
+    // Close the dialog immediately for a responsive UI.
+    // Don't wait for the delete to finish.
+    setAlertOpen(false);
   };
   
   const handleExport = (format: 'excel' | 'plain') => {
