@@ -47,6 +47,27 @@ interface RegistrationsClientPageProps {
   userRole: User['role'];
 }
 
+function DebugInfo({ states }: { states: Record<string, any> }) {
+  return (
+    <Card className="mt-6 bg-muted/30">
+      <CardHeader>
+        <CardTitle className="text-base">Debug Information</CardTitle>
+        <CardDescription className="text-xs">
+          This panel shows the real-time state of the application to help diagnose issues.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="font-mono text-xs space-y-1">
+        {Object.entries(states).map(([key, value]) => (
+          <div key={key} className="flex justify-between items-start">
+            <span className="text-muted-foreground font-semibold pr-4">{key}:</span>
+            <span className="text-right break-all">{JSON.stringify(value)}</span>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isMounted, setIsMounted] = useState(false);
@@ -60,7 +81,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const [isDeleting, setIsDeleting] = useState(false);
   
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user, isUserLoading, userError } = useUser();
 
   useEffect(() => {
     setIsMounted(true);
@@ -139,15 +160,15 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const handleSeedData = () => {
     startSeedingTransition(async () => {
       if (isUserLoading) {
-        toast({ title: "Please wait", description: "Authentication is still initializing." });
+        toast({ title: "Please wait", description: "Authentication is still initializing. Cannot seed data yet." });
         return;
       }
       if (!user) {
-        toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to seed data.' });
+        toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to seed data. No user found.' });
         return;
       }
       if (!firestore) {
-         toast({ variant: 'destructive', title: 'Firestore Error', description: 'Firestore is not available.' });
+         toast({ variant: 'destructive', title: 'Firestore Error', description: 'Firestore service is not available.' });
         return;
       }
 
@@ -174,11 +195,15 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           ...event,
           ownerId: user.uid, // Use the authenticated Firebase user's UID for ownership
           members: {},
+          // Denormalized fields for security rules
+          eventOwnerId: user.uid,
+          eventMembers: {},
+          eventIsActive: event.isActive,
         }));
 
         for (const event of eventsToSeed) {
             const eventRef = doc(firestore, 'events', event.id);
-            eventPromises.push(setDoc(eventRef, event));
+            eventPromises.push(setDoc(eventRef, event, { merge: true }));
         }
         await Promise.all(eventPromises);
 
@@ -187,9 +212,17 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         const registrationPromises: Promise<void>[] = [];
         for (const reg of seedRegistrations) {
             if (reg.id && reg.eventId) {
-                const regData = { ...reg };
-                const regRef = doc(firestore, 'events', reg.eventId, 'registrations', reg.id);
-                registrationPromises.push(setDoc(regRef, regData));
+                const parentEvent = eventsToSeed.find(e => e.id === reg.eventId);
+                if (parentEvent) {
+                    const regData = {
+                      ...reg,
+                      // Denormalized fields for security rules
+                      eventOwnerId: parentEvent.ownerId,
+                      eventMembers: parentEvent.members,
+                    };
+                    const regRef = doc(firestore, 'events', reg.eventId, 'registrations', reg.id);
+                    registrationPromises.push(setDoc(regRef, regData, { merge: true }));
+                }
             }
         }
         await Promise.all(registrationPromises);
@@ -211,10 +244,19 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
   
-  const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
+  const isLoading = !isMounted || isLoadingFirestore;
+  const isSeedButtonDisabled = isSeeding || isUserLoading || !user;
+
+  const getSeedButtonDisabledReason = () => {
+    if (isSeeding) return "Seeding is in progress...";
+    if (isUserLoading) return "Waiting for authentication...";
+    if (!user) return "User is not authenticated.";
+    return "Ready to seed.";
+  }
 
   const renderContent = () => {
-    if (isLoading && !firestoreError) {
+    // Show a skeleton while the user auth is loading, to prevent flicker
+    if (isUserLoading) {
       return <RegistrationsTable registrations={[]} event={selectedEvent!} userRole={userRole} onDelete={()=>{}} isLoading={true} />;
     }
 
@@ -224,8 +266,8 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
               <p className="font-bold">Permission Denied</p>
               <p className="text-sm mt-2 max-w-md mx-auto">Could not load registrations. This is likely a security rule issue.</p>
               <div className='mt-4'>
-                <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading || !user} variant='secondary'>
-                  {(isSeeding || isUserLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button onClick={handleSeedData} disabled={isSeedButtonDisabled} variant='secondary'>
+                  {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed Data & Permissions'}
                 </Button>
                 <p className="text-xs mt-2 text-destructive-foreground/80">Click to configure the database with required permissions.</p>
@@ -241,7 +283,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           event={selectedEvent}
           userRole={userRole}
           onDelete={handleDeleteRequest}
-          isLoading={false}
+          isLoading={isLoading} // Pass the general loading state
         />
       );
     }
@@ -250,8 +292,8 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       return (
         <div className="text-center py-12 text-muted-foreground space-y-4">
           <p>No registrations found for this event in Firestore.</p>
-          <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading || !user}>
-            {(isSeeding || isUserLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button onClick={handleSeedData} disabled={isSeedButtonDisabled}>
+            {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed Test Data'}
           </Button>
           <p className="text-xs text-muted-foreground/80">This will migrate test data from JSON files into the database.</p>
@@ -265,6 +307,19 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       </div>
     );
   }
+
+  const debugStates = {
+      isMounted,
+      isUserLoading,
+      user: user ? user.email : null,
+      userError: userError?.message || null,
+      selectedEventId,
+      isLoadingFirestore,
+      firestoreError: firestoreError?.message || null,
+      registrationsCount: firestoreRegistrations?.length ?? 0,
+      seedButtonDisabled: isSeedButtonDisabled,
+      seedButtonReason: getSeedButtonDisabledReason(),
+  };
 
   return (
     <>
@@ -317,6 +372,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           {renderContent()}
         </CardContent>
       </Card>
+      
+      <DebugInfo states={debugStates} />
+      
       <AlertDialog open={isAlertOpen} onOpenChange={(open) => {
         if (isDeleting) return;
         setAlertOpen(open);
