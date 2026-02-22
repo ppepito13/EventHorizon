@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useTransition, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import {
   Card,
@@ -59,6 +59,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
@@ -67,6 +68,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         setRegistrations([]);
         return;
     }
+    setIsLoading(true);
     const result = await getRegistrationsAction(selectedEventId);
     if (result.success) {
         setRegistrations(result.data as Registration[]);
@@ -76,12 +78,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           toast({ variant: 'destructive', title: 'Error', description: result.error });
         }
     }
+    setIsLoading(false);
   }, [selectedEventId, toast]);
 
   useEffect(() => {
     if (isMounted) {
-      setIsLoading(true);
-      fetchRegistrations().finally(() => setIsLoading(false));
+      fetchRegistrations();
     }
   }, [fetchRegistrations, isMounted]);
 
@@ -92,26 +94,32 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!registrationToDelete) return;
-    
-    const result = await deleteRegistrationAction(registrationToDelete);
 
-    // We MUST close the dialog regardless of success or failure to avoid a stuck UI
-    setAlertOpen(false);
+    setIsDeleting(true);
+    try {
+      const result = await deleteRegistrationAction(registrationToDelete);
 
-    if (result.success) {
+      if (result.success) {
         toast({ title: 'Success', description: result.message });
-        // After a successful delete, refetch the data to update the list
-        setIsLoading(true);
-        fetchRegistrations().finally(() => setIsLoading(false));
-    } else {
+        await fetchRegistrations();
+      } else {
         toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: result.message,
+          variant: 'destructive',
+          title: 'Error',
+          description: result.message,
         });
+      }
+    } catch (error) {
+       toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'An unexpected error occurred during deletion.',
+        });
+    } finally {
+      setAlertOpen(false);
+      setIsDeleting(false);
+      setRegistrationToDelete(null);
     }
-    // Reset the ID after the operation
-    setRegistrationToDelete(null);
   }, [registrationToDelete, fetchRegistrations, toast]);
 
 
@@ -197,12 +205,13 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             />
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              {isLoading ? <Loader2 className="mx-auto h-8 w-8 animate-spin" /> : <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
+              {isMounted && !isLoading && <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
+               {isLoading && <Loader2 className="mx-auto h-8 w-8 animate-spin" />}
             </div>
           )}
         </CardContent>
       </Card>
-      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+      <AlertDialog open={isAlertOpen} onOpenChange={(open) => !isDeleting && setAlertOpen(open)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -211,8 +220,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Continue
             </AlertDialogAction>
           </AlertDialogFooter>
