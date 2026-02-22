@@ -35,26 +35,6 @@ export async function getSeedDataAction(): Promise<{
   }
 }
 
-
-export async function deleteRegistrationAction(eventId: string, registrationId: string) {
-  if (!eventId || !registrationId) {
-    return { success: false, message: 'Event ID and Registration ID are required.' };
-  }
-
-  try {
-    const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
-    await deleteDoc(registrationDocRef);
-    
-    revalidatePath('/admin/registrations');
-    
-    return { success: true, message: 'Registration deleted successfully.' };
-  } catch (error) {
-    console.error("Deletion error:", error);
-    const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
-    return { success: false, message };
-  }
-}
-
 function convertToCSV(data: Registration[], headers: {key: string, label: string}[]) {
     const headerRow = ['Registration Date', 'QR ID', ...headers.map(h => h.label)].join('|');
     const rows = data.map(reg => {

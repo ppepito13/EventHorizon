@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, doc, setDoc } from 'firebase/firestore';
+import { collection, query, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import {
   Card,
@@ -38,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { exportRegistrationsAction, deleteRegistrationAction, getSeedDataAction } from './actions';
+import { exportRegistrationsAction, getSeedDataAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -70,9 +70,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }, [events, selectedEventId]);
 
   const registrationsQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedEventId) return null;
+    // Wait until Firebase is initialized, auth is complete, and an event is selected
+    if (!firestore || !selectedEventId || isUserLoading || !user) {
+      return null;
+    }
     return query(collection(firestore, 'events', selectedEventId, 'registrations'));
-  }, [firestore, selectedEventId]);
+  }, [firestore, selectedEventId, user, isUserLoading]);
 
   const { data: firestoreRegistrations, isLoading: isLoadingFirestore } = useCollection<Registration>(registrationsQuery);
   
@@ -92,16 +95,15 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     if (!registrationToDelete || !selectedEventId) return;
 
     setIsDeleting(true);
-    const result = await deleteRegistrationAction(selectedEventId, registrationToDelete);
-    
-    if (result.success) {
-        toast({ title: 'Success', description: result.message });
-        // The real-time listener from useCollection will automatically update the UI.
-    } else {
+    try {
+        const regRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationToDelete);
+        await deleteDoc(regRef);
+        toast({ title: 'Success', description: 'Registration deleted successfully.' });
+    } catch (e: any) {
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: result.message || 'An unknown error occurred.',
+            description: e.message || 'An unknown error occurred while deleting.',
         });
     }
     
@@ -173,22 +175,24 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         }));
 
         toast({ title: "Seeding Step 1/2", description: `Seeding ${eventsToSeed.length} events...` });
-        eventsToSeed.forEach(event => {
-          const eventRef = doc(firestore, 'events', event.id);
-          eventPromises.push(setDoc(eventRef, event));
-        });
+        for (const event of eventsToSeed) {
+            const eventRef = doc(firestore, 'events', event.id);
+            eventPromises.push(setDoc(eventRef, event));
+        }
 
         await Promise.all(eventPromises);
         toast({ title: "Seeding Step 2/2", description: `Seeding ${seedRegistrations.length} registrations...` });
 
         // Step 2: Once events are created, write all registration documents.
         const registrationPromises: Promise<void>[] = [];
-        seedRegistrations.forEach(reg => {
-          if (reg.id && reg.eventId) {
-            const regRef = doc(firestore, 'events', reg.eventId, 'registrations', reg.id);
-            registrationPromises.push(setDoc(regRef, reg));
-          }
-        });
+        for (const reg of seedRegistrations) {
+            if (reg.id && reg.eventId) {
+                // Ensure eventId from registration is included in the document data
+                const regData = { ...reg };
+                const regRef = doc(firestore, 'events', reg.eventId, 'registrations', reg.id);
+                registrationPromises.push(setDoc(regRef, regData));
+            }
+        }
 
         await Promise.all(registrationPromises);
 
@@ -201,7 +205,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
   
-  const isLoading = !isMounted || isLoadingFirestore;
+  const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
 
   const renderContent = () => {
     if (isLoading) {
