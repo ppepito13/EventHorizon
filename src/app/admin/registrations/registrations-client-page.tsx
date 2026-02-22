@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useFirebaseApp } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useFirebaseApp, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { getApps } from 'firebase/app';
 import {
   Card,
@@ -92,15 +93,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }, [events, selectedEventId]);
 
   const registrationsQuery = useMemoFirebase(() => {
-    // The query is only created when all dependencies, including the user, are available.
-    // This prevents requests with a null authentication state.
-    if (!firestore || !selectedEventId || isUserLoading || !user) {
+    if (!firestore || !selectedEventId || !user) {
       return null;
     }
     return query(collection(firestore, 'events', selectedEventId, 'registrations'));
-  }, [firestore, selectedEventId, user, isUserLoading]);
+  }, [firestore, selectedEventId, user]);
 
-  // useCollection now waits for a valid query object before executing.
   const { data: firestoreRegistrations, isLoading: isLoadingFirestore, error: firestoreError } = useCollection<Registration>(registrationsQuery);
   
   const allRegistrations = useMemo(() => {
@@ -115,25 +113,35 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     setAlertOpen(true);
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = () => {
     if (!registrationToDelete || !selectedEventId || !firestore) return;
 
     setIsDeleting(true);
-    try {
-        const regRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationToDelete);
-        await deleteDoc(regRef);
+    const regRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationToDelete);
+
+    deleteDoc(regRef)
+      .then(() => {
         toast({ title: 'Success', description: 'Registration deleted successfully.' });
-    } catch (e: any) {
+      })
+      .catch((serverError) => {
+        console.error("Delete failed:", serverError);
+        const permissionError = new FirestorePermissionError({
+          path: regRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+
         toast({
             variant: 'destructive',
-            title: 'Error',
-            description: e.message || 'An unknown error occurred while deleting.',
+            title: 'Deletion Failed',
+            description: 'Could not delete the registration. You may lack permissions.',
         });
-    }
-    
-    setIsDeleting(false);
-    setAlertOpen(false);
-    setRegistrationToDelete(null);
+      })
+      .finally(() => {
+          setIsDeleting(false);
+          setAlertOpen(false);
+          setRegistrationToDelete(null);
+      });
   };
   
   const handleExport = (format: 'excel' | 'plain') => {
@@ -191,14 +199,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       }
 
       try {
-        // Step 1: Write all event documents first and wait for them to complete.
         toast({ title: "Seeding Step 1/3", description: `Seeding ${seedEvents.length} events...` });
         const eventPromises: Promise<void>[] = [];
         const eventsToSeed = seedEvents.map(event => ({
           ...event,
-          ownerId: user.uid, // Use the authenticated Firebase user's UID for ownership
+          ownerId: user.uid,
           members: {},
-          // Denormalized fields for security rules
           eventOwnerId: user.uid,
           eventMembers: {},
           eventIsActive: event.isActive,
@@ -210,7 +216,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         }
         await Promise.all(eventPromises);
 
-        // Step 2: Once events are created, write all registration documents.
         toast({ title: "Seeding Step 2/3", description: `Seeding ${seedRegistrations.length} registrations...` });
         const registrationPromises: Promise<void>[] = [];
         for (const reg of seedRegistrations) {
@@ -219,7 +224,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                 if (parentEvent) {
                     const regData = {
                       ...reg,
-                      // Denormalized fields for security rules
                       eventOwnerId: parentEvent.ownerId,
                       eventMembers: parentEvent.members,
                     };
@@ -229,15 +233,14 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             }
         }
         await Promise.all(registrationPromises);
-
-        // Step 3: Configure admin role in Firestore to satisfy security rules
+        
         if (userRole === 'Administrator' && user) {
           toast({ title: "Seeding Step 3/3", description: "Configuring admin role..." });
           const adminRef = doc(firestore, 'app_admins', user.uid);
-          await setDoc(adminRef, { role: 'admin', seededAt: new Date().toISOString() });
+          await setDoc(adminRef, { role: 'admin', seededAt: new Date().toISOString() }, { merge: true });
         }
 
-        toast({ title: "Success!", description: `Seeding complete. ${eventsToSeed.length} events and ${seedRegistrations.length} registrations have been seeded.` });
+        toast({ title: "Success!", description: `Seeding complete. ${eventsToSeed.length} events and ${seedRegistrations.length} registrations have been seeded/updated.` });
         
       } catch (e: any) {
         console.error("Seeding error:", e);
@@ -257,56 +260,23 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }
 
   const renderContent = () => {
-    // Show a skeleton while the user auth is loading, to prevent flicker
-    if (isLoading) {
-      return <RegistrationsTable registrations={[]} event={selectedEvent!} userRole={userRole} onDelete={()=>{}} isLoading={true} />;
-    }
-
     if (firestoreError) {
       return (
           <div className="text-center py-12 text-destructive-foreground bg-destructive/90 rounded-md">
               <p className="font-bold">Permission Denied</p>
               <p className="text-sm mt-2 max-w-md mx-auto">Could not load registrations. This is likely a security rule issue.</p>
-              <div className='mt-4'>
-                <Button onClick={handleSeedData} disabled={isSeedButtonDisabled} variant='secondary'>
-                  {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed Data & Permissions'}
-                </Button>
-                <p className="text-xs mt-2 text-destructive-foreground/80">Click to configure the database with required permissions.</p>
-              </div>
           </div>
       );
     }
     
-    if (selectedEvent && allRegistrations.length > 0) {
-      return (
-        <RegistrationsTable 
-          registrations={allRegistrations} 
-          event={selectedEvent}
-          userRole={userRole}
-          onDelete={handleDeleteRequest}
-          isLoading={isLoading} // Pass the general loading state
-        />
-      );
-    }
-    
-    if (isMounted && selectedEvent) {
-      return (
-        <div className="text-center py-12 text-muted-foreground space-y-4">
-          <p>No registrations found for this event in Firestore.</p>
-          <Button onClick={handleSeedData} disabled={isSeedButtonDisabled}>
-            {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed Test Data'}
-          </Button>
-          <p className="text-xs text-muted-foreground/80">This will migrate test data from JSON files into the database.</p>
-        </div>
-      );
-    }
-
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        {isMounted ? <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p> : <Loader2 className="mx-auto h-8 w-8 animate-spin" />}
-      </div>
+      <RegistrationsTable 
+        registrations={allRegistrations} 
+        event={selectedEvent!}
+        userRole={userRole}
+        onDelete={handleDeleteRequest}
+        isLoading={isLoading}
+      />
     );
   }
 
@@ -336,11 +306,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           <CardDescription>
             View and manage event registrations.
           </CardDescription>
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
             {!isMounted ? (
                 <>
                     <Skeleton className="h-10 w-full sm:w-[280px]" />
                     <Skeleton className="h-10 w-[128px]" />
+                    <Skeleton className="h-10 w-[160px]" />
                 </>
             ) : (
                 <>
@@ -371,6 +342,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                         <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
                     </DropdownMenuContent>
                     </DropdownMenu>
+                    {userRole === 'Administrator' && (
+                      <Button onClick={handleSeedData} disabled={isSeedButtonDisabled}>
+                        {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed/Repair Data'}
+                      </Button>
+                    )}
                 </>
             )}
           </div>
@@ -408,3 +385,5 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     </>
   );
 }
+
+    
