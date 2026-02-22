@@ -48,7 +48,7 @@ interface RegistrationsTableProps {
   event: Event;
   registrations: Registration[];
   userRole: User['role'];
-  onRegistrationDeleted: (id: string) => void;
+  onRegistrationDeleted: () => void;
 }
 
 export function RegistrationsTable({ event, registrations, userRole, onRegistrationDeleted }: RegistrationsTableProps) {
@@ -102,19 +102,26 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
 
   const handleDelete = () => {
     if (!registrationToDelete) return;
+
+    const idToDelete = registrationToDelete;
+    // Immediately close the dialog to ensure the UI remains responsive.
+    setAlertOpen(false);
+    setRegistrationToDelete(null);
+
+    // Perform the deletion and refetch in the background.
     startTransition(async () => {
-      const result = await deleteRegistrationAction(registrationToDelete);
+      const result = await deleteRegistrationAction(idToDelete);
       if (result.success) {
         toast({ title: 'Success', description: result.message });
-        onRegistrationDeleted(registrationToDelete);
-        setAlertOpen(false);
-        setRegistrationToDelete(null);
+        onRegistrationDeleted(); // Trigger a refetch in the parent component.
       } else {
         toast({
           variant: 'destructive',
           title: 'Error',
           description: result.message,
         });
+        // Refetch even on error to ensure client is in sync with server state.
+        onRegistrationDeleted();
       }
     });
   };

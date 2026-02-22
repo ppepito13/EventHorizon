@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useTransition, useEffect } from 'react';
+import { useState, useMemo, useTransition, useEffect, useCallback } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import {
   Card,
@@ -46,31 +46,32 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
-  useEffect(() => {
+  const fetchRegistrations = useCallback(async () => {
     if (!selectedEventId) {
         setRegistrations([]);
         return;
-    };
+    }
 
-    const fetchRegistrations = async () => {
-        setIsLoading(true);
-        const result = await getRegistrationsAction(selectedEventId);
-        if (result.success) {
-            setRegistrations(result.data as Registration[]);
-        } else {
-            setRegistrations([]);
-            if (result.error) {
-              toast({ variant: 'destructive', title: 'Error', description: result.error });
-            }
+    setIsLoading(true);
+    const result = await getRegistrationsAction(selectedEventId);
+    if (result.success) {
+        setRegistrations(result.data as Registration[]);
+    } else {
+        setRegistrations([]);
+        if (result.error) {
+          toast({ variant: 'destructive', title: 'Error', description: result.error });
         }
-        setIsLoading(false);
-    };
-
-    fetchRegistrations();
+    }
+    setIsLoading(false);
   }, [selectedEventId, toast]);
+
+  useEffect(() => {
+    fetchRegistrations();
+  }, [fetchRegistrations]);
   
-  const handleRegistrationDeleted = (registrationId: string) => {
-    setRegistrations(prevRegistrations => prevRegistrations.filter(reg => reg.id !== registrationId));
+  const handleRegistrationDeleted = () => {
+    // This will now trigger a full refetch from the server.
+    fetchRegistrations();
   };
 
 
