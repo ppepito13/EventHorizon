@@ -4,13 +4,9 @@ import admin from 'firebase-admin';
 if (!admin.apps.length) {
   try {
     // When running in a Google Cloud environment (like Firebase App Hosting or Cloud Run),
-    // the Admin SDK can automatically discover the service account credentials.
-    // For local development, you would need to set the GOOGLE_APPLICATION_CREDENTIALS
-    // environment variable pointing to your service account key file.
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    });
+    // calling initializeApp() with no arguments allows the Admin SDK to automatically
+    // discover credentials and other configuration. This is the recommended approach.
+    admin.initializeApp();
   } catch (e: any) {
     console.error('Firebase Admin SDK initialization error', e.stack);
   }
