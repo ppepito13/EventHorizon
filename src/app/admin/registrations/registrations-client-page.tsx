@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useTransition } from 'react';
+import { useState, useMemo, useTransition, useEffect } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import {
   Card,
@@ -25,11 +25,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { exportRegistrationsAction } from './actions';
+import { exportRegistrationsAction, getRegistrationsAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
-import { useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 
 interface RegistrationsClientPageProps {
   events: Event[];
@@ -38,9 +35,10 @@ interface RegistrationsClientPageProps {
 
 export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isExporting, startExportTransition] = useTransition();
   const { toast } = useToast();
-  const firestore = useFirestore();
 
   const handleEventChange = (eventId: string) => {
     setSelectedEventId(eventId);
@@ -48,12 +46,28 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
-  const registrationsQuery = useMemoFirebase(() => {
-    if (!selectedEventId) return null;
-    return query(collection(firestore, 'registrations'), where('eventId', '==', selectedEventId));
-  }, [firestore, selectedEventId]);
+  useEffect(() => {
+    if (!selectedEventId) {
+        setRegistrations([]);
+        return;
+    };
 
-  const { data: registrations, isLoading } = useCollection<Registration>(registrationsQuery);
+    const fetchRegistrations = async () => {
+        setIsLoading(true);
+        const result = await getRegistrationsAction(selectedEventId);
+        if (result.success) {
+            setRegistrations(result.data as Registration[]);
+        } else {
+            setRegistrations([]);
+            if (result.error) {
+              toast({ variant: 'destructive', title: 'Error', description: result.error });
+            }
+        }
+        setIsLoading(false);
+    };
+
+    fetchRegistrations();
+  }, [selectedEventId, toast]);
 
 
   const handleExport = (format: 'excel' | 'plain') => {

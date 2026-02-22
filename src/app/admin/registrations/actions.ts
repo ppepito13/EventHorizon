@@ -63,3 +63,15 @@ export async function exportRegistrationsAction(eventId: string, format: 'excel'
         return { success: false, error: 'Failed to export data.' };
     }
 }
+
+export async function getRegistrationsAction(eventId: string) {
+    if (!eventId) {
+        return { success: false, data: [], error: 'Event ID is required.' };
+    }
+    try {
+        const registrations = await getRegistrations(eventId);
+        return { success: true, data: registrations };
+    } catch (error) {
+        return { success: false, data: [], error: 'Failed to fetch registrations.' };
+    }
+}
