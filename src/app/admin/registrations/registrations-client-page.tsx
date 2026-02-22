@@ -3,8 +3,8 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, doc, deleteDoc, setDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, doc, deleteDoc, setDoc, where, limit, getDocs } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword, type Auth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 import {
@@ -40,9 +40,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { 
-    exportRegistrationsAction, 
-    getSeedDataAction, 
+import {
+    exportRegistrationsAction,
     generateFakeRegistrationsAction,
 } from './actions';
 import { useToast } from '@/hooks/use-toast';
@@ -66,7 +65,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
-  
+
   const [isExporting, startExportTransition] = useTransition();
   const [isSeeding, startSeedingTransition] = useTransition();
   const [isGenerating, startGeneratingTransition] = useTransition();
@@ -79,7 +78,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   }>({ isOpen: false, eventId: null, regId: null });
 
   const [lastDeleteAttempt, setLastDeleteAttempt] = useState<DebugInfo>(null);
-  
+
   const firestore = useFirestore();
   const { auth, user: firebaseUser, isUserLoading } = useFirebase();
 
@@ -114,7 +113,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   }, [firestore, selectedEventId]);
 
   const { data: firestoreRegistrations, isLoading: isLoadingFirestore, error: firestoreError } = useCollection<Registration>(registrationsQuery);
-  
+
   const allRegistrations = useMemo(() => {
     if (!firestoreRegistrations) return [];
     return [...firestoreRegistrations].sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
@@ -131,6 +130,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
 
     startDeleteTransition(() => {
         const { eventId, regId } = dialogState;
+        setDialogState({ isOpen: false, eventId: null, regId: null });
         setLastDeleteAttempt({
             timestamp: new Date().toISOString(),
             registrationId: regId,
@@ -153,13 +153,50 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
                     title: 'Deletion Failed',
                     description: error.message || 'An unknown error occurred.',
                 });
-            })
-            .finally(() => {
-                setDialogState({ isOpen: false, eventId: null, regId: null });
             });
     });
   };
   
+  const handleSeedData = () => {
+    startSeedingTransition(async () => {
+      if (!auth || !firestore || !firebaseUser) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Cannot seed data. Auth or database not ready.' });
+        return;
+      }
+      
+      if (firebaseUser.isAnonymous) {
+          toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please wait a moment for admin authentication to complete, then try again.' });
+          return;
+      }
+
+      toast({ title: "Seeding...", description: "Provisioning admin permissions in database..." });
+
+      try {
+        // Ensure the admin user exists in Firebase Auth
+        const adminUser = demoUsers.find(u => u.role === 'Administrator');
+        if (!adminUser || !adminUser.email || !adminUser.password) {
+            toast({ variant: 'destructive', title: 'Seeding Failed', description: 'Admin user configuration is missing from demo data.' });
+            return;
+        }
+        
+        let targetUser = firebaseUser;
+        
+        // After ensuring auth user, now provision DB permissions
+        const adminDocRef = doc(firestore, 'app_admins', targetUser.uid);
+        await setDoc(adminDocRef, {});
+
+        toast({ title: 'Success!', description: 'Admin permissions provisioned in database.' });
+        
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Seeding Failed',
+          description: error.message || 'An error occurred during the seeding process.',
+        });
+      }
+    });
+  };
+
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
         toast({ variant: 'destructive', title: 'Error', description: 'Please select an event to export.' });
@@ -181,35 +218,6 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
         } else {
             toast({ variant: 'destructive', title: 'Export Failed', description: result.error || 'No registrations to export.' });
         }
-    });
-  };
-
-  const handleSeedData = () => {
-    startSeedingTransition(async () => {
-      if (!auth || !firestore || !firebaseUser) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Cannot seed data. Auth or database not ready.' });
-        return;
-      }
-      
-      if (firebaseUser.isAnonymous) {
-          toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please wait a moment for admin authentication to complete, then try again.' });
-          return;
-      }
-
-      toast({ title: "Seeding...", description: "Provisioning admin permissions in database..." });
-
-      try {
-        const adminDocRef = doc(firestore, 'app_admins', firebaseUser.uid);
-        await setDoc(adminDocRef, {});
-        toast({ title: 'Success!', description: 'Admin permissions provisioned in database.' });
-        
-      } catch (error: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Seeding Failed',
-          description: error.message || 'An error occurred during the seeding process.',
-        });
-      }
     });
   };
   
@@ -246,7 +254,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Permission Denied</AlertTitle>
             <AlertDescription>
-              Could not fetch registrations. This is likely a security rule issue. 
+              Could not fetch registrations. This is likely a security rule issue.
               Please ensure you have the correct permissions to view this data.
               <pre className="mt-2 text-xs bg-muted p-2 rounded-md font-mono whitespace-pre-wrap">
                 {firestoreError.message}
@@ -265,8 +273,8 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     }
     
     return (
-      <RegistrationsTable 
-        registrations={allRegistrations} 
+      <RegistrationsTable
+        registrations={allRegistrations}
         event={selectedEvent!}
         userRole={userRole}
         onDelete={handleDeleteRequest}
@@ -343,7 +351,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
           {renderContent()}
         </CardContent>
       </Card>
-      
+
       {userRole === 'Administrator' && <Card className="mt-4">
         <CardHeader>
             <CardTitle className="text-base">Debug Information</CardTitle>
@@ -371,7 +379,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
             </div>
         </CardContent>
       </Card>}
-      
+
       <AlertDialog open={dialogState.isOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
               setDialogState({ isOpen: false, eventId: null, regId: null });
