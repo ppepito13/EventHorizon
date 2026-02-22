@@ -69,7 +69,8 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const [isExporting, startExportTransition] = useTransition();
   const [isSeeding, startSeedingTransition] = useTransition();
   const [isGenerating, startGeneratingTransition] = useTransition();
-  const [isDeleting, startDeleteTransition] = useTransition();
+  const [isDeleting, setIsDeleting] = useState(false);
+
 
   const [dialogState, setDialogState] = useState<{
     isOpen: boolean;
@@ -133,39 +134,39 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     setDialogState({ isOpen: true, eventId, regId: registrationId });
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!dialogState.eventId || !dialogState.regId || !firestore) return;
 
-    startDeleteTransition(() => {
-        const { eventId, regId } = dialogState;
-        setLastDeleteAttempt({
-            timestamp: new Date().toISOString(),
-            registrationId: regId,
-            status: 'initiated'
-        });
+    const { eventId, regId } = dialogState;
 
-        const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
-        
-        deleteDoc(registrationDocRef)
-            .then(() => {
-                setLastDeleteAttempt(prev => ({...prev!, status: 'success' }));
-                toast({
-                    title: 'Success',
-                    description: 'Registration deleted successfully.',
-                });
-            })
-            .catch((error) => {
-                setLastDeleteAttempt(prev => ({...prev!, status: 'error', message: error.message }));
-                toast({
-                    variant: 'destructive',
-                    title: 'Deletion Failed',
-                    description: error.message || 'An unknown error occurred.',
-                });
-            })
-            .finally(() => {
-                setDialogState({ isOpen: false, eventId: null, regId: null });
-            });
+    setIsDeleting(true);
+    setLastDeleteAttempt({
+      timestamp: new Date().toISOString(),
+      registrationId: regId,
+      status: 'initiated',
     });
+
+    const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
+
+    try {
+      await deleteDoc(registrationDocRef);
+      setLastDeleteAttempt(prev => ({ ...prev!, status: 'success' }));
+      toast({
+        title: 'Success',
+        description: 'Registration deleted successfully.',
+      });
+    } catch (error: any) {
+      console.error('Delete operation failed:', error);
+      setLastDeleteAttempt(prev => ({ ...prev!, status: 'error', message: error.message }));
+      toast({
+        variant: 'destructive',
+        title: 'Deletion Failed',
+        description: error.message || 'An unknown error occurred.',
+      });
+    } finally {
+      setIsDeleting(false);
+      setDialogState({ isOpen: false, eventId: null, regId: null });
+    }
   };
   
   const handleSeedData = () => {
@@ -405,6 +406,15 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
                         email: firebaseUser?.email,
                         isAnonymous: firebaseUser?.isAnonymous,
                     }, null, 2)}
+                </pre>
+            </div>
+            <div>
+                <span className="font-semibold">Collection Listener Error:</span>
+                 <pre className="p-2 bg-muted rounded-md mt-1 whitespace-pre-wrap">
+                    {firestoreError ? JSON.stringify({
+                        code: firestoreError.code,
+                        message: firestoreError.message,
+                    }, null, 2) : "No errors."}
                 </pre>
             </div>
         </CardContent>
