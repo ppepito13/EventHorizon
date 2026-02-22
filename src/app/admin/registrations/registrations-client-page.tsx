@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useFirebaseApp, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useFirebaseApp, errorEmitter, FirestorePermissionError, useAuth } from '@/firebase';
 import { getApps } from 'firebase/app';
 import {
   Card,
@@ -82,6 +82,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const [isDeleting, setIsDeleting] = useState(false);
   
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user, isUserLoading, userError } = useUser();
   const firebaseApp = useFirebaseApp();
 
@@ -128,7 +129,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         const permissionError = new FirestorePermissionError({
           path: regRef.path,
           operation: 'delete',
-        });
+        }, auth);
         errorEmitter.emit('permission-error', permissionError);
 
         toast({
@@ -244,7 +245,16 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         
       } catch (e: any) {
         console.error("Seeding error:", e);
-        toast({ variant: 'destructive', title: 'Seeding Failed', description: e.message || 'An unknown error occurred during seeding.' });
+        if (e instanceof Error && 'code' in e && (e as any).code.includes('permission-denied')) {
+          const permissionError = new FirestorePermissionError({
+            path: 'app_admins',
+            operation: 'write',
+          }, auth);
+          errorEmitter.emit('permission-error', permissionError);
+          toast({ variant: 'destructive', title: 'Seeding Permission Error', description: 'Could not set admin role. Please check security rules for /app_admins.'});
+        } else {
+          toast({ variant: 'destructive', title: 'Seeding Failed', description: e.message || 'An unknown error occurred during seeding.' });
+        }
       }
     });
   };
