@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query, doc, deleteDoc, setDoc, where, limit, getDocs } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword, type Auth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 import {
@@ -88,11 +88,19 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
       if (adminUser && adminUser.email && adminUser.password) {
         signInWithEmailAndPassword(auth, adminUser.email, adminUser.password).catch(error => {
           console.error("Automatic admin sign-in failed:", error);
-          toast({
-            variant: "destructive",
-            title: "Auth Sync Failed",
-            description: "Could not automatically log in to Firebase backend. Operations might be denied.",
-          });
+          if (error.code === 'auth/invalid-credential') {
+             toast({
+                variant: "destructive",
+                title: "Admin Not Provisioned",
+                description: "Please click 'Seed/Repair Data' to set up the admin user in the database.",
+             });
+          } else {
+            toast({
+              variant: "destructive",
+              title: "Auth Sync Failed",
+              description: "Could not automatically log in to Firebase backend. Operations might be denied.",
+            });
+          }
         });
       }
     }
@@ -130,12 +138,12 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
 
     startDeleteTransition(() => {
         const { eventId, regId } = dialogState;
-        setDialogState({ isOpen: false, eventId: null, regId: null });
         setLastDeleteAttempt({
             timestamp: new Date().toISOString(),
             registrationId: regId,
             status: 'initiated'
         });
+
         const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
         
         deleteDoc(registrationDocRef)
@@ -153,49 +161,71 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
                     title: 'Deletion Failed',
                     description: error.message || 'An unknown error occurred.',
                 });
+            })
+            .finally(() => {
+                setDialogState({ isOpen: false, eventId: null, regId: null });
             });
     });
   };
   
   const handleSeedData = () => {
     startSeedingTransition(async () => {
-      if (!auth || !firestore || !firebaseUser) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Cannot seed data. Auth or database not ready.' });
-        return;
-      }
-      
-      if (firebaseUser.isAnonymous) {
-          toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please wait a moment for admin authentication to complete, then try again.' });
-          return;
-      }
-
-      toast({ title: "Seeding...", description: "Provisioning admin permissions in database..." });
-
-      try {
-        // Ensure the admin user exists in Firebase Auth
-        const adminUser = demoUsers.find(u => u.role === 'Administrator');
-        if (!adminUser || !adminUser.email || !adminUser.password) {
-            toast({ variant: 'destructive', title: 'Seeding Failed', description: 'Admin user configuration is missing from demo data.' });
+        if (!auth || !firestore) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Cannot seed data. Auth or database not ready.' });
             return;
         }
-        
-        let targetUser = firebaseUser;
-        
-        // After ensuring auth user, now provision DB permissions
-        const adminDocRef = doc(firestore, 'app_admins', targetUser.uid);
-        await setDoc(adminDocRef, {});
+    
+        const adminUser = demoUsers.find(u => u.role === 'Administrator');
+        if (!adminUser || !adminUser.email || !adminUser.password) {
+            toast({ variant: 'destructive', title: 'Seeding Failed', description: 'Admin user config missing.' });
+            return;
+        }
 
-        toast({ title: 'Success!', description: 'Admin permissions provisioned in database.' });
-        
-      } catch (error: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Seeding Failed',
-          description: error.message || 'An error occurred during the seeding process.',
-        });
-      }
+        toast({ title: "Seeding...", description: "Ensuring admin user exists in Firebase Auth..." });
+
+        let adminAuthUser: import('firebase/auth').User | null = null;
+
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, adminUser.email, adminUser.password);
+            adminAuthUser = userCredential.user;
+            toast({ title: "Admin Login OK", description: "Admin user already exists." });
+        } catch (error: any) {
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+                toast({ title: "Creating User", description: "Admin user not found, creating..." });
+                try {
+                    const userCredential = await createUserWithEmailAndPassword(auth, adminUser.email, adminUser.password);
+                    adminAuthUser = userCredential.user;
+                    toast({ title: "User Created", description: "Admin user created in Firebase Auth." });
+                } catch (createError: any) {
+                    toast({ variant: 'destructive', title: 'Auth Creation Failed', description: createError.message });
+                    return;
+                }
+            } else {
+                toast({ variant: 'destructive', title: 'Auth Login Failed', description: error.message });
+                return;
+            }
+        }
+
+        if (!adminAuthUser) {
+            toast({ variant: 'destructive', title: 'Seeding Failed', description: 'Could not get a valid admin user handle.' });
+            return;
+        }
+      
+        try {
+            toast({ title: "Provisioning...", description: "Setting admin permissions in database." });
+            const adminDocRef = doc(firestore, 'app_admins', adminAuthUser.uid);
+            await setDoc(adminDocRef, {});
+            toast({ title: 'Success!', description: 'Admin permissions provisioned in database.' });
+        } catch (dbError: any) {
+           toast({
+            variant: 'destructive',
+            title: 'DB Provisioning Failed',
+            description: dbError.message || 'An error occurred during the seeding process.',
+          });
+        }
     });
-  };
+};
+
 
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
