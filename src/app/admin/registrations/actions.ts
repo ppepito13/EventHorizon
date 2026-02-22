@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { getEventById, getRegistrationsFromFirestore } from '@/lib/data';
 import type { Registration, Event, User, FormField } from '@/lib/types';
 import { initializeFirebase } from '@/firebase/init';
-import { doc, getDoc, addDoc, setDoc, collection } from 'firebase/firestore';
+import { doc, getDoc, addDoc, setDoc, collection, deleteDoc } from 'firebase/firestore';
 import { randomUUID } from 'crypto';
 
 const { firestore } = initializeFirebase();
@@ -196,6 +196,29 @@ export async function generateFakeRegistrationsAction(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
     console.error("Generate fake data error:", error);
+    return { success: false, message };
+  }
+}
+
+
+export async function deleteRegistrationAction(
+  eventId: string,
+  registrationId: string
+): Promise<{ success: boolean; message: string }> {
+  if (!eventId || !registrationId) {
+    return { success: false, message: 'Event ID and Registration ID are required.' };
+  }
+  const { firestore } = initializeFirebase();
+  try {
+    const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
+    await deleteDoc(registrationDocRef);
+    
+    revalidatePath('/admin/registrations');
+
+    return { success: true, message: 'Registration deleted successfully.' };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'An unknown server error occurred during deletion.';
+    console.error("Delete registration error:", error);
     return { success: false, message };
   }
 }

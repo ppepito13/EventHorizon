@@ -39,11 +39,12 @@ interface RegistrationsTableProps {
   event: Event;
   registrations: Registration[];
   userRole: User['role'];
-  onDelete: (id: string) => void;
+  onDelete: (eventId: string, registrationId: string) => void;
   isLoading: boolean;
+  isDeleting: boolean;
 }
 
-export function RegistrationsTable({ event, registrations, userRole, onDelete, isLoading }: RegistrationsTableProps) {
+export function RegistrationsTable({ event, registrations, userRole, onDelete, isLoading, isDeleting }: RegistrationsTableProps) {
   const [detailsViewReg, setDetailsViewReg] = useState<Registration | null>(null);
   const [detailsQrCode, setDetailsQrCode] = useState<string>('');
 
@@ -142,7 +143,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                   <div className="flex items-center justify-end gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" onClick={() => setDetailsViewReg(reg)}>
+                        <Button variant="outline" size="icon" onClick={() => setDetailsViewReg(reg)} disabled={isDeleting}>
                           <Eye className="h-4 w-4" />
                           <span className="sr-only">View Details</span>
                         </Button>
@@ -155,7 +156,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                     {userRole === 'Administrator' && (
                         <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button variant="outline" size="icon" asChild>
+                            <Button variant="outline" size="icon" asChild disabled={isDeleting}>
                                 <Link href={`/admin/registrations/${event.id}/${reg.id}/edit`}>
                                     <Pencil className="h-4 w-4" />
                                     <span className="sr-only">Edit Registration</span>
@@ -170,7 +171,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting}>
                           <span className="sr-only">Open menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
@@ -179,7 +180,8 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => onDelete(reg.id)}
+                          onClick={() => onDelete(event.id, reg.id)}
+                          disabled={isDeleting}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
