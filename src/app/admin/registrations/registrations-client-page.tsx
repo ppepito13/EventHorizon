@@ -3,8 +3,8 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, doc, setDoc, where, limit, getDocs } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, doc, setDoc, where, limit, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword, type Auth, createUserWithEmailAndPassword, getAuth, onIdTokenChanged } from 'firebase/auth';
 
 import {
@@ -43,12 +43,10 @@ import {
 import {
     exportRegistrationsAction,
     generateFakeRegistrationsAction,
-    deleteRegistrationAction,
 } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { useFirebase } from '@/firebase/provider';
 
 
 interface RegistrationsClientPageProps {
@@ -128,26 +126,45 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   };
 
   const handleDeleteConfirm = async () => {
-    if (!dialogState.eventId || !dialogState.regId) return;
+    if (!dialogState.eventId || !dialogState.regId || !firestore) return;
 
     const { eventId, regId } = dialogState;
     
     startDeleteTransition(async () => {
-      const result = await deleteRegistrationAction(eventId, regId);
-      
-      if (result.success) {
-        toast({
-          title: 'Success',
-          description: result.message,
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Deletion Failed',
-          description: result.message,
-        });
-      }
-      setDialogState({ isOpen: false, eventId: null, regId: null });
+        try {
+            const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
+
+            // First, get the registration to find its qrId, for two-step deletion
+            const regSnapshot = await getDoc(registrationDocRef);
+            if (!regSnapshot.exists()) {
+                throw new Error("Registration not found.");
+            }
+            const registrationData = regSnapshot.data() as Registration;
+
+            // Delete the main registration document
+            await deleteDoc(registrationDocRef);
+            
+            // If there's an associated QR code, delete it too
+            if (registrationData.qrId) {
+                const qrDocRef = doc(firestore, 'qrcodes', registrationData.qrId);
+                await deleteDoc(qrDocRef);
+            }
+            
+            toast({
+                title: "Success",
+                description: "Registration deleted successfully.",
+            });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "An unknown server error occurred.";
+            toast({
+                variant: "destructive",
+                title: "Deletion Failed",
+                description: message,
+            });
+            console.error("Deletion Error:", error);
+        } finally {
+            setDialogState({ isOpen: false, eventId: null, regId: null });
+        }
     });
   };
   
