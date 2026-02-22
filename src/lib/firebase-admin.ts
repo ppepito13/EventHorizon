@@ -5,7 +5,7 @@ if (!admin.apps.length) {
   try {
     // When running in a Google Cloud environment (like Firebase App Hosting or Cloud Run),
     // calling initializeApp() with no arguments allows the Admin SDK to automatically
-    // discover credentials and other configuration. This is the recommended approach.
+    // discover credentials and other configuration. This is the recommended, secure approach.
     admin.initializeApp();
   } catch (e: any) {
     console.error('Firebase Admin SDK initialization error', e.stack);
