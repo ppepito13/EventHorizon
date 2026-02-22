@@ -68,6 +68,10 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
     fetchRegistrations();
   }, [selectedEventId, toast]);
+  
+  const handleRegistrationDeleted = (registrationId: string) => {
+    setRegistrations(prevRegistrations => prevRegistrations.filter(reg => reg.id !== registrationId));
+  };
 
 
   const handleExport = (format: 'excel' | 'plain') => {
@@ -138,6 +142,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             event={selectedEvent} 
             registrations={registrations} 
             userRole={userRole}
+            onRegistrationDeleted={handleRegistrationDeleted}
           />
         ) : (
           <div className="text-center py-12 text-muted-foreground">

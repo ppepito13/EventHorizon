@@ -48,9 +48,10 @@ interface RegistrationsTableProps {
   event: Event;
   registrations: Registration[];
   userRole: User['role'];
+  onRegistrationDeleted: (id: string) => void;
 }
 
-export function RegistrationsTable({ event, registrations, userRole }: RegistrationsTableProps) {
+export function RegistrationsTable({ event, registrations, userRole, onRegistrationDeleted }: RegistrationsTableProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [isAlertOpen, setAlertOpen] = useState(false);
@@ -105,6 +106,7 @@ export function RegistrationsTable({ event, registrations, userRole }: Registrat
       const result = await deleteRegistrationAction(registrationToDelete);
       if (result.success) {
         toast({ title: 'Success', description: result.message });
+        onRegistrationDeleted(registrationToDelete);
         setAlertOpen(false);
         setRegistrationToDelete(null);
       } else {
