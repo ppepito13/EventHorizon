@@ -3,9 +3,9 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, doc, deleteDoc, setDoc, where, limit, getDocs } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useFirebase } from '@/firebase';
-import { signInWithEmailAndPassword, type Auth, createUserWithEmailAndPassword } from 'firebase/auth';
+import { collection, query, doc, setDoc, where, limit, getDocs } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { signInWithEmailAndPassword, type Auth, createUserWithEmailAndPassword, getAuth, onIdTokenChanged } from 'firebase/auth';
 
 import {
   Card,
@@ -43,23 +43,19 @@ import {
 import {
     exportRegistrationsAction,
     generateFakeRegistrationsAction,
+    deleteRegistrationAction,
 } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { useFirebase } from '@/firebase/provider';
+
 
 interface RegistrationsClientPageProps {
   events: Event[];
   userRole: User['role'];
   demoUsers: User[];
 }
-
-type DebugInfo = {
-    timestamp: string;
-    registrationId: string;
-    status: 'initiated' | 'success' | 'error';
-    message?: string;
-} | null;
 
 export function RegistrationsClientPage({ events, userRole, demoUsers }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
@@ -69,8 +65,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const [isExporting, startExportTransition] = useTransition();
   const [isSeeding, startSeedingTransition] = useTransition();
   const [isGenerating, startGeneratingTransition] = useTransition();
-  const [isDeleting, setIsDeleting] = useState(false);
-
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   const [dialogState, setDialogState] = useState<{
     isOpen: boolean;
@@ -78,11 +73,9 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     regId: string | null;
   }>({ isOpen: false, eventId: null, regId: null });
 
-  const [lastDeleteAttempt, setLastDeleteAttempt] = useState<DebugInfo>(null);
-
   const firestore = useFirestore();
   const { auth, user: firebaseUser, isUserLoading } = useFirebase();
-
+  
   useEffect(() => {
     if (auth && !isUserLoading && (!firebaseUser || firebaseUser.isAnonymous) && userRole === 'Administrator') {
       const adminUser = demoUsers.find(u => u.role === 'Administrator');
@@ -135,38 +128,27 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   };
 
   const handleDeleteConfirm = async () => {
-    if (!dialogState.eventId || !dialogState.regId || !firestore) return;
+    if (!dialogState.eventId || !dialogState.regId) return;
 
     const { eventId, regId } = dialogState;
-
-    setIsDeleting(true);
-    setLastDeleteAttempt({
-      timestamp: new Date().toISOString(),
-      registrationId: regId,
-      status: 'initiated',
-    });
-
-    const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
-
-    try {
-      await deleteDoc(registrationDocRef);
-      setLastDeleteAttempt(prev => ({ ...prev!, status: 'success' }));
-      toast({
-        title: 'Success',
-        description: 'Registration deleted successfully.',
-      });
-    } catch (error: any) {
-      console.error('Delete operation failed:', error);
-      setLastDeleteAttempt(prev => ({ ...prev!, status: 'error', message: error.message }));
-      toast({
-        variant: 'destructive',
-        title: 'Deletion Failed',
-        description: error.message || 'An unknown error occurred.',
-      });
-    } finally {
-      setIsDeleting(false);
+    
+    startDeleteTransition(async () => {
+      const result = await deleteRegistrationAction(eventId, regId);
+      
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: result.message,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Deletion Failed',
+          description: result.message,
+        });
+      }
       setDialogState({ isOpen: false, eventId: null, regId: null });
-    }
+    });
   };
   
   const handleSeedData = () => {
@@ -191,7 +173,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
             adminAuthUser = userCredential.user;
             toast({ title: "Admin Login OK", description: "Admin user already exists." });
         } catch (error: any) {
-            if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
                 toast({ title: "Creating User", description: "Admin user not found, creating..." });
                 try {
                     const userCredential = await createUserWithEmailAndPassword(auth, adminUser.email, adminUser.password);
@@ -310,7 +292,6 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
         userRole={userRole}
         onDelete={handleDeleteRequest}
         isLoading={isLoading}
-        isDeleting={isDeleting}
       />
     );
   }
@@ -383,43 +364,6 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
         </CardContent>
       </Card>
 
-      {userRole === 'Administrator' && <Card className="mt-4">
-        <CardHeader>
-            <CardTitle className="text-base">Debug Information</CardTitle>
-        </CardHeader>
-        <CardContent className="text-xs text-muted-foreground font-mono space-y-2">
-            <div>
-                <span className="font-semibold">Last Delete Attempt:</span>
-                {lastDeleteAttempt ? (
-                    <pre className="p-2 bg-muted rounded-md mt-1 whitespace-pre-wrap">
-                        {JSON.stringify(lastDeleteAttempt, null, 2)}
-                    </pre>
-                ) : (
-                    <span> No delete operations attempted yet.</span>
-                )}
-            </div>
-             <div>
-                <span className="font-semibold">Firebase User:</span>
-                <pre className="p-2 bg-muted rounded-md mt-1 whitespace-pre-wrap">
-                    {isUserLoading ? 'Loading...' : JSON.stringify({
-                        uid: firebaseUser?.uid,
-                        email: firebaseUser?.email,
-                        isAnonymous: firebaseUser?.isAnonymous,
-                    }, null, 2)}
-                </pre>
-            </div>
-            <div>
-                <span className="font-semibold">Collection Listener Error:</span>
-                 <pre className="p-2 bg-muted rounded-md mt-1 whitespace-pre-wrap">
-                    {firestoreError ? JSON.stringify({
-                        code: firestoreError.code,
-                        message: firestoreError.message,
-                    }, null, 2) : "No errors."}
-                </pre>
-            </div>
-        </CardContent>
-      </Card>}
-
       <AlertDialog open={dialogState.isOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
               setDialogState({ isOpen: false, eventId: null, regId: null });
@@ -429,7 +373,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete this registration.
+              This action cannot be undone. This will permanently delete this registration and its associated QR code.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
