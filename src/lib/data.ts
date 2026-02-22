@@ -4,19 +4,7 @@ import path from 'path';
 import { unstable_noStore as noStore } from 'next/cache';
 import type { Event, User, Registration } from './types';
 import { randomUUID } from 'crypto';
-import { initializeFirebase } from '@/firebase/init';
-import { 
-  collection, 
-  addDoc, 
-  doc, 
-  setDoc, 
-  deleteDoc, 
-  getDoc,
-  getDocs,
-  query,
-  where,
-  limit
-} from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 
 // Use a directory not watched by the dev server for the session file.
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -201,10 +189,9 @@ export async function deactivateEvent(id: string): Promise<Event | null> {
 // --- Registration Functions ---
 
 export async function getRegistrationsFromFirestore(eventId: string): Promise<Registration[]> {
-  const { firestore } = initializeFirebase();
   noStore();
-  const registrationsColRef = collection(firestore, 'events', eventId, 'registrations');
-  const snapshot = await getDocs(registrationsColRef);
+  const registrationsColRef = adminDb.collection(`events/${eventId}/registrations`);
+  const snapshot = await registrationsColRef.get();
   if (snapshot.empty) {
     return [];
   }
@@ -213,11 +200,10 @@ export async function getRegistrationsFromFirestore(eventId: string): Promise<Re
 
 
 export async function getRegistrationFromFirestore(eventId: string, registrationId: string): Promise<Registration | null> {
-  const { firestore } = initializeFirebase();
   noStore();
-  const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
-  const docSnap = await getDoc(registrationDocRef);
-  if (!docSnap.exists()) {
+  const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
+  const docSnap = await registrationDocRef.get();
+  if (!docSnap.exists) {
     return null;
   }
   return { id: docSnap.id, ...docSnap.data() } as Registration;

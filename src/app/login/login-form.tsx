@@ -1,45 +1,83 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth } from '@/firebase';
+
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TicketPercent, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
-import { loginAction } from './actions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import type { User } from '@/lib/types';
 
-
 interface LoginFormProps {
     demoUsers: User[];
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button className="w-full" type="submit" disabled={pending}>
-        {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {pending ? 'Logging in...' : 'Log in'}
-    </Button>
-  );
-}
-
 export function LoginForm({ demoUsers }: LoginFormProps) {
-  const [state, formAction] = useActionState(loginAction, undefined);
+  const router = useRouter();
+  const auth = useAuth(); // Get the client-side auth instance
   const { toast } = useToast();
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    if (!auth) {
+        setError("Firebase Auth is not available. Please try again later.");
+        setIsLoading(false);
+        return;
+    }
+
+    try {
+      // 1. Sign in with Firebase on the client
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // 2. Get the ID token
+      const token = await user.getIdToken();
+
+      // 3. Send the token to our API route to create a session
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Session creation failed.');
+      }
+
+      // 4. Redirect to the admin panel on success
+      router.push('/admin');
+      router.refresh(); // Ensure the page reloads to get new session data
+
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+          setError('Invalid credentials. Please try again.');
+      } else {
+          setError(err.message || 'An unexpected error occurred.');
+      }
+      setIsLoading(false);
+    }
+  };
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -56,7 +94,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
       </Link>
       
       <Card className="w-full max-w-sm shadow-xl">
-        <form action={formAction}>
+        <form onSubmit={handleLogin}>
           <CardHeader>
             <CardTitle className="text-center text-2xl font-headline">
               Admin Panel
@@ -66,11 +104,11 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {state?.error && (
+             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {state.error}
+                  {error}
                 </AlertDescription>
               </Alert>
             )}
@@ -82,6 +120,8 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                 type="email"
                 placeholder="admin@example.com"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -92,11 +132,16 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                 type="password"
                 placeholder="••••••••"
                 required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <SubmitButton />
+            <Button className="w-full" type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading ? 'Logging in...' : 'Log in'}
+            </Button>
           </CardFooter>
         </form>
       </Card>

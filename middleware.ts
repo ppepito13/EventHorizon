@@ -1,12 +1,28 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getIronSession } from 'iron-session';
+import { sessionOptions, type SessionData } from './src/lib/session';
 
-// This middleware is intentionally disabled to avoid conflicts and simplify the auth flow.
-// All authentication logic is now handled by reading a server-side session file.
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  const session = await getIronSession<SessionData>(request.cookies, sessionOptions);
+  const isLoggedIn = !!session.user;
+
+  // If trying to access a protected route and not logged in, redirect to login
+  if (pathname.startsWith('/admin') && !isLoggedIn) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // If logged in and trying to access login page, redirect to admin dashboard
+  if (pathname.startsWith('/login') && isLoggedIn) {
+    return NextResponse.redirect(new URL('/admin', request.url));
+  }
+
   return NextResponse.next();
 }
 
+// Apply middleware to all admin routes and the login page.
 export const config = {
-  matcher: [], // Empty matcher ensures this middleware does not run.
+  matcher: ['/admin/:path*', '/login'],
 };

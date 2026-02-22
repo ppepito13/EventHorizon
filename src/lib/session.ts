@@ -1,42 +1,28 @@
-'use server';
+import { getIronSession, IronSessionData } from 'iron-session';
+import { cookies } from 'next/headers';
+import type { User } from './types';
 
-import { promises as fs } from 'fs';
-import path from 'path';
-import { getUserById } from '@/lib/data';
-import type { User } from '@/lib/types';
-import { unstable_noStore as noStore } from 'next/cache';
+// Define the shape of the data stored in the session.
+export interface SessionData extends IronSessionData {
+  user?: Omit<User, 'password'>; // Store user data, but omit password
+}
 
-// Use a directory not watched by the dev server to prevent restarts on file change.
-const sessionFilePath = path.join(process.cwd(), '.tmp', 'session.json');
-
-type SessionData = {
-  userId?: string;
+export const sessionOptions = {
+  password: process.env.IRON_SESSION_PASSWORD as string,
+  cookieName: 'event-platform-auth-session',
+  cookieOptions: {
+    secure: process.env.NODE_ENV === 'production',
+  },
 };
 
-export async function getSessionUser(): Promise<User | null> {
-  noStore();
-  try {
-    const fileContent = await fs.readFile(sessionFilePath, 'utf8');
-    const sessionData = JSON.parse(fileContent) as SessionData;
-    const userId = sessionData.userId;
+// This is the key function to get the session in Server Components and Actions.
+export async function getSession() {
+  const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+  return session;
+}
 
-    if (!userId) {
-      return null;
-    }
-
-    const user = await getUserById(userId);
-    if (user) {
-      // Don't send password to the client
-      const { password, ...userWithoutPassword } = user;
-      return userWithoutPassword;
-    }
-    return null;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      // If the session file doesn't exist, no one is logged in.
-      return null;
-    }
-    console.error("Failed to read session file:", error);
-    return null;
-  }
+// A helper to get the current user from the session.
+export async function getSessionUser(): Promise<Omit<User, 'password'> | null> {
+    const session = await getSession();
+    return session.user ?? null;
 }

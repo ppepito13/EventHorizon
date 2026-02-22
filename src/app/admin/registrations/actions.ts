@@ -6,11 +6,9 @@ import path from 'path';
 import { revalidatePath } from 'next/cache';
 import { getEventById } from '@/lib/data';
 import type { Registration, Event, User, FormField } from '@/lib/types';
-import { initializeFirebase } from '@/firebase/init';
-import { doc, getDoc, addDoc, setDoc, collection } from 'firebase/firestore';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
+import { getSession } from '@/lib/session';
 import { randomUUID } from 'crypto';
-
-const { firestore } = initializeFirebase();
 
 export async function getSeedDataAction(): Promise<{ 
     success: boolean; 
@@ -151,27 +149,28 @@ export async function generateFakeRegistrationsAction(
   }
 
   try {
-    const eventDocRef = doc(firestore, 'events', eventId);
-    const eventDoc = await getDoc(eventDocRef);
+    const eventDocRef = adminDb.doc(`events/${eventId}`);
+    const eventDoc = await eventDocRef.get();
 
-    if (!eventDoc.exists()) {
+    if (!eventDoc.exists) {
       return { success: false, message: 'Parent event not found in Firestore.' };
     }
-    const firestoreEvent = eventDoc.data();
+    const firestoreEvent = eventDoc.data()!;
     
-    const registrationPromises = [];
+    const batch = adminDb.batch();
     for (let i = 0; i < 5; i++) {
         const registrationTime = new Date();
         const formData = generateFakeData(formFields, i);
 
         // 1. Create QR code doc
+        const qrDocRef = adminDb.collection("qrcodes").doc();
         const qrCodeData = {
             eventId: eventId,
             eventName: firestoreEvent.name,
             formData,
             registrationDate: registrationTime.toISOString(),
         };
-        const qrDocRef = await addDoc(collection(firestore, "qrcodes"), qrCodeData);
+        batch.set(qrDocRef, qrCodeData);
 
         // 2. Create Registration doc
         const registrationId = `reg_${randomUUID()}`;
@@ -184,11 +183,11 @@ export async function generateFakeRegistrationsAction(
             eventOwnerId: firestoreEvent.ownerId,
             eventMembers: firestoreEvent.members,
         };
-        const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
-        registrationPromises.push(setDoc(registrationDocRef, newRegistrationData));
+        const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
+        batch.set(registrationDocRef, newRegistrationData);
     }
     
-    await Promise.all(registrationPromises);
+    await batch.commit();
     
     revalidatePath('/admin/registrations');
 
@@ -197,5 +196,47 @@ export async function generateFakeRegistrationsAction(
     const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
     console.error("Generate fake data error:", error);
     return { success: false, message };
+  }
+}
+
+// New, secure server action for deleting registrations
+export async function deleteRegistrationAction(eventId: string, registrationId: string) {
+  try {
+    const session = await getSession();
+    const user = session.user;
+
+    // 1. Check if the user is authenticated and is an Administrator
+    if (!user || user.role !== 'Administrator') {
+      throw new Error('You do not have permission to delete registrations.');
+    }
+
+    const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
+    
+    // 2. Get the document to find the associated qrId
+    const registrationSnap = await registrationDocRef.get();
+    if (!registrationSnap.exists) {
+      throw new Error('Registration not found.');
+    }
+    const registrationData = registrationSnap.data();
+    const qrId = registrationData?.qrId;
+
+    // 3. Perform the deletions in a batch for atomicity
+    const batch = adminDb.batch();
+    batch.delete(registrationDocRef);
+
+    if (qrId) {
+      const qrDocRef = adminDb.doc(`qrcodes/${qrId}`);
+      batch.delete(qrDocRef);
+    }
+    
+    await batch.commit();
+
+    // 4. Revalidate the path to update the UI
+    revalidatePath('/admin/registrations');
+    return { success: true, message: 'Registration and QR code deleted successfully.' };
+
+  } catch (error: any) {
+    console.error("Delete registration error:", error);
+    return { success: false, message: error.message || 'An unknown server error occurred.' };
   }
 }

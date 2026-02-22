@@ -3,9 +3,9 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, doc, setDoc, where, limit, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useAuth, useFirebase } from '@/firebase';
-import { signInWithEmailAndPassword, type Auth, createUserWithEmailAndPassword, getAuth, onIdTokenChanged } from 'firebase/auth';
+import { collection, query } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 
 import {
   Card,
@@ -43,6 +43,7 @@ import {
 import {
     exportRegistrationsAction,
     generateFakeRegistrationsAction,
+    deleteRegistrationAction,
 } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -61,9 +62,8 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const { toast } = useToast();
 
   const [isExporting, startExportTransition] = useTransition();
-  const [isSeeding, startSeedingTransition] = useTransition();
   const [isGenerating, startGeneratingTransition] = useTransition();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   const [dialogState, setDialogState] = useState<{
     isOpen: boolean;
@@ -72,32 +72,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   }>({ isOpen: false, eventId: null, regId: null });
 
   const firestore = useFirestore();
-  const { auth, user: firebaseUser, isUserLoading } = useFirebase();
   
-  useEffect(() => {
-    if (auth && !isUserLoading && (!firebaseUser || firebaseUser.isAnonymous) && userRole === 'Administrator') {
-      const adminUser = demoUsers.find(u => u.role === 'Administrator');
-      if (adminUser && adminUser.email && adminUser.password) {
-        signInWithEmailAndPassword(auth, adminUser.email, adminUser.password).catch(error => {
-          console.error("Automatic admin sign-in failed:", error);
-          if (error.code === 'auth/invalid-credential') {
-             toast({
-                variant: "destructive",
-                title: "Admin Not Provisioned",
-                description: "Please click 'Seed/Repair Data' to set up the admin user in the database.",
-             });
-          } else {
-            toast({
-              variant: "destructive",
-              title: "Auth Sync Failed",
-              description: "Could not automatically log in to Firebase backend. Operations might be denied.",
-            });
-          }
-        });
-      }
-    }
-  }, [auth, firebaseUser, isUserLoading, demoUsers, toast, userRole]);
-
   useEffect(() => {
     setIsMounted(true);
     if (events.length > 0 && !selectedEventId) {
@@ -129,101 +104,39 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     if (!dialogState.eventId || !dialogState.regId) return;
     const { eventId, regId } = dialogState;
 
-    setIsDeleting(true);
-    try {
-        const regDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
-        const regSnap = await getDoc(regDocRef);
+    startDeleteTransition(async () => {
+        const result = await deleteRegistrationAction(eventId, regId);
 
-        if (!regSnap.exists()) {
-            throw new Error("Registration not found.");
+        if (result.success) {
+            toast({
+                title: "Success",
+                description: result.message,
+            });
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Deletion Failed",
+                description: result.message,
+            });
         }
-        const regData = regSnap.data() as Registration;
-
-        // Start both delete operations
-        const deletePromises: Promise<void>[] = [deleteDoc(regDocRef)];
-        if (regData.qrId) {
-            const qrDocRef = doc(firestore, 'qrcodes', regData.qrId);
-            deletePromises.push(deleteDoc(qrDocRef));
-        }
-
-        // Wait for both to complete
-        await Promise.all(deletePromises);
-
-        toast({
-            title: "Success",
-            description: "Registration and associated QR code deleted.",
-        });
-    } catch (error: any) {
-        console.error("Deletion Error:", error);
-        toast({
-            variant: "destructive",
-            title: "Deletion Failed",
-            description: error.message || "An unknown error occurred. Check permissions.",
-        });
-    } finally {
-        setIsDeleting(false);
         setDialogState({ isOpen: false, eventId: null, regId: null });
-    }
+    });
   };
   
-  const handleSeedData = () => {
-    startSeedingTransition(async () => {
-        if (!auth || !firestore) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Cannot seed data. Auth or database not ready.' });
-            return;
-        }
-    
-        const adminUser = demoUsers.find(u => u.role === 'Administrator');
-        if (!adminUser || !adminUser.email || !adminUser.password) {
-            toast({ variant: 'destructive', title: 'Seeding Failed', description: 'Admin user config missing.' });
-            return;
-        }
-
-        toast({ title: "Seeding...", description: "Ensuring admin user exists in Firebase Auth..." });
-
-        let adminAuthUser: import('firebase/auth').User | null = null;
-
-        try {
-            const userCredential = await signInWithEmailAndPassword(auth, adminUser.email, adminUser.password);
-            adminAuthUser = userCredential.user;
-            toast({ title: "Admin Login OK", description: "Admin user already exists." });
-        } catch (error: any) {
-            if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                toast({ title: "Creating User", description: "Admin user not found, creating..." });
-                try {
-                    const userCredential = await createUserWithEmailAndPassword(auth, adminUser.email, adminUser.password);
-                    adminAuthUser = userCredential.user;
-                    toast({ title: "User Created", description: "Admin user created in Firebase Auth." });
-                } catch (createError: any) {
-                    toast({ variant: 'destructive', title: 'Auth Creation Failed', description: createError.message });
-                    return;
-                }
-            } else {
-                toast({ variant: 'destructive', title: 'Auth Login Failed', description: error.message });
-                return;
-            }
-        }
-
-        if (!adminAuthUser) {
-            toast({ variant: 'destructive', title: 'Seeding Failed', description: 'Could not get a valid admin user handle.' });
-            return;
-        }
-      
-        try {
-            toast({ title: "Provisioning...", description: "Setting admin permissions in database." });
-            const adminDocRef = doc(firestore, 'app_admins', adminAuthUser.uid);
-            await setDoc(adminDocRef, {});
-            toast({ title: 'Success!', description: 'Admin permissions provisioned in database.' });
-        } catch (dbError: any) {
-           toast({
-            variant: 'destructive',
-            title: 'DB Provisioning Failed',
-            description: dbError.message || 'An error occurred during the seeding process.',
-          });
-        }
+  const handleGenerateData = () => {
+    if (!selectedEventId || !selectedEvent) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Please select an event first.' });
+      return;
+    }
+    startGeneratingTransition(async () => {
+      const result = await generateFakeRegistrationsAction(selectedEventId, selectedEvent.formFields);
+      if (result.success) {
+        toast({ title: 'Success', description: `${result.count} new registrations have been generated.` });
+      } else {
+        toast({ variant: 'destructive', title: 'Generation Failed', description: result.message || 'An unknown error occurred.' });
+      }
     });
-};
-
+  };
 
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
@@ -248,21 +161,6 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
         }
     });
   };
-  
-  const handleGenerateData = () => {
-    if (!selectedEventId || !selectedEvent) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Please select an event first.' });
-      return;
-    }
-    startGeneratingTransition(async () => {
-      const result = await generateFakeRegistrationsAction(selectedEventId, selectedEvent.formFields);
-      if (result.success) {
-        toast({ title: 'Success', description: `${result.count} new registrations have been generated.` });
-      } else {
-        toast({ variant: 'destructive', title: 'Generation Failed', description: result.message || 'An unknown error occurred.' });
-      }
-    });
-  };
 
   const isLoading = !isMounted || isLoadingFirestore;
 
@@ -283,7 +181,6 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
             <AlertTitle>Permission Denied</AlertTitle>
             <AlertDescription>
               Could not fetch registrations. This is likely a security rule issue.
-              Please ensure you have the correct permissions to view this data.
               <pre className="mt-2 text-xs bg-muted p-2 rounded-md font-mono whitespace-pre-wrap">
                 {firestoreError.message}
               </pre>
@@ -324,13 +221,9 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
               </div>
               {userRole === 'Administrator' && isMounted && (
                   <div className="flex flex-wrap gap-2">
-                      <Button onClick={handleGenerateData} disabled={isGenerating || !selectedEventId || isSeeding} size="sm">
+                      <Button onClick={handleGenerateData} disabled={isGenerating || !selectedEventId} size="sm">
                           {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                          {isGenerating ? 'Generating...' : 'Generate Data'}
-                      </Button>
-                      <Button onClick={handleSeedData} disabled={isSeeding || isGenerating || !auth} size="sm">
-                          {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                          {isSeeding ? 'Seeding...' : 'Seed/Repair Data'}
+                          {isGenerating ? 'Generating...' : 'Generate Test Data'}
                       </Button>
                   </div>
               )}
