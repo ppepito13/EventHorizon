@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import {
   Card,
@@ -101,7 +101,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
       if (result.success) {
         toast({ title: 'Success', description: result.message });
-        await fetchRegistrations();
+        await fetchRegistrations(); // Refetch after successful deletion
       } else {
         toast({
           variant: 'destructive',
@@ -116,8 +116,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           description: 'An unexpected error occurred during deletion.',
         });
     } finally {
-      setAlertOpen(false);
+      // This sequence ensures the dialog closes safely after the operation.
       setIsDeleting(false);
+      setAlertOpen(false);
       setRegistrationToDelete(null);
     }
   }, [registrationToDelete, fetchRegistrations, toast]);
@@ -197,11 +198,11 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         <CardContent>
           {selectedEvent ? (
             <RegistrationsTable 
-              event={selectedEvent} 
               registrations={registrations} 
+              event={selectedEvent}
               userRole={userRole}
               onDelete={handleDeleteRequest}
-              isLoading={isLoading}
+              isLoading={isLoading && registrations.length === 0}
             />
           ) : (
             <div className="text-center py-12 text-muted-foreground">
