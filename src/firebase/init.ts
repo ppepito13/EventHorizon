@@ -4,18 +4,29 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
 
 /**
- * Initializes and returns a singleton instance of Firebase services.
+ * Initializes and returns a singleton instance of the SERVER-SIDE Firebase app.
+ * This function ensures that the server-side Firebase app is initialized only once
+ * with a unique name to prevent conflicts with any client-side instances.
+ */
+function initializeServerApp(): FirebaseApp {
+  const serverAppName = 'event-horizon-server';
+  const apps = getApps();
+  const serverApp = apps.find(app => app.name === serverAppName);
+  
+  if (serverApp) {
+    return serverApp;
+  }
+  
+  return initializeApp(firebaseConfig, serverAppName);
+}
+
+
+/**
+ * Initializes and returns a singleton instance of Firebase services for server-side use.
  * This function ensures that Firebase is initialized only once.
  */
 export function initializeFirebase() {
-  if (getApps().length) {
-    // If already initialized, return the existing app's services.
-    const app = getApp();
-    return getSdks(app);
-  }
-
-  // If not initialized, create a new app instance.
-  const app = initializeApp(firebaseConfig);
+  const app = initializeServerApp();
   return getSdks(app);
 }
 
