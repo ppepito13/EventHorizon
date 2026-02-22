@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { RegistrationsTable } from './registrations-table';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2, ChevronDown } from 'lucide-react';
+import { Download, Loader2, ChevronDown, AlertCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +42,7 @@ import {
 import { exportRegistrationsAction, getSeedDataAction, generateFakeRegistrationsAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 interface RegistrationsClientPageProps {
   events: Event[];
@@ -120,14 +121,13 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const handleDeleteConfirm = () => {
     if (!registrationToDelete || !selectedEventId || !firestore || !auth) return;
   
-    // Set loading state for immediate UI feedback
-    setIsDeleting(true);
-    // Close the dialog immediately. Let the UI react to the data change.
-    setAlertOpen(false); 
+    // Immediately close the dialog and set the loading state for the table row (in a real app)
+    setAlertOpen(false);
+    setIsDeleting(true); 
   
     const regRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationToDelete);
     
-    // Log the delete attempt for debugging
+    // For debugging, we log the attempt.
     setLastDeleteAttempt({ 
       id: registrationToDelete, 
       path: regRef.path,
@@ -139,11 +139,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     deleteDoc(regRef)
       .then(() => {
         toast({ title: 'Success', description: 'Registration delete request sent.' });
-        // Log successful initiation
         setLastDeleteAttempt(prev => ({ ...prev, status: 'success (promise resolved)' }));
       })
       .catch((serverError) => {
-        // Log the error for debugging
         setLastDeleteAttempt(prev => ({ 
           ...prev, 
           status: 'error (promise caught)', 
@@ -157,7 +155,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         }, auth);
         errorEmitter.emit('permission-error', permissionError);
 
-        // Also show a user-friendly toast
         toast({
             variant: 'destructive',
             title: 'Deletion Failed',
@@ -165,7 +162,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         });
       })
       .finally(() => {
-        // Reset loading and selection state regardless of outcome
+        // Reset loading and selection state. The UI will react to the `useCollection` hook's updates.
         setIsDeleting(false);
         setRegistrationToDelete(null);
       });
@@ -311,12 +308,36 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }
 
   const renderContent = () => {
+    if (isLoading) {
+       return (
+          <div className="text-center py-12 text-muted-foreground">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+              <p>Loading registrations...</p>
+          </div>
+      );
+    }
+    
+    // Error state takes precedence over empty state
     if (firestoreError) {
       return (
-          <div className="text-center py-12 text-destructive-foreground bg-destructive/90 rounded-md">
-              <p className="font-bold">Permission Denied</p>
-              <p className="text-sm mt-2 max-w-md mx-auto">Could not load registrations. This is likely a security rule issue.</p>
-          </div>
+          <Alert variant="destructive" className="mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Permission Denied</AlertTitle>
+            <AlertDescription>
+              Could not load registrations. This is likely a security rule issue. Please ensure you have the correct permissions to view this data.
+              <pre className="mt-2 text-xs bg-muted p-2 rounded-md font-mono whitespace-pre-wrap">
+                {firestoreError.message}
+              </pre>
+            </AlertDescription>
+          </Alert>
+      );
+    }
+
+    if (!allRegistrations || allRegistrations.length === 0) {
+       return (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>No registrations found for this event.</p>
+        </div>
       );
     }
     
