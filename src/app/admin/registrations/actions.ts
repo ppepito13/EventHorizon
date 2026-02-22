@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getEventById, getRegistrationsFromFirestore } from '@/lib/data';
+import { getEventById, getRegistrationsFromFirestore, deleteJsonRegistration } from '@/lib/data';
 import type { Registration } from '@/lib/types';
 import { initializeFirebase } from '@/firebase/init';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -14,18 +14,38 @@ export async function deleteRegistrationAction(eventId: string, registrationId: 
     return { success: false, message: 'Event ID and Registration ID are required.' };
   }
 
+  let firestoreSuccess = false;
+  let jsonSuccess = false;
+  let errorMessage = '';
+
+  // Try deleting from Firestore
   try {
     const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
     await deleteDoc(registrationDocRef);
-    
-    // Revalidate the path to ensure the client refetches data.
-    revalidatePath('/admin/registrations');
-    
-    return { success: true, message: 'Registration deleted successfully.' };
+    firestoreSuccess = true;
   } catch (error) {
-    console.error("Delete registration error:", error);
-    const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
-    return { success: false, message };
+    // This is not a critical failure, as the doc might only exist in the JSON file.
+    console.error("Firestore delete error (might be expected):", error);
+    errorMessage = error instanceof Error ? error.message : 'A Firestore error occurred.';
+  }
+
+  // Try deleting from JSON file
+  try {
+    jsonSuccess = await deleteJsonRegistration(registrationId);
+  } catch (error) {
+    console.error("JSON delete error:", error);
+    errorMessage = error instanceof Error ? error.message : 'A JSON file error occurred.';
+  }
+
+  const success = firestoreSuccess || jsonSuccess;
+
+  if (success) {
+    // Revalidate path to ensure server components can refetch data.
+    // Client components will need to handle their own state updates or reloads.
+    revalidatePath('/admin/registrations');
+    return { success: true, message: 'Registration deleted successfully.' };
+  } else {
+    return { success: false, message: `Failed to delete registration. ${errorMessage}` };
   }
 }
 

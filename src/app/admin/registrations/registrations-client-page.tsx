@@ -1,6 +1,8 @@
+
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
@@ -41,34 +43,46 @@ import {
 import { exportRegistrationsAction, deleteRegistrationAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTransition } from 'react';
 
 interface RegistrationsClientPageProps {
   events: Event[];
   userRole: User['role'];
+  initialJsonRegistrations: Registration[];
 }
 
-export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
+export function RegistrationsClientPage({ events, userRole, initialJsonRegistrations }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
-  
-  const [isDeleting, startDeleteTransition] = useTransition();
+  const router = useRouter();
+
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, startExportTransition] = useTransition();
+
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
-
-  const [isExporting, startExportTransition] = useTransition();
 
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
   const registrationsQuery = useMemoFirebase(() => {
-    // Do not attempt to query if the user is not authenticated or services are not ready.
     if (!firestore || !selectedEventId || !user || isUserLoading) return null;
     return query(collection(firestore, 'events', selectedEventId, 'registrations'));
   }, [firestore, selectedEventId, user, isUserLoading]);
 
-  const { data: registrations, isLoading: isLoadingRegistrations } = useCollection<Registration>(registrationsQuery);
+  const { data: firestoreRegistrations, isLoading: isLoadingFirestore } = useCollection<Registration>(registrationsQuery);
+  
+  const allRegistrations = useMemo(() => {
+    if (!selectedEventId) return [];
+
+    const jsonForEvent = initialJsonRegistrations.filter(r => r.eventId === selectedEventId);
+    
+    const merged = new Map<string, Registration>();
+    jsonForEvent.forEach(reg => merged.set(reg.id, reg));
+    (firestoreRegistrations || []).forEach(reg => merged.set(reg.id, reg));
+    
+    return Array.from(merged.values()).sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
+  }, [selectedEventId, initialJsonRegistrations, firestoreRegistrations]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -81,30 +95,27 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     setAlertOpen(true);
   }, []);
   
-  const handleDeleteConfirm = useCallback(() => {
-    if (isDeleting || !registrationToDelete || !selectedEventId) return;
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!registrationToDelete || !selectedEventId) return;
 
-    startDeleteTransition(async () => {
-      const eventId = selectedEventId;
-      const regId = registrationToDelete;
-      
-      const result = await deleteRegistrationAction(eventId, regId);
+    setIsDeleting(true);
+    const result = await deleteRegistrationAction(selectedEventId, registrationToDelete);
 
-      if (result.success) {
+    if (result.success) {
         toast({ title: 'Success', description: result.message });
-      } else {
+        router.refresh(); // Refresh server props to get updated JSON data
+    } else {
         toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: result.message || 'An unknown error occurred.',
+            variant: 'destructive',
+            title: 'Error',
+            description: result.message || 'An unknown error occurred.',
         });
-      }
-      
-      // Close the dialog and reset state AFTER the action is complete
-      setRegistrationToDelete(null);
-      setAlertOpen(false);
-    });
-  }, [isDeleting, registrationToDelete, selectedEventId, toast]);
+    }
+
+    setIsDeleting(false);
+    setAlertOpen(false);
+    setRegistrationToDelete(null);
+  }, [registrationToDelete, selectedEventId, toast, router]);
 
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
@@ -130,6 +141,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
   
+  const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
 
   return (
     <>
@@ -140,7 +152,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             View and manage event registrations. The list updates in real-time.
           </CardDescription>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            {isMounted ? (
+            {!isMounted ? (
+                <>
+                    <Skeleton className="h-10 w-full sm:w-[280px]" />
+                    <Skeleton className="h-10 w-[128px]" />
+                </>
+            ) : (
                 <>
                     <Select onValueChange={setSelectedEventId} defaultValue={selectedEventId}>
                     <SelectTrigger className="w-full sm:w-[280px]">
@@ -154,7 +171,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                     </Select>
                     <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
+                        <Button variant="outline" disabled={isExporting || !selectedEventId || allRegistrations.length === 0}>
                             {isExporting ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             ) : (
@@ -170,27 +187,21 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                     </DropdownMenuContent>
                     </DropdownMenu>
                 </>
-            ) : (
-                <>
-                    <Skeleton className="h-10 w-full sm:w-[280px]" />
-                    <Skeleton className="h-10 w-[128px]" />
-                </>
             )}
           </div>
         </CardHeader>
         <CardContent>
           {selectedEvent ? (
             <RegistrationsTable 
-              registrations={registrations || []} 
+              registrations={allRegistrations} 
               event={selectedEvent}
               userRole={userRole}
               onDelete={handleDeleteRequest}
-              isLoading={isLoadingRegistrations || (isMounted && isUserLoading)}
+              isLoading={isLoading}
             />
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              {isMounted && <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
-               {!isMounted && <Loader2 className="mx-auto h-8 w-8 animate-spin" />}
+              {isMounted ? <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p> : <Loader2 className="mx-auto h-8 w-8 animate-spin" />}
             </div>
           )}
         </CardContent>
