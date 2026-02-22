@@ -1,10 +1,9 @@
-
 'use client';
 
-import { useState, useMemo, useEffect, useTransition, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 
 import {
   Card,
@@ -42,6 +41,7 @@ import {
 import { exportRegistrationsAction, deleteRegistrationAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTransition } from 'react';
 
 interface RegistrationsClientPageProps {
   events: Event[];
@@ -53,23 +53,21 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
   
-  const [isExporting, startExportTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
-  
-  const [dialogState, setDialogState] = useState<{ isOpen: boolean; registrationId: string | null }>({
-    isOpen: false,
-    registrationId: null,
-  });
+  const [isAlertOpen, setAlertOpen] = useState(false);
+  const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
+
+  const [isExporting, startExportTransition] = useTransition();
 
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
 
-  // Memoize the Firestore query
   const registrationsQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedEventId) return null;
+    // Do not attempt to query if the user is not authenticated or services are not ready.
+    if (!firestore || !selectedEventId || !user || isUserLoading) return null;
     return query(collection(firestore, 'events', selectedEventId, 'registrations'));
-  }, [firestore, selectedEventId]);
+  }, [firestore, selectedEventId, user, isUserLoading]);
 
-  // Subscribe to the real-time collection data
   const { data: registrations, isLoading: isLoadingRegistrations } = useCollection<Registration>(registrationsQuery);
 
   useEffect(() => {
@@ -78,37 +76,35 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
-  const handleDeleteRequest = (id: string) => {
-    setDialogState({ isOpen: true, registrationId: id });
-  };
-
-  const handleDialogClose = () => {
-    if (isDeleting) return; // Don't close while deletion is in progress
-    setDialogState({ isOpen: false, registrationId: null });
-  }
-
-  const handleDeleteConfirm = () => {
-    if (!dialogState.registrationId || !selectedEventId) return;
-
-    const { registrationId } = dialogState;
-    const eventId = selectedEventId;
+  const handleDeleteRequest = useCallback((id: string) => {
+    setRegistrationToDelete(id);
+    setAlertOpen(true);
+  }, []);
+  
+  const handleDeleteConfirm = useCallback(() => {
+    if (isDeleting || !registrationToDelete || !selectedEventId) return;
 
     startDeleteTransition(async () => {
-      const result = await deleteRegistrationAction(eventId, registrationId);
+      const eventId = selectedEventId;
+      const regId = registrationToDelete;
+      
+      const result = await deleteRegistrationAction(eventId, regId);
 
       if (result.success) {
         toast({ title: 'Success', description: result.message });
-        handleDialogClose();
       } else {
         toast({
           variant: 'destructive',
           title: 'Error',
           description: result.message || 'An unknown error occurred.',
         });
-        handleDialogClose(); // Close dialog even on error
       }
+      
+      // Close the dialog and reset state AFTER the action is complete
+      setRegistrationToDelete(null);
+      setAlertOpen(false);
     });
-  };
+  }, [isDeleting, registrationToDelete, selectedEventId, toast]);
 
   const handleExport = (format: 'excel' | 'plain') => {
     if (!selectedEventId) {
@@ -189,7 +185,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
               event={selectedEvent}
               userRole={userRole}
               onDelete={handleDeleteRequest}
-              isLoading={isLoadingRegistrations && registrations === null}
+              isLoading={isLoadingRegistrations || (isMounted && isUserLoading)}
             />
           ) : (
             <div className="text-center py-12 text-muted-foreground">
@@ -199,7 +195,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           )}
         </CardContent>
       </Card>
-      <AlertDialog open={dialogState.isOpen} onOpenChange={handleDialogClose}>
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -208,7 +204,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDialogClose} disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Continue
