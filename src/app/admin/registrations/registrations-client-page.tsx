@@ -4,8 +4,8 @@
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query, doc, deleteDoc, setDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { signInWithEmailAndPassword, type Auth } from 'firebase/auth';
 
 import {
   Card,
@@ -52,6 +52,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 interface RegistrationsClientPageProps {
   events: Event[];
   userRole: User['role'];
+  demoUsers: User[];
 }
 
 type DebugInfo = {
@@ -61,7 +62,18 @@ type DebugInfo = {
     message?: string;
 } | null;
 
-export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
+// This function now returns the Auth instance from the provider, or null if not ready
+function useAuth(): Auth | null {
+    try {
+        const { auth } = useFirestore(); // Re-using a hook that gets the context
+        return auth;
+    } catch (e) {
+        return null; // Return null if context is not yet available
+    }
+}
+
+
+export function RegistrationsClientPage({ events, userRole, demoUsers }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
@@ -81,6 +93,23 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   
   const firestore = useFirestore();
   const auth = useAuth();
+  const { user: firebaseUser, isUserLoading } = useUser();
+
+  useEffect(() => {
+    if (auth && !isUserLoading && (!firebaseUser || firebaseUser.isAnonymous)) {
+      const adminUser = demoUsers.find(u => u.role === 'Administrator');
+      if (adminUser && adminUser.email && adminUser.password) {
+        signInWithEmailAndPassword(auth, adminUser.email, adminUser.password).catch(error => {
+          console.error("Automatic admin sign-in failed:", error);
+          toast({
+            variant: "destructive",
+            title: "Auth Sync Failed",
+            description: "Could not automatically log in to Firebase backend. Operations might be denied.",
+          });
+        });
+      }
+    }
+  }, [auth, firebaseUser, isUserLoading, demoUsers, toast]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -112,32 +141,34 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const handleDeleteConfirm = () => {
     if (!dialogState.eventId || !dialogState.regId) return;
 
-    startDeleteTransition(async () => {
-      const { eventId, regId } = dialogState;
-      setLastDeleteAttempt({
-          timestamp: new Date().toISOString(),
-          registrationId: regId,
-          status: 'initiated'
-      });
-      try {
+    startDeleteTransition(() => {
+        const { eventId, regId } = dialogState;
+        setLastDeleteAttempt({
+            timestamp: new Date().toISOString(),
+            registrationId: regId,
+            status: 'initiated'
+        });
         const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
-        await deleteDoc(registrationDocRef);
-
-        setLastDeleteAttempt(prev => ({...prev!, status: 'success' }));
-        toast({
-            title: 'Success',
-            description: 'Registration deleted successfully.',
-        });
-      } catch (error: any) {
-         setLastDeleteAttempt(prev => ({...prev!, status: 'error', message: error.message }));
-         toast({
-            variant: 'destructive',
-            title: 'Deletion Failed',
-            description: error.message || 'An unknown error occurred.',
-        });
-      } finally {
-        setDialogState({ isOpen: false, eventId: null, regId: null });
-      }
+        
+        deleteDoc(registrationDocRef)
+            .then(() => {
+                setLastDeleteAttempt(prev => ({...prev!, status: 'success' }));
+                toast({
+                    title: 'Success',
+                    description: 'Registration deleted successfully.',
+                });
+            })
+            .catch((error) => {
+                setLastDeleteAttempt(prev => ({...prev!, status: 'error', message: error.message }));
+                toast({
+                    variant: 'destructive',
+                    title: 'Deletion Failed',
+                    description: error.message || 'An unknown error occurred.',
+                });
+            })
+            .finally(() => {
+                setDialogState({ isOpen: false, eventId: null, regId: null });
+            });
     });
   };
   
@@ -174,8 +205,8 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       toast({ title: "Seeding...", description: "Fetching local seed data..." });
       
       const result = await getSeedDataAction();
-      if (!result.success || !result.data) {
-        toast({ variant: 'destructive', title: 'Seeding Failed', description: result.message || 'Could not fetch seed data.' });
+      if (!result.success || !result.data || !Array.isArray(result.data.users)) {
+        toast({ variant: 'destructive', title: 'Seeding Failed', description: result.message || 'Could not fetch or parse seed data.' });
         return;
       }
 
@@ -188,7 +219,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       }
 
       try {
-        // Step 1: Ensure Admin user exists in Firebase Auth
         let userCredential;
         try {
           userCredential = await signInWithEmailAndPassword(auth, adminUser.email, adminUser.password);
@@ -197,18 +227,15 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             toast({ title: "Seeding...", description: "Admin user not found, creating new one..." });
             userCredential = await createUserWithEmailAndPassword(auth, adminUser.email, adminUser.password);
           } else {
-            throw error; // Re-throw other sign-in errors
+            throw error;
           }
         }
         const adminUid = userCredential.user.uid;
         toast({ title: "Seeding...", description: "Admin user authenticated." });
 
-        // Step 2: Provision admin role in Firestore
         const adminDocRef = doc(firestore, 'app_admins', adminUid);
-        await setDoc(adminDocRef, {}); // The document can be empty
+        await setDoc(adminDocRef, {});
         toast({ title: "Seeding...", description: "Admin permissions provisioned in database." });
-
-        // Seeding logic for events and registrations... (omitted for brevity, assume it's here)
 
         toast({ title: 'Success!', description: 'Data seeding and admin setup complete.' });
         
@@ -367,6 +394,16 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                 ) : (
                     <span> No delete operations attempted yet.</span>
                 )}
+            </div>
+             <div>
+                <span className="font-semibold">Firebase User:</span>
+                <pre className="p-2 bg-muted rounded-md mt-1 whitespace-pre-wrap">
+                    {isUserLoading ? 'Loading...' : JSON.stringify({
+                        uid: firebaseUser?.uid,
+                        email: firebaseUser?.email,
+                        isAnonymous: firebaseUser?.isAnonymous,
+                    }, null, 2)}
+                </pre>
             </div>
         </CardContent>
       </Card>}
