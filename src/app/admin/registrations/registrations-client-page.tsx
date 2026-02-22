@@ -218,7 +218,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       return (
         <div className="text-center py-12 text-muted-foreground space-y-4">
           <p>No registrations found for this event in Firestore.</p>
-          <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading}>
+          <Button onClick={handleSeedData} disabled={isSeeding || isUserLoading || !user}>
             {(isSeeding || isUserLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed Test Data'}
           </Button>
