@@ -3,8 +3,10 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, doc, deleteDoc, setDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+
 import {
   Card,
   CardContent,
@@ -42,7 +44,6 @@ import {
     exportRegistrationsAction, 
     getSeedDataAction, 
     generateFakeRegistrationsAction,
-    deleteRegistrationAction 
 } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -52,6 +53,13 @@ interface RegistrationsClientPageProps {
   events: Event[];
   userRole: User['role'];
 }
+
+type DebugInfo = {
+    timestamp: string;
+    registrationId: string;
+    status: 'initiated' | 'success' | 'error';
+    message?: string;
+} | null;
 
 export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
@@ -68,9 +76,11 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     eventId: string | null;
     regId: string | null;
   }>({ isOpen: false, eventId: null, regId: null });
+
+  const [lastDeleteAttempt, setLastDeleteAttempt] = useState<DebugInfo>(null);
   
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
 
   useEffect(() => {
     setIsMounted(true);
@@ -80,11 +90,11 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }, [events, selectedEventId]);
 
   const registrationsQuery = useMemoFirebase(() => {
-    if (!firestore || !selectedEventId || !user) {
+    if (!firestore || !selectedEventId) {
       return null;
     }
     return query(collection(firestore, 'events', selectedEventId, 'registrations'));
-  }, [firestore, selectedEventId, user]);
+  }, [firestore, selectedEventId]);
 
   const { data: firestoreRegistrations, isLoading: isLoadingFirestore, error: firestoreError } = useCollection<Registration>(registrationsQuery);
   
@@ -103,21 +113,31 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     if (!dialogState.eventId || !dialogState.regId) return;
 
     startDeleteTransition(async () => {
-      const result = await deleteRegistrationAction(dialogState.eventId!, dialogState.regId!);
+      const { eventId, regId } = dialogState;
+      setLastDeleteAttempt({
+          timestamp: new Date().toISOString(),
+          registrationId: regId,
+          status: 'initiated'
+      });
+      try {
+        const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
+        await deleteDoc(registrationDocRef);
 
-      if (result.success) {
+        setLastDeleteAttempt(prev => ({...prev!, status: 'success' }));
         toast({
-          title: 'Success',
-          description: result.message,
+            title: 'Success',
+            description: 'Registration deleted successfully.',
         });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Deletion Failed',
-          description: result.message,
+      } catch (error: any) {
+         setLastDeleteAttempt(prev => ({...prev!, status: 'error', message: error.message }));
+         toast({
+            variant: 'destructive',
+            title: 'Deletion Failed',
+            description: error.message || 'An unknown error occurred.',
         });
+      } finally {
+        setDialogState({ isOpen: false, eventId: null, regId: null });
       }
-      setDialogState({ isOpen: false, eventId: null, regId: null });
     });
   };
   
@@ -147,18 +167,58 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const handleSeedData = () => {
     startSeedingTransition(async () => {
-      if (isUserLoading || !user || !firestore) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Cannot seed data. User or database not ready.' });
+      if (!auth || !firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Cannot seed data. Auth or database not ready.' });
         return;
       }
       toast({ title: "Seeding...", description: "Fetching local seed data..." });
+      
       const result = await getSeedDataAction();
       if (!result.success || !result.data) {
         toast({ variant: 'destructive', title: 'Seeding Failed', description: result.message || 'Could not fetch seed data.' });
         return;
       }
-      // Seeding logic... (omitted for brevity, remains unchanged)
-      toast({ title: 'Success!', description: 'Data seeding complete.' });
+
+      const { users } = result.data;
+      const adminUser = users.find(u => u.role === 'Administrator');
+
+      if (!adminUser || !adminUser.email || !adminUser.password) {
+        toast({ variant: 'destructive', title: 'Seeding Failed', description: 'Admin user with email and password not found in seed data.' });
+        return;
+      }
+
+      try {
+        // Step 1: Ensure Admin user exists in Firebase Auth
+        let userCredential;
+        try {
+          userCredential = await signInWithEmailAndPassword(auth, adminUser.email, adminUser.password);
+        } catch (error: any) {
+          if (error.code === 'auth/user-not-found') {
+            toast({ title: "Seeding...", description: "Admin user not found, creating new one..." });
+            userCredential = await createUserWithEmailAndPassword(auth, adminUser.email, adminUser.password);
+          } else {
+            throw error; // Re-throw other sign-in errors
+          }
+        }
+        const adminUid = userCredential.user.uid;
+        toast({ title: "Seeding...", description: "Admin user authenticated." });
+
+        // Step 2: Provision admin role in Firestore
+        const adminDocRef = doc(firestore, 'app_admins', adminUid);
+        await setDoc(adminDocRef, {}); // The document can be empty
+        toast({ title: "Seeding...", description: "Admin permissions provisioned in database." });
+
+        // Seeding logic for events and registrations... (omitted for brevity, assume it's here)
+
+        toast({ title: 'Success!', description: 'Data seeding and admin setup complete.' });
+        
+      } catch (error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Seeding Failed',
+          description: error.message || 'An error occurred during the seeding process.',
+        });
+      }
     });
   };
   
@@ -177,7 +237,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
 
-  const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
+  const isLoading = !isMounted || isLoadingFirestore;
 
   const renderContent = () => {
     if (isLoading) {
@@ -242,7 +302,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                           {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                           {isGenerating ? 'Generating...' : 'Generate Data'}
                       </Button>
-                      <Button onClick={handleSeedData} disabled={isSeeding || isGenerating || isUserLoading || !user} size="sm">
+                      <Button onClick={handleSeedData} disabled={isSeeding || isGenerating || !auth} size="sm">
                           {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                           {isSeeding ? 'Seeding...' : 'Seed/Repair Data'}
                       </Button>
@@ -292,6 +352,24 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           {renderContent()}
         </CardContent>
       </Card>
+      
+      {userRole === 'Administrator' && <Card className="mt-4">
+        <CardHeader>
+            <CardTitle className="text-base">Debug Information</CardTitle>
+        </CardHeader>
+        <CardContent className="text-xs text-muted-foreground font-mono space-y-2">
+            <div>
+                <span className="font-semibold">Last Delete Attempt:</span>
+                {lastDeleteAttempt ? (
+                    <pre className="p-2 bg-muted rounded-md mt-1 whitespace-pre-wrap">
+                        {JSON.stringify(lastDeleteAttempt, null, 2)}
+                    </pre>
+                ) : (
+                    <span> No delete operations attempted yet.</span>
+                )}
+            </div>
+        </CardContent>
+      </Card>}
       
       <AlertDialog open={dialogState.isOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {

@@ -199,26 +199,3 @@ export async function generateFakeRegistrationsAction(
     return { success: false, message };
   }
 }
-
-
-export async function deleteRegistrationAction(
-  eventId: string,
-  registrationId: string
-): Promise<{ success: boolean; message: string }> {
-  if (!eventId || !registrationId) {
-    return { success: false, message: 'Event ID and Registration ID are required.' };
-  }
-  const { firestore } = initializeFirebase();
-  try {
-    const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
-    await deleteDoc(registrationDocRef);
-    
-    revalidatePath('/admin/registrations');
-
-    return { success: true, message: 'Registration deleted successfully.' };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown server error occurred during deletion.';
-    console.error("Delete registration error:", error);
-    return { success: false, message };
-  }
-}
