@@ -22,6 +22,8 @@ import {
 const dataDir = path.join(process.cwd(), 'src', 'data');
 const eventsFilePath = path.join(dataDir, 'events.json');
 const usersFilePath = path.join(dataDir, 'users.json');
+const registrationsFilePath = path.join(dataDir, 'registrations.json');
+
 
 const { firestore } = initializeFirebase();
 
@@ -200,6 +202,23 @@ export async function deactivateEvent(id: string): Promise<Event | null> {
 
 
 // --- Registration Functions ---
+
+export async function getJsonRegistrations(eventId: string): Promise<Registration[]> {
+  noStore();
+  const allRegistrations = await readData<Registration[]>(registrationsFilePath);
+  return allRegistrations.filter(r => r.eventId === eventId);
+}
+
+export async function deleteJsonRegistration(registrationId: string): Promise<boolean> {
+  const allRegistrations = await readData<Registration[]>(registrationsFilePath);
+  const initialLength = allRegistrations.length;
+  const filteredRegistrations = allRegistrations.filter(r => r.id !== registrationId);
+  if (filteredRegistrations.length === initialLength) {
+    return false; // Nothing deleted
+  }
+  await writeData(registrationsFilePath, filteredRegistrations);
+  return true;
+}
 
 export async function getRegistrationsFromFirestore(eventId: string): Promise<Registration[]> {
   noStore();

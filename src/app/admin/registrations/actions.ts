@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getEventById, getRegistrationsFromFirestore } from '@/lib/data';
+import { getEventById, getRegistrationsFromFirestore, deleteJsonRegistration } from '@/lib/data';
 import type { Registration } from '@/lib/types';
 import { initializeFirebase } from '@/firebase/init';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -15,12 +15,21 @@ export async function deleteRegistrationAction(eventId: string, registrationId: 
   }
 
   try {
+    // Attempt to delete from both sources.
+    // We don't want the entire action to fail if one of them doesn't have the record.
     const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
-    await deleteDoc(registrationDocRef);
+    await deleteDoc(registrationDocRef).catch(err => {
+      console.log(`Note: Registration ${registrationId} not found in Firestore. It may have only existed in the local JSON file.`);
+    });
+    
+    await deleteJsonRegistration(registrationId).catch(err => {
+      console.log(`Note: Registration ${registrationId} not found in JSON file. It may have only existed in Firestore.`);
+    });
+
     revalidatePath('/admin/registrations');
     return { success: true, message: 'Registration deleted successfully.' };
   } catch (error) {
-    console.error("Firestore delete error:", error);
+    console.error("Deletion error:", error);
     const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
     return { success: false, message };
   }
