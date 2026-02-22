@@ -1,8 +1,10 @@
 'use client';
 
 import type { Event, Registration, User } from '@/lib/types';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import QRCode from 'qrcode';
 import {
   Table,
   TableBody,
@@ -40,6 +42,7 @@ import { MoreHorizontal, Trash2, Loader2, Eye, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deleteRegistrationAction } from './actions';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 
 interface RegistrationsTableProps {
   event: Event;
@@ -53,22 +56,41 @@ export function RegistrationsTable({ event, registrations, userRole }: Registrat
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
   const [detailsViewReg, setDetailsViewReg] = useState<Registration | null>(null);
+  const [detailsQrCode, setDetailsQrCode] = useState<string>('');
+
+  useEffect(() => {
+    if (detailsViewReg && detailsViewReg.qrId) {
+      QRCode.toDataURL(detailsViewReg.qrId, { errorCorrectionLevel: 'H', width: 256 })
+        .then(url => {
+          setDetailsQrCode(url);
+        })
+        .catch(err => {
+          console.error(err);
+          setDetailsQrCode('');
+        });
+    } else {
+      setDetailsQrCode('');
+    }
+  }, [detailsViewReg]);
 
   // Find the actual keys for Full Name and Email from the event's form fields config
   const fullNameField = event.formFields.find(f => f.label.toLowerCase().includes('full name'));
   const emailField = event.formFields.find(f => f.label.toLowerCase().includes('email'));
   
-  // Use a fallback to prevent crashes if fields are not found.
-  const fullNameKey = fullNameField ? fullNameField.name : 'full_name';
-  const emailKey = emailField ? emailField.name : 'email';
-
   const getFullNameValue = (formData: { [key: string]: any }) => {
-    // Prioritize the key from the current event definition, but fall back to common variations.
-    return formData[fullNameKey] ?? formData['fullName'] ?? formData['full_name'];
+    if (fullNameField && formData[fullNameField.name]) {
+      return formData[fullNameField.name];
+    }
+    // Fallback for older data structures
+    return formData['fullName'] || formData['full_name'];
   };
 
   const getEmailValue = (formData: { [key: string]: any }) => {
-    return formData[emailKey] ?? formData['email'];
+    if (emailField && formData[emailField.name]) {
+      return formData[emailField.name];
+    }
+    // Fallback for older data structures
+    return formData['email'];
   };
 
 
@@ -225,9 +247,9 @@ export function RegistrationsTable({ event, registrations, userRole }: Registrat
                     </div>
                     {event.formFields.map(field => {
                         let value;
-                        if (field.name === fullNameKey) {
+                        if (field.name === fullNameField?.name) {
                             value = getFullNameValue(detailsViewReg.formData);
-                        } else if (field.name === emailKey) {
+                        } else if (field.name === emailField?.name) {
                             value = getEmailValue(detailsViewReg.formData);
                         } else {
                             value = detailsViewReg.formData[field.name];
@@ -244,6 +266,18 @@ export function RegistrationsTable({ event, registrations, userRole }: Registrat
                         <span className="font-semibold text-muted-foreground">Agreed to Terms</span>
                         <span className="col-span-2">{getDisplayValue(detailsViewReg.formData.rodo)}</span>
                      </div>
+                     {detailsQrCode && (
+                        <>
+                            <Separator className="my-2" />
+                            <div className="py-2 text-center">
+                                <h4 className="font-semibold text-muted-foreground mb-3">Check-in QR Code</h4>
+                                <div className="flex justify-center">
+                                    <Image src={detailsQrCode} alt="Registration QR Code" width={192} height={192} className="rounded-lg border p-1 bg-white" />
+                                </div>
+                                {detailsViewReg.qrId && <p className="text-xs text-muted-foreground mt-2 font-mono">{detailsViewReg.qrId}</p>}
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
         </DialogContent>

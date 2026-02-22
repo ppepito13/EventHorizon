@@ -2,11 +2,16 @@
 
 import { z } from 'zod';
 import { createRegistration, getEventById } from '@/lib/data';
+import type { Registration } from '@/lib/types';
 
 export async function registerForEvent(
   eventId: string,
   data: { [key: string]: unknown }
-) {
+): Promise<{
+  success: boolean;
+  registration?: Registration;
+  errors?: { [key: string]: string[] } | { _form: string[] };
+}> {
   try {
     const event = await getEventById(eventId);
     if (!event) {
@@ -75,14 +80,14 @@ export async function registerForEvent(
       };
     }
     
-    // Save the new registration to the data file.
-    await createRegistration({
+    // Save the new registration to the data file and create QR code entry in Firestore.
+    const newRegistration = await createRegistration({
       eventId: event.id,
       eventName: event.name,
       formData: validated.data,
     });
 
-    return { success: true, data: validated.data };
+    return { success: true, registration: newRegistration };
 
   } catch (error) {
     console.error('Registration failed:', error);

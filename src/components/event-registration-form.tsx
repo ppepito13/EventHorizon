@@ -1,6 +1,6 @@
 'use client';
 
-import type { Event, FormField as FormFieldType } from '@/lib/types';
+import type { Event, FormField as FormFieldType, Registration } from '@/lib/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,9 +19,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from '@/hooks/use-toast';
 import { registerForEvent } from '@/app/actions';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
+import QRCode from 'qrcode';
+import Image from 'next/image';
 
 interface EventRegistrationFormProps {
   event: Event;
@@ -84,6 +86,8 @@ const generateSchema = (fields: FormFieldType[]) => {
 
 export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [successfulRegistration, setSuccessfulRegistration] = useState<Registration | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const { toast } = useToast();
   const formSchema = generateSchema(event.formFields);
   
@@ -109,20 +113,31 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
     const result = await registerForEvent(event.id, values);
     setIsLoading(false);
 
-    if (result.success) {
-      toast({
-        title: 'Registration Successful!',
-        description: "We've received your registration. Check your email for details.",
-      });
-      form.reset();
+    if (result.success && result.registration) {
+      setSuccessfulRegistration(result.registration);
+      if (result.registration.qrId) {
+        QRCode.toDataURL(result.registration.qrId, { errorCorrectionLevel: 'H', width: 256 })
+          .then(url => {
+            setQrCodeDataUrl(url);
+          })
+          .catch(err => {
+            console.error('Failed to generate QR Code:', err);
+            toast({
+              variant: 'destructive',
+              title: 'QR Code Generation Failed',
+              description: 'Could not generate your QR code. Please contact support.',
+            });
+          });
+      }
     } else {
         const errors = result.errors;
-        if(errors){
+        if(errors && typeof errors === 'object' && !Array.isArray(errors)){
             Object.keys(errors).forEach((field) => {
-                if (field !== '_form' && errors[field as keyof typeof errors]) {
+                const fieldErrors = errors as { [key: string]: string[] };
+                if (field !== '_form' && fieldErrors[field]) {
                     form.setError(field as any, {
                         type: 'server',
-                        message: errors[field as keyof typeof errors]!.join(', '),
+                        message: fieldErrors[field].join(', '),
                     });
                 }
             });
@@ -131,7 +146,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
       toast({
         variant: 'destructive',
         title: 'Registration Failed',
-        description: errors?._form?.join(', ') || 'Please check the form for errors and try again.',
+        description: (result.errors as { _form: string[] })?._form?.join(', ') || 'Please check the form for errors and try again.',
       });
     }
   }
@@ -192,8 +207,8 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
                                         checked={field.value?.includes(option)}
                                         onCheckedChange={(checked) => {
                                             return checked
-                                                ? field.onChange([...field.value, option])
-                                                : field.onChange(field.value?.filter((value: string) => value !== option))
+                                                ? field.onChange([...(field.value || []), option])
+                                                : field.onChange((field.value || [])?.filter((value: string) => value !== option))
                                         }}
                                     />
                                 </FormControl>
@@ -210,6 +225,27 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         return null;
     }
   };
+  
+  if (successfulRegistration && qrCodeDataUrl) {
+    return (
+      <div className="text-center space-y-4">
+        <h3 className="text-xl font-bold font-headline">Registration Successful!</h3>
+        <p className="text-muted-foreground">
+          Thank you for registering. Please save this unique QR code for check-in.
+        </p>
+        <div className="flex justify-center my-4">
+            <Image src={qrCodeDataUrl} alt="Your QR Code" width={256} height={256} className="rounded-lg border p-2 bg-white" />
+        </div>
+        <Button onClick={() => {
+            setSuccessfulRegistration(null);
+            setQrCodeDataUrl('');
+            form.reset();
+        }}>
+          Register another person
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <Form {...form}>

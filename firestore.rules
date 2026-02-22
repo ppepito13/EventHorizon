@@ -160,5 +160,18 @@ service cloud.firestore {
       allow update: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null && subcollectionFieldsAreImmutable();
       allow delete: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null;
     }
+
+    /**
+     * @description Rules for the 'qrcodes' collection used for event check-in.
+     * @path /qrcodes/{qrId}
+     */
+    match /qrcodes/{qrId} {
+      // Anyone can create a registration document.
+      allow create: if true;
+      // The check-in scanner will need to read this, so it's public for now.
+      allow get: if true;
+      // Only authenticated users (admins/organizers) can list or modify.
+      allow list, update, delete: if request.auth != null;
+    }
   }
 }

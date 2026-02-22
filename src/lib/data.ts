@@ -4,12 +4,16 @@ import path from 'path';
 import { unstable_noStore as noStore } from 'next/cache';
 import type { Event, User, Registration } from './types';
 import { randomUUID } from 'crypto';
+import { initializeFirebase } from '@/firebase/init';
+import { collection, addDoc } from 'firebase/firestore';
 
 // Use a directory not watched by the dev server for the session file.
 const dataDir = path.join(process.cwd(), 'src', 'data');
 const eventsFilePath = path.join(dataDir, 'events.json');
 const usersFilePath = path.join(dataDir, 'users.json');
 const registrationsFilePath = path.join(dataDir, 'registrations.json');
+
+const { firestore } = initializeFirebase();
 
 // --- Helper Functions ---
 async function readData<T>(filePath: string): Promise<T> {
@@ -195,11 +199,21 @@ export async function getRegistrations(eventId?: string): Promise<Registration[]
 }
 
 export async function createRegistration(data: { eventId: string; eventName: string; formData: { [key: string]: any; } }): Promise<Registration> {
+  const qrCodeData = {
+    eventId: data.eventId,
+    eventName: data.eventName,
+    formData: data.formData,
+    registrationDate: new Date().toISOString(),
+  };
+
+  const docRef = await addDoc(collection(firestore, "qrcodes"), qrCodeData);
+
   const registrations = await getRegistrations();
   const newRegistration: Registration = {
     ...data,
     id: `reg_${randomUUID()}`,
-    registrationDate: new Date().toISOString(),
+    qrId: docRef.id,
+    registrationDate: qrCodeData.registrationDate,
   };
   registrations.push(newRegistration);
   await writeData(registrationsFilePath, registrations);

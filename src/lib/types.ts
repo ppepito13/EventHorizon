@@ -38,6 +38,7 @@ export type User = {
 
 export type Registration = {
   id: string;
+  qrId?: string;
   eventId: string;
   eventName: string;
   registrationDate: string; // ISO string
