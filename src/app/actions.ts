@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getEventById } from '@/lib/data';
 import type { Registration } from '@/lib/types';
 import { initializeFirebase } from '@/firebase/init';
-import { collection, addDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import { randomUUID } from 'crypto';
 
 export async function registerForEvent(
@@ -18,13 +18,22 @@ export async function registerForEvent(
 }> {
   const { firestore } = initializeFirebase();
   try {
-    const event = await getEventById(eventId);
-    if (!event) {
-      throw new Error('Event not found.');
+    // Get event data from JSON for form validation and basic info
+    const jsonEvent = await getEventById(eventId);
+    if (!jsonEvent) {
+      throw new Error('Event configuration not found.');
     }
 
+    // Get event data from Firestore to retrieve ownership for security rules
+    const eventDocRef = doc(firestore, 'events', eventId);
+    const eventDoc = await getDoc(eventDocRef);
+    if (!eventDoc.exists()) {
+        throw new Error('Event not found in database.');
+    }
+    const firestoreEvent = eventDoc.data();
+
     // Dynamically build Zod schema from event configuration on the server
-    const schemaFields = event.formFields.reduce(
+    const schemaFields = jsonEvent.formFields.reduce(
       (acc, field) => {
         let zodType: z.ZodTypeAny;
 
@@ -89,29 +98,33 @@ export async function registerForEvent(
 
     // 1. Create QR code document
     const qrCodeData = {
-        eventId: event.id,
-        eventName: event.name,
+        eventId: jsonEvent.id,
+        eventName: jsonEvent.name,
         formData: validated.data,
         registrationDate: registrationTime.toISOString(),
     };
     const qrDocRef = await addDoc(collection(firestore, "qrcodes"), qrCodeData);
 
-    // 2. Create the main registration document
+    // 2. Create the main registration document, now with denormalized owner fields
     const registrationId = `reg_${randomUUID()}`;
-    const newRegistrationData: Omit<Registration, 'id'> = {
-        eventId: event.id,
-        eventName: event.name,
+    const newRegistrationData = {
+        eventId: jsonEvent.id,
+        eventName: jsonEvent.name,
         formData: validated.data,
         qrId: qrDocRef.id,
-        registrationDate: registrationTime.toISOString(), // Use the same ISO string
+        registrationDate: registrationTime.toISOString(),
+        // Add denormalized fields for security rules
+        eventOwnerId: firestoreEvent.ownerId,
+        eventMembers: firestoreEvent.members,
     };
     
-    // Use the custom registrationId as the document ID
-    const registrationDocRef = doc(firestore, 'events', event.id, 'registrations', registrationId);
+    const registrationDocRef = doc(firestore, 'events', jsonEvent.id, 'registrations', registrationId);
     await setDoc(registrationDocRef, newRegistrationData);
 
+    // Reconstruct the final object without the security fields for the client response
+    const { eventOwnerId, eventMembers, ...clientSafeRegistration } = newRegistrationData;
     const finalRegistration: Registration = {
-      ...newRegistrationData,
+      ...clientSafeRegistration,
       id: registrationId,
     };
 
