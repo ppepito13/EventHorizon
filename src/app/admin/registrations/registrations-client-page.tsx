@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query, doc, deleteDoc, setDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { signInWithEmailAndPassword, type Auth } from 'firebase/auth';
+import { signInWithEmailAndPassword, type Auth, createUserWithEmailAndPassword } from 'firebase/auth';
 
 import {
   Card,
@@ -62,17 +62,6 @@ type DebugInfo = {
     message?: string;
 } | null;
 
-// This function now returns the Auth instance from the provider, or null if not ready
-function useAuth(): Auth | null {
-    try {
-        const { auth } = useFirestore(); // Re-using a hook that gets the context
-        return auth;
-    } catch (e) {
-        return null; // Return null if context is not yet available
-    }
-}
-
-
 export function RegistrationsClientPage({ events, userRole, demoUsers }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isMounted, setIsMounted] = useState(false);
@@ -92,11 +81,10 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const [lastDeleteAttempt, setLastDeleteAttempt] = useState<DebugInfo>(null);
   
   const firestore = useFirestore();
-  const auth = useAuth();
-  const { user: firebaseUser, isUserLoading } = useUser();
+  const { auth, user: firebaseUser, isUserLoading } = useFirebase();
 
   useEffect(() => {
-    if (auth && !isUserLoading && (!firebaseUser || firebaseUser.isAnonymous)) {
+    if (auth && !isUserLoading && (!firebaseUser || firebaseUser.isAnonymous) && userRole === 'Administrator') {
       const adminUser = demoUsers.find(u => u.role === 'Administrator');
       if (adminUser && adminUser.email && adminUser.password) {
         signInWithEmailAndPassword(auth, adminUser.email, adminUser.password).catch(error => {
@@ -109,7 +97,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
         });
       }
     }
-  }, [auth, firebaseUser, isUserLoading, demoUsers, toast]);
+  }, [auth, firebaseUser, isUserLoading, demoUsers, toast, userRole]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -139,7 +127,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   };
 
   const handleDeleteConfirm = () => {
-    if (!dialogState.eventId || !dialogState.regId) return;
+    if (!dialogState.eventId || !dialogState.regId || !firestore) return;
 
     startDeleteTransition(() => {
         const { eventId, regId } = dialogState;
@@ -198,46 +186,22 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
 
   const handleSeedData = () => {
     startSeedingTransition(async () => {
-      if (!auth || !firestore) {
+      if (!auth || !firestore || !firebaseUser) {
         toast({ variant: 'destructive', title: 'Error', description: 'Cannot seed data. Auth or database not ready.' });
         return;
       }
-      toast({ title: "Seeding...", description: "Fetching local seed data..." });
       
-      const result = await getSeedDataAction();
-      if (!result.success || !result.data || !Array.isArray(result.data.users)) {
-        toast({ variant: 'destructive', title: 'Seeding Failed', description: result.message || 'Could not fetch or parse seed data.' });
-        return;
+      if (firebaseUser.isAnonymous) {
+          toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please wait a moment for admin authentication to complete, then try again.' });
+          return;
       }
 
-      const { users } = result.data;
-      const adminUser = users.find(u => u.role === 'Administrator');
-
-      if (!adminUser || !adminUser.email || !adminUser.password) {
-        toast({ variant: 'destructive', title: 'Seeding Failed', description: 'Admin user with email and password not found in seed data.' });
-        return;
-      }
+      toast({ title: "Seeding...", description: "Provisioning admin permissions in database..." });
 
       try {
-        let userCredential;
-        try {
-          userCredential = await signInWithEmailAndPassword(auth, adminUser.email, adminUser.password);
-        } catch (error: any) {
-          if (error.code === 'auth/user-not-found') {
-            toast({ title: "Seeding...", description: "Admin user not found, creating new one..." });
-            userCredential = await createUserWithEmailAndPassword(auth, adminUser.email, adminUser.password);
-          } else {
-            throw error;
-          }
-        }
-        const adminUid = userCredential.user.uid;
-        toast({ title: "Seeding...", description: "Admin user authenticated." });
-
-        const adminDocRef = doc(firestore, 'app_admins', adminUid);
+        const adminDocRef = doc(firestore, 'app_admins', firebaseUser.uid);
         await setDoc(adminDocRef, {});
-        toast({ title: "Seeding...", description: "Admin permissions provisioned in database." });
-
-        toast({ title: 'Success!', description: 'Data seeding and admin setup complete.' });
+        toast({ title: 'Success!', description: 'Admin permissions provisioned in database.' });
         
       } catch (error: any) {
         toast({
