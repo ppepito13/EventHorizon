@@ -18,21 +18,19 @@ export async function deleteRegistrationAction(id: string) {
 }
 
 function convertToCSV(data: Registration[], headers: {key: string, label: string}[]) {
-    const headerRow = ['Registration Date', ...headers.map(h => h.label)].join(',');
+    const headerRow = ['Registration Date', ...headers.map(h => h.label)].join('|');
     const rows = data.map(reg => {
         const values = [
             new Date(reg.registrationDate).toLocaleString(),
             ...headers.map(h => {
                 let value = reg.formData[h.key];
                 if (Array.isArray(value)) {
-                    value = `"${value.join('; ')}"`;
-                } else if (typeof value === 'string' && value.includes(',')) {
-                    value = `"${value}"`;
+                    value = value.join('; ');
                 }
                 return value ?? '';
             })
         ];
-        return values.join(',');
+        return values.join('|');
     });
     return [headerRow, ...rows].join('\n');
 }
