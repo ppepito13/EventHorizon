@@ -27,17 +27,5 @@
     },
     "id": "reg_28a1cf07-2a64-445e-b4d1-d15294884148",
     "registrationDate": "2026-02-21T14:16:20.974Z"
-  },
-  {
-    "eventId": "clxsb7ncr000008l5heefd3jb",
-    "eventName": "Tech Summit 2026",
-    "formData": {
-      "full_name": "Jane Doe",
-      "email": "jane.doe@example.coba",
-      "rodo": true
-    },
-    "id": "reg_86dc9dda-3296-423a-b72a-84410e1d5b59",
-    "qrId": "zbfIY06FehF28Nght9ld",
-    "registrationDate": "2026-02-22T11:42:55.274Z"
   }
 ]

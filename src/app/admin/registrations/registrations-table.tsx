@@ -103,14 +103,9 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
   const handleDelete = () => {
     if (!registrationToDelete) return;
 
-    const idToDelete = registrationToDelete;
-    // Immediately close the dialog to ensure the UI remains responsive.
-    setAlertOpen(false);
-    setRegistrationToDelete(null);
-
-    // Perform the deletion and refetch in the background.
     startTransition(async () => {
-      const result = await deleteRegistrationAction(idToDelete);
+      const result = await deleteRegistrationAction(registrationToDelete);
+
       if (result.success) {
         toast({ title: 'Success', description: result.message });
         onRegistrationDeleted(); // Trigger a refetch in the parent component.
@@ -123,6 +118,10 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
         // Refetch even on error to ensure client is in sync with server state.
         onRegistrationDeleted();
       }
+      
+      // Close the dialog and clear state AFTER the async operation.
+      setAlertOpen(false);
+      setRegistrationToDelete(null);
     });
   };
   
@@ -227,7 +226,7 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Continue
