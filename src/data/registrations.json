@@ -1,21 +1,23 @@
+
 [
   {
     "eventId": "clxsb7ncr000008l5heefd3jb",
     "eventName": "Tech Summit 2026",
     "formData": {
-      "fullName": "John Doe",
+      "full_name": "John Doe",
       "email": "john.doe@example.com",
       "rodo": true
     },
     "id": "reg_682e508e-c3c1-4207-a697-bb87c0ab7ace",
-    "registrationDate": "2026-02-21T14:08:05.169Z"
+    "registrationDate": "2026-02-21T14:08:05.169Z",
+    "qrId": "qr_682e508e"
   },
   {
     "eventId": "elysb7ncr000008l5heefd3je",
     "eventName": "Creative Design Workshop",
     "formData": {
-      "full_name": "John Doe",
-      "email": "john.doe@example.com",
+      "full_name": "Jane Doe",
+      "email": "jane.doe@example.com",
       "phone_number": "+1123123123",
       "experience_level": "Beginner",
       "areas_of_interest": [
@@ -26,6 +28,7 @@
       "rodo": true
     },
     "id": "reg_28a1cf07-2a64-445e-b4d1-d15294884148",
-    "registrationDate": "2026-02-21T14:16:20.974Z"
+    "registrationDate": "2026-02-21T14:16:20.974Z",
+    "qrId": "qr_28a1cf07"
   }
 ]

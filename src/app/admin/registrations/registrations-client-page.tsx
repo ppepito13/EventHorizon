@@ -38,7 +38,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { exportRegistrationsAction, deleteRegistrationAction } from './actions';
+import { exportRegistrationsAction, deleteRegistrationAction, seedRegistrationsFromJSON } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -53,6 +53,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const { toast } = useToast();
   
   const [isExporting, startExportTransition] = useTransition();
+  const [isSeeding, startSeedingTransition] = useTransition();
 
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
@@ -130,8 +131,57 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         }
     });
   };
+
+   const handleSeedData = () => {
+    startSeedingTransition(async () => {
+        const result = await seedRegistrationsFromJSON();
+        if (result.success) {
+            toast({ title: "Success!", description: result.message });
+            // Data will appear automatically via the real-time listener.
+        } else {
+            toast({ variant: 'destructive', title: 'Seeding Failed', description: result.message });
+        }
+    });
+  };
   
   const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <RegistrationsTable registrations={[]} event={selectedEvent!} userRole={userRole} onDelete={()=>{}} isLoading={true} />;
+    }
+
+    if (selectedEvent && allRegistrations.length > 0) {
+      return (
+        <RegistrationsTable 
+          registrations={allRegistrations} 
+          event={selectedEvent}
+          userRole={userRole}
+          onDelete={handleDeleteRequest}
+          isLoading={false}
+        />
+      );
+    }
+    
+    if (isMounted && selectedEvent) {
+      return (
+        <div className="text-center py-12 text-muted-foreground space-y-4">
+          <p>No registrations found for this event in Firestore.</p>
+          <Button onClick={handleSeedData} disabled={isSeeding}>
+            {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Seed Test Data
+          </Button>
+          <p className="text-xs text-muted-foreground/80">This will migrate test data from `registrations.json` into the database.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        {isMounted ? <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p> : <Loader2 className="mx-auto h-8 w-8 animate-spin" />}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -181,19 +231,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           </div>
         </CardHeader>
         <CardContent>
-          {selectedEvent ? (
-            <RegistrationsTable 
-              registrations={allRegistrations} 
-              event={selectedEvent}
-              userRole={userRole}
-              onDelete={handleDeleteRequest}
-              isLoading={isLoading}
-            />
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              {isMounted ? <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p> : <Loader2 className="mx-auto h-8 w-8 animate-spin" />}
-            </div>
-          )}
+          {renderContent()}
         </CardContent>
       </Card>
       <AlertDialog open={isAlertOpen} onOpenChange={(open) => {
