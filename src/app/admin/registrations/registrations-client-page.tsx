@@ -39,7 +39,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { exportRegistrationsAction, getSeedDataAction } from './actions';
+import { exportRegistrationsAction, getSeedDataAction, generateFakeRegistrationsAction } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -76,10 +76,13 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   
   const [isExporting, startExportTransition] = useTransition();
   const [isSeeding, startSeedingTransition] = useTransition();
+  const [isGenerating, startGeneratingTransition] = useTransition();
 
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [lastDeleteAttempt, setLastDeleteAttempt] = useState<object | null>(null);
   
   const firestore = useFirestore();
   const auth = useAuth();
@@ -116,40 +119,56 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const handleDeleteConfirm = () => {
     if (!registrationToDelete || !selectedEventId || !firestore || !auth) return;
-
-    // Set loading state to disable button
+  
+    // Set loading state for immediate UI feedback
     setIsDeleting(true);
-
+    // Close the dialog immediately. Let the UI react to the data change.
+    setAlertOpen(false); 
+  
     const regRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationToDelete);
+    
+    // Log the delete attempt for debugging
+    setLastDeleteAttempt({ 
+      id: registrationToDelete, 
+      path: regRef.path,
+      status: 'initiated', 
+      timestamp: new Date().toISOString() 
+    });
 
     // Fire-and-forget the delete operation. The real-time listener will update the UI.
     deleteDoc(regRef)
       .then(() => {
-        toast({ title: 'Success', description: 'Registration deleted successfully.' });
+        toast({ title: 'Success', description: 'Registration delete request sent.' });
+        // Log successful initiation
+        setLastDeleteAttempt(prev => ({ ...prev, status: 'success (promise resolved)' }));
       })
       .catch((serverError) => {
-        // Error handling remains crucial.
-        console.error("Delete failed:", serverError);
+        // Log the error for debugging
+        setLastDeleteAttempt(prev => ({ 
+          ...prev, 
+          status: 'error (promise caught)', 
+          error: serverError.message 
+        }));
+        
+        // Create and emit a rich, contextual error for the error overlay
         const permissionError = new FirestorePermissionError({
             path: regRef.path,
             operation: 'delete',
         }, auth);
         errorEmitter.emit('permission-error', permissionError);
 
+        // Also show a user-friendly toast
         toast({
             variant: 'destructive',
             title: 'Deletion Failed',
-            description: 'Could not delete the registration. You may lack permissions.',
+            description: 'Could not delete the registration. Check permissions.',
         });
       })
       .finally(() => {
-        // Re-enable button once operation is complete, regardless of outcome.
+        // Reset loading and selection state regardless of outcome
         setIsDeleting(false);
+        setRegistrationToDelete(null);
       });
-
-    // Close the dialog immediately for a responsive UI.
-    // Don't wait for the delete to finish.
-    setAlertOpen(false);
   };
   
   const handleExport = (format: 'excel' | 'plain') => {
@@ -266,6 +285,21 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
   
+  const handleGenerateData = () => {
+    if (!selectedEventId || !selectedEvent) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Please select an event first.' });
+      return;
+    }
+    startGeneratingTransition(async () => {
+      const result = await generateFakeRegistrationsAction(selectedEventId, selectedEvent.formFields);
+      if (result.success) {
+        toast({ title: 'Success', description: `${result.count} new registrations have been generated.` });
+      } else {
+        toast({ variant: 'destructive', title: 'Generation Failed', description: result.message || 'An unknown error occurred.' });
+      }
+    });
+  };
+
   const isLoading = !isMounted || isLoadingFirestore || isUserLoading;
   const isSeedButtonDisabled = isSeeding || isUserLoading || !user;
 
@@ -313,6 +347,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       registrationsCount: firestoreRegistrations?.length ?? 0,
       seedButtonDisabled: isSeedButtonDisabled,
       seedButtonReason: getSeedButtonDisabledReason(),
+      lastDeleteAttempt: lastDeleteAttempt,
+      isDeleting: isDeleting,
+      registrationToDelete: registrationToDelete,
   };
 
   return (
@@ -327,10 +364,16 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                   </CardDescription>
               </div>
               {userRole === 'Administrator' && isMounted && (
-                  <Button onClick={handleSeedData} disabled={isSeedButtonDisabled} size="sm">
-                      {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed/Repair Data'}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                      <Button onClick={handleGenerateData} disabled={isGenerating || !selectedEventId} size="sm">
+                          {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          {isGenerating ? 'Generating...' : 'Generate Data'}
+                      </Button>
+                      <Button onClick={handleSeedData} disabled={isSeedButtonDisabled} size="sm">
+                          {isSeeding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                          {isUserLoading ? 'Authenticating...' : isSeeding ? 'Seeding...' : 'Seed/Repair Data'}
+                      </Button>
+                  </div>
               )}
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
@@ -379,13 +422,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       
       <DebugInfo states={debugStates} />
       
-      <AlertDialog open={isAlertOpen} onOpenChange={(isOpen) => {
-        if (isDeleting) return; // Prevent closing while operation is in progress
-        setAlertOpen(isOpen);
-        if (!isOpen) {
-            setRegistrationToDelete(null); // Reset when dialog is closed
-        }
-      }}>
+      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -394,7 +431,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isDeleting ? 'Deleting...' : 'Continue'}
