@@ -10,8 +10,6 @@ import {
   SetOptions,
 } from 'firebase/firestore';
 import { Auth } from 'firebase/auth';
-import { errorEmitter } from '@/firebase/error-emitter';
-import {FirestorePermissionError} from '@/firebase/errors';
 
 /**
  * Initiates a setDoc operation for a document reference.
@@ -19,14 +17,7 @@ import {FirestorePermissionError} from '@/firebase/errors';
  */
 export function setDocumentNonBlocking(auth: Auth, docRef: DocumentReference, data: any, options: SetOptions) {
   setDoc(docRef, data, options).catch(error => {
-    errorEmitter.emit(
-      'permission-error',
-      new FirestorePermissionError({
-        path: docRef.path,
-        operation: 'write', // or 'create'/'update' based on options
-        requestResourceData: data,
-      }, auth)
-    )
+    console.error(`Error in setDocumentNonBlocking for path ${docRef.path}:`, error);
   })
   // Execution continues immediately
 }
@@ -40,14 +31,7 @@ export function setDocumentNonBlocking(auth: Auth, docRef: DocumentReference, da
 export function addDocumentNonBlocking(auth: Auth, colRef: CollectionReference, data: any) {
   const promise = addDoc(colRef, data)
     .catch(error => {
-      errorEmitter.emit(
-        'permission-error',
-        new FirestorePermissionError({
-          path: colRef.path,
-          operation: 'create',
-          requestResourceData: data,
-        }, auth)
-      )
+      console.error(`Error in addDocumentNonBlocking for path ${colRef.path}:`, error);
     });
   return promise;
 }
@@ -60,14 +44,7 @@ export function addDocumentNonBlocking(auth: Auth, colRef: CollectionReference, 
 export function updateDocumentNonBlocking(auth: Auth, docRef: DocumentReference, data: any) {
   updateDoc(docRef, data)
     .catch(error => {
-      errorEmitter.emit(
-        'permission-error',
-        new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'update',
-          requestResourceData: data,
-        }, auth)
-      )
+      console.error(`Error in updateDocumentNonBlocking for path ${docRef.path}:`, error);
     });
 }
 
@@ -79,12 +56,6 @@ export function updateDocumentNonBlocking(auth: Auth, docRef: DocumentReference,
 export function deleteDocumentNonBlocking(auth: Auth, docRef: DocumentReference) {
   deleteDoc(docRef)
     .catch(error => {
-      errorEmitter.emit(
-        'permission-error',
-        new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'delete',
-        }, auth)
-      )
+      console.error(`Error in deleteDocumentNonBlocking for path ${docRef.path}:`, error);
     });
 }

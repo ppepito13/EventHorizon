@@ -8,8 +8,6 @@ import {
   FirestoreError,
   DocumentSnapshot,
 } from 'firebase/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { useAuth } from '../provider';
 
 /** Utility type to add an 'id' field to a given type T. */
 type WithId<T> = T & { id: string };
@@ -21,7 +19,7 @@ type WithId<T> = T & { id: string };
 export interface UseDocResult<T> {
   data: WithId<T> | null; // Document data with ID, or null.
   isLoading: boolean;       // True if loading.
-  error: FirestoreError | Error | null; // Error object, or null.
+  error: FirestoreError | null; // Error object, or null.
 }
 
 /**
@@ -45,8 +43,7 @@ export function useDoc<T = any>(
 
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const auth = useAuth();
+  const [error, setError] = useState<FirestoreError | null>(null);
 
   useEffect(() => {
     if (!memoizedDocRef) {
@@ -72,19 +69,15 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: memoizedDocRef.path,
-        }, auth);
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
+        console.error("Firestore subscription error:", error);
+        setError(error);
+        setData(null);
+        setIsLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedDocRef, auth]); // Re-run if the memoizedDocRef or auth changes.
+  }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
 
   return { data, isLoading, error };
 }

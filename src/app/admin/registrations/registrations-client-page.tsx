@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useFirebaseApp, errorEmitter, FirestorePermissionError, useAuth } from '@/firebase';
+import { collection, query, doc, deleteDoc } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useFirebaseApp, useAuth } from '@/firebase';
 import { getApps } from 'firebase/app';
 import {
   Card,
@@ -81,12 +80,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  
   const [lastDeleteAttempt, setLastDeleteAttempt] = useState<object | null>(null);
   
   const firestore = useFirestore();
-  const auth = useAuth();
   const { user, isUserLoading, userError } = useUser();
   const firebaseApp = useFirebaseApp();
 
@@ -119,53 +115,18 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   };
 
   const handleDeleteConfirm = () => {
-    if (!registrationToDelete || !selectedEventId || !firestore || !auth) return;
-  
-    // Immediately close the dialog and set the loading state for the table row (in a real app)
-    setAlertOpen(false);
-    setIsDeleting(true); 
+    if (!registrationToDelete || !selectedEventId || !firestore) return;
   
     const regRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationToDelete);
     
-    // For debugging, we log the attempt.
-    setLastDeleteAttempt({ 
-      id: registrationToDelete, 
-      path: regRef.path,
-      status: 'initiated', 
-      timestamp: new Date().toISOString() 
-    });
+    // Close the dialog immediately to keep the UI responsive.
+    setAlertOpen(false);
+    
+    // Use "fire-and-forget". The `useCollection` hook will handle the UI update.
+    deleteDoc(regRef);
 
-    // Fire-and-forget the delete operation. The real-time listener will update the UI.
-    deleteDoc(regRef)
-      .then(() => {
-        toast({ title: 'Success', description: 'Registration delete request sent.' });
-        setLastDeleteAttempt(prev => ({ ...prev, status: 'success (promise resolved)' }));
-      })
-      .catch((serverError) => {
-        setLastDeleteAttempt(prev => ({ 
-          ...prev, 
-          status: 'error (promise caught)', 
-          error: serverError.message 
-        }));
-        
-        // Create and emit a rich, contextual error for the error overlay
-        const permissionError = new FirestorePermissionError({
-            path: regRef.path,
-            operation: 'delete',
-        }, auth);
-        errorEmitter.emit('permission-error', permissionError);
-
-        toast({
-            variant: 'destructive',
-            title: 'Deletion Failed',
-            description: 'Could not delete the registration. Check permissions.',
-        });
-      })
-      .finally(() => {
-        // Reset loading and selection state. The UI will react to the `useCollection` hook's updates.
-        setIsDeleting(false);
-        setRegistrationToDelete(null);
-      });
+    // Reset the state after initiating the delete.
+    setRegistrationToDelete(null);
   };
   
   const handleExport = (format: 'excel' | 'plain') => {
@@ -268,16 +229,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         
       } catch (e: any) {
         console.error("Seeding error:", e);
-        if (e instanceof Error && 'code' in e && (e as any).code.includes('permission-denied')) {
-          const permissionError = new FirestorePermissionError({
-            path: 'app_admins',
-            operation: 'write',
-          }, auth);
-          errorEmitter.emit('permission-error', permissionError);
-          toast({ variant: 'destructive', title: 'Seeding Permission Error', description: 'Could not set admin role. Please check security rules for /app_admins.'});
-        } else {
-          toast({ variant: 'destructive', title: 'Seeding Failed', description: e.message || 'An unknown error occurred during seeding.' });
-        }
+        toast({ variant: 'destructive', title: 'Seeding Failed', description: e.message || 'An unknown error occurred during seeding.' });
       }
     });
   };
@@ -324,7 +276,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Permission Denied</AlertTitle>
             <AlertDescription>
-              Could not load registrations. This is likely a security rule issue. Please ensure you have the correct permissions to view this data.
+              Could not perform the requested action. This is likely a security rule issue. Please ensure you have the correct permissions to view or modify this data.
               <pre className="mt-2 text-xs bg-muted p-2 rounded-md font-mono whitespace-pre-wrap">
                 {firestoreError.message}
               </pre>
@@ -369,7 +321,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       seedButtonDisabled: isSeedButtonDisabled,
       seedButtonReason: getSeedButtonDisabledReason(),
       lastDeleteAttempt: lastDeleteAttempt,
-      isDeleting: isDeleting,
       registrationToDelete: registrationToDelete,
   };
 
@@ -443,7 +394,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       
       <DebugInfo states={debugStates} />
       
-      <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
+      <AlertDialog open={isAlertOpen} onOpenChange={(isOpen) => {
+          if (!isOpen) {
+              setRegistrationToDelete(null);
+          }
+          setAlertOpen(isOpen);
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -453,9 +409,8 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isDeleting ? 'Deleting...' : 'Continue'}
+            <AlertDialogAction onClick={handleDeleteConfirm}>
+              Continue
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -9,8 +9,6 @@ import {
   QuerySnapshot,
   CollectionReference,
 } from 'firebase/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { useAuth } from '../provider';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -22,7 +20,7 @@ export type WithId<T> = T & { id: string };
 export interface UseCollectionResult<T> {
   data: WithId<T>[] | null; // Document data with ID, or null.
   isLoading: boolean;       // True if loading.
-  error: FirestoreError | Error | null; // Error object, or null.
+  error: FirestoreError | null; // Error object, or null.
 }
 
 /* Internal implementation of Query:
@@ -59,8 +57,7 @@ export function useCollection<T = any>(
 
   const [data, setData] = useState<StateDataType>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<FirestoreError | Error | null>(null);
-  const auth = useAuth();
+  const [error, setError] = useState<FirestoreError | null>(null);
 
   useEffect(() => {
     if (!memoizedTargetRefOrQuery) {
@@ -86,25 +83,15 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        // This logic extracts the path from either a ref or a query
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
-
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        }, auth);
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
+        console.error("Firestore subscription error:", error);
+        setError(error);
+        setData(null);
+        setIsLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery, auth]); // Re-run if the target query/reference or auth changes.
+  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference or auth changes.
 
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
     throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
