@@ -70,7 +70,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }, [fetchRegistrations]);
   
   const handleRegistrationDeleted = () => {
-    // This will now trigger a full refetch from the server.
     fetchRegistrations();
   };
 
@@ -137,8 +136,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading && <div className="text-center py-12 text-muted-foreground">Loading registrations...</div>}
-        {!isLoading && selectedEvent && registrations ? (
+        {selectedEvent ? (
           <RegistrationsTable 
             event={selectedEvent} 
             registrations={registrations} 
@@ -147,7 +145,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           />
         ) : (
           <div className="text-center py-12 text-muted-foreground">
-             {!isLoading && <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
+             {isLoading ? <p>Loading...</p> : <p>{events.length > 0 ? 'Please select an event to view registrations.' : 'No events found.'}</p>}
           </div>
         )}
       </CardContent>

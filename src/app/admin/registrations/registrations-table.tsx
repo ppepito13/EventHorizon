@@ -1,7 +1,7 @@
 'use client';
 
 import type { Event, Registration, User } from '@/lib/types';
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import QRCode from 'qrcode';
@@ -43,6 +43,8 @@ import { useToast } from '@/hooks/use-toast';
 import { deleteRegistrationAction } from './actions';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { useEffect } from 'react';
+
 
 interface RegistrationsTableProps {
   event: Event;
@@ -106,21 +108,19 @@ export function RegistrationsTable({ event, registrations, userRole, onRegistrat
     startTransition(async () => {
       const result = await deleteRegistrationAction(registrationToDelete);
 
+      setAlertOpen(false);
+
       if (result.success) {
         toast({ title: 'Success', description: result.message });
-        onRegistrationDeleted(); // Trigger a refetch in the parent component.
+        onRegistrationDeleted();
       } else {
         toast({
           variant: 'destructive',
           title: 'Error',
           description: result.message,
         });
-        // Refetch even on error to ensure client is in sync with server state.
-        onRegistrationDeleted();
       }
       
-      // Close the dialog and clear state AFTER the async operation.
-      setAlertOpen(false);
       setRegistrationToDelete(null);
     });
   };
