@@ -16,6 +16,7 @@ import { firebaseConfig } from '../firebase/config';
 // Use a directory not watched by the dev server for the session file.
 const dataDir = path.join(process.cwd(), 'src', 'data');
 const usersFilePath = path.join(dataDir, 'users.json');
+const eventsFilePath = path.join(dataDir, 'events.json');
 
 
 // Helper for a one-time, server-side client app instance
@@ -114,29 +115,16 @@ export async function deleteUser(id: string): Promise<boolean> {
 export async function getEvents(user?: User | null): Promise<Event[]> {
     noStore();
     try {
-        const eventsColRef = adminDb.collection('events');
-        let snapshot;
+        const events = await readJsonFile<Event[]>(eventsFilePath);
 
-        if (user?.role === 'Organizer') {
-            if (user.assignedEvents.includes('All')) {
-                snapshot = await eventsColRef.get();
-            } else {
-                // Firestore doesn't support 'in' queries with more than 30 items,
-                // but for this use case, it's fine.
-                if (!user.assignedEvents || user.assignedEvents.length === 0) return [];
-                snapshot = await eventsColRef.where('name', 'in', user.assignedEvents).get();
-            }
-        } else {
-            // Admins and other roles see all events
-            snapshot = await eventsColRef.get();
+        if (user?.role === 'Organizer' && !user.assignedEvents.includes('All')) {
+            return events.filter(event => user.assignedEvents.includes(event.name));
         }
-
-        if (snapshot.empty) {
-            return [];
-        }
-        return snapshot.docs.map(doc => doc.data() as Event);
+        
+        // Admins see all events
+        return events;
     } catch (error) {
-        console.error("Error fetching events from Firestore (Admin SDK):", error);
+        console.error("Error fetching events from JSON:", error);
         return []; // Return empty array to prevent page crash
     }
 }
