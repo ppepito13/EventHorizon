@@ -7,7 +7,9 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { UserActions } from './user-actions';
 import { MobileNav } from './mobile-nav';
 import { NAV_ITEMS, iconMap } from './nav-config';
-import { getSessionUser } from '@/lib/session';
+import { getSessionUser, getSession } from '@/lib/session';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
 
 export const metadata: Metadata = {
   title: 'Admin Panel',
@@ -21,13 +23,13 @@ export default async function AdminLayout({
 }) {
   const user = await getSessionUser();
 
-  // Middleware now handles the redirection for unauthenticated users.
-  // We still fetch the user here for the UI, but if they are null,
-  // it's a sign of a problem. A redirect here serves as a fallback.
   if (!user) {
     redirect('/login');
   }
   
+  const session = await getSession();
+  const sessionData = JSON.stringify(session, null, 2);
+
   const accessibleNavItems = NAV_ITEMS.filter(item => {
       if (item.adminOnly && user.role !== 'Administrator') {
           return false;
@@ -77,6 +79,17 @@ export default async function AdminLayout({
           </header>
           <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/40">
             {children}
+            <Card className="mt-auto">
+              <CardHeader>
+                <CardTitle>Session Debug Information</CardTitle>
+                <CardDescription>Current content of the session file.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <pre className="text-xs p-4 bg-muted rounded-md overflow-x-auto">
+                  {sessionData}
+                </pre>
+              </CardContent>
+            </Card>
           </main>
         </div>
       </div>
