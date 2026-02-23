@@ -1,7 +1,38 @@
+
 'use server';
 
-import { adminAuth } from '@/lib/firebase-admin';
+import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getUsers } from '@/lib/data';
+import type { Event } from '@/lib/types';
+import path from 'path';
+import { promises as fs } from 'fs';
+
+async function seedEventsIntoFirestore() {
+  const dataDir = path.join(process.cwd(), 'src', 'data');
+  const eventsPath = path.join(dataDir, 'events.json');
+  const eventsContent = await fs.readFile(eventsPath, 'utf8');
+  const events: Event[] = JSON.parse(eventsContent);
+
+  const batch = adminDb.batch();
+  let seededCount = 0;
+
+  for (const event of events) {
+    const eventRef = adminDb.doc(`events/${event.id}`);
+    const docSnap = await eventRef.get();
+    // Only seed the event if it doesn't already exist in Firestore
+    if (!docSnap.exists) {
+      batch.set(eventRef, event);
+      seededCount++;
+    }
+  }
+
+  if (seededCount > 0) {
+    await batch.commit();
+  }
+
+  return { seededCount, totalJsonEvents: events.length };
+}
+
 
 export async function seedAuthUsersAction() {
   try {
@@ -10,20 +41,19 @@ export async function seedAuthUsersAction() {
       return { success: false, message: 'No demo users found in data file.' };
     }
 
-    let createdCount = 0;
-    let existingCount = 0;
-    const errors: string[] = [];
+    // Part 1: Seed Firebase Authentication users
+    let createdAuthCount = 0;
+    let existingAuthCount = 0;
+    const authErrors: string[] = [];
 
     for (const user of users) {
       if (!user.email || !user.password) continue;
 
       try {
-        // Check if user exists
         await adminAuth.getUserByEmail(user.email);
-        existingCount++;
+        existingAuthCount++;
       } catch (error: any) {
         if (error.code === 'auth/user-not-found') {
-          // User does not exist, so create them
           try {
             await adminAuth.createUser({
               email: user.email,
@@ -31,26 +61,31 @@ export async function seedAuthUsersAction() {
               displayName: user.name,
               disabled: false,
             });
-            createdCount++;
+            createdAuthCount++;
           } catch (createError: any) {
-            errors.push(`Failed to create ${user.email}: ${createError.message}`);
+            authErrors.push(`Failed to create ${user.email}: ${createError.message}`);
           }
         } else {
-          // Some other error occurred
-          errors.push(`Error checking ${user.email}: ${error.message}`);
+          authErrors.push(`Error checking ${user.email}: ${error.message}`);
         }
       }
     }
     
-    const message = `Seeding complete. Created: ${createdCount}, Already existed: ${existingCount}.`;
-    if (errors.length > 0) {
-      return { success: false, message: `${message} Errors: ${errors.join(', ')}` };
+    // Part 2: Seed Firestore events
+    const { seededCount: seededEventsCount } = await seedEventsIntoFirestore();
+
+    const authMessage = `Auth users - Created: ${createdAuthCount}, Existed: ${existingAuthCount}.`;
+    const firestoreMessage = `Firestore events - Seeded: ${seededEventsCount}.`;
+    const finalMessage = `${authMessage} ${firestoreMessage}`;
+
+    if (authErrors.length > 0) {
+      return { success: false, message: `${finalMessage} Errors: ${authErrors.join(', ')}` };
     }
 
-    return { success: true, message };
+    return { success: true, message: finalMessage };
 
   } catch (error: any) {
-    console.error("Seed Auth Users Action Error:", error);
+    console.error("Seed Action Error:", error);
     return { success: false, message: error.message || 'An unknown error occurred during seeding.' };
   }
 }

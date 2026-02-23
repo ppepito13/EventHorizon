@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, onSnapshot, FirestoreError, doc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, query, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 
 import {
@@ -85,7 +85,9 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
 
   useEffect(() => {
     if (!firestore || !selectedEventId) {
-        setIsLoadingFirestore(false);
+        if (isMounted) { // Only set loading to false if component is mounted and there's nothing to fetch
+          setIsLoadingFirestore(false);
+        }
         setRegistrations([]);
         return;
     }
@@ -108,7 +110,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     );
 
     return () => unsubscribe();
-  }, [firestore, selectedEventId]);
+  }, [firestore, selectedEventId, isMounted]);
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 

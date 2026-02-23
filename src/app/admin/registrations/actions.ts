@@ -4,7 +4,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { revalidatePath } from 'next/cache';
-import { getEventById } from '@/lib/data';
+import { getEventById, getRegistrationsFromFirestore } from '@/lib/data';
 import type { Registration, Event, User, FormField } from '@/lib/types';
 import { adminDb } from '@/lib/firebase-admin';
 import { getSession } from '@/lib/session';
@@ -56,16 +56,6 @@ function convertToCSV(data: Registration[], headers: {key: string, label: string
     });
     return [headerRow, ...rows].join('\n');
 }
-
-async function getRegistrationsFromFirestore(eventId: string): Promise<Registration[]> {
-  const registrationsColRef = adminDb.collection(`events/${eventId}/registrations`);
-  const snapshot = await registrationsColRef.get();
-  if (snapshot.empty) {
-    return [];
-  }
-  return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
-}
-
 
 export async function exportRegistrationsAction(eventId: string, format: 'excel' | 'plain' = 'plain') {
     if (!eventId) {
@@ -215,14 +205,14 @@ export async function deleteRegistrationAction(eventId: string, registrationId: 
     const session = await getSession();
     const user = session.user;
 
-    // 1. Check if the user is authenticated and is an Administrator
+    // 1. Security Check: Ensure user is an administrator
     if (!user || user.role !== 'Administrator') {
-      throw new Error('You do not have permission to delete registrations.');
+      throw new Error('Permission denied. You must be an administrator to delete registrations.');
     }
 
     const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
     
-    // 2. Get the document to find the associated qrId
+    // 2. Get the document to find the associated qrId before deleting
     const registrationSnap = await registrationDocRef.get();
     if (!registrationSnap.exists) {
       throw new Error('Registration not found.');
@@ -243,7 +233,7 @@ export async function deleteRegistrationAction(eventId: string, registrationId: 
 
     // 4. Revalidate the path to update the UI
     revalidatePath('/admin/registrations');
-    return { success: true, message: 'Registration and QR code deleted successfully.' };
+    return { success: true, message: 'Registration and associated QR code deleted successfully.' };
 
   } catch (error: any) {
     console.error("Delete registration error:", error);
