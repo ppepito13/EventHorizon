@@ -1,15 +1,16 @@
+
 'use client';
 
 import React, { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider } from '@/firebase/provider';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
 // This function ensures a singleton instance of a uniquely named Firebase app on the client-side.
 // This prevents conflicts with any server-side Firebase instances.
-function initializeClientApp() {
+function initializeClientApp(): FirebaseApp {
   const clientAppName = 'event-horizon-client';
   const apps = getApps();
   const clientApp = apps.find(app => app.name === clientAppName);

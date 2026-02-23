@@ -1,4 +1,3 @@
-'use client';
 
 // We are intentionally not exporting the providers or context hooks from this barrel file
 // to avoid potential module resolution issues that can lead to context mismatches.

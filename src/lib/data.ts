@@ -6,9 +6,34 @@ import type { Event, User, Registration } from './types';
 import { randomUUID } from 'crypto';
 import { adminDb } from '@/lib/firebase-admin';
 
+// NEW: Import client SDK modules for public data fetching
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
+import { firebaseConfig } from '../firebase/config';
+
+
 // Use a directory not watched by the dev server for the session file.
 const dataDir = path.join(process.cwd(), 'src', 'data');
 const usersFilePath = path.join(dataDir, 'users.json');
+
+
+// Helper for a one-time, server-side client app instance
+const getClientReaderApp = async () => {
+    const appName = 'server-side-client-reader';
+    const existingApp = getApps().find(app => app.name === appName);
+    if (existingApp) {
+        const auth = getAuth(existingApp);
+        // Ensure we have an authenticated user, even if it's anonymous
+        if (!auth.currentUser) await signInAnonymously(auth);
+        return existingApp;
+    }
+
+    const newApp = initializeApp(firebaseConfig, appName);
+    const auth = getAuth(newApp);
+    await signInAnonymously(auth);
+    return newApp;
+};
 
 
 // --- Helper Functions ---
@@ -98,6 +123,7 @@ export async function getEvents(user?: User | null): Promise<Event[]> {
             } else {
                 // Firestore doesn't support 'in' queries with more than 30 items,
                 // but for this use case, it's fine.
+                if (!user.assignedEvents || user.assignedEvents.length === 0) return [];
                 snapshot = await eventsColRef.where('name', 'in', user.assignedEvents).get();
             }
         } else {
@@ -110,7 +136,7 @@ export async function getEvents(user?: User | null): Promise<Event[]> {
         }
         return snapshot.docs.map(doc => doc.data() as Event);
     } catch (error) {
-        console.error("Error fetching events from Firestore:", error);
+        console.error("Error fetching events from Firestore (Admin SDK):", error);
         return []; // Return empty array to prevent page crash
     }
 }
@@ -118,16 +144,19 @@ export async function getEvents(user?: User | null): Promise<Event[]> {
 export async function getActiveEvents(): Promise<Event[]> {
   noStore();
   try {
-    const eventsColRef = adminDb.collection('events');
-    const snapshot = await eventsColRef.where('isActive', '==', true).get();
+    const app = await getClientReaderApp();
+    const db = getFirestore(app);
+    const eventsColRef = collection(db, 'events');
+    const q = query(eventsColRef, where('isActive', '==', true));
+    const snapshot = await getDocs(q);
+
     if (snapshot.empty) {
       return [];
     }
     return snapshot.docs.map(doc => doc.data() as Event);
   } catch (error) {
-    console.error("Error fetching active events from Firestore:", error);
+    console.error("Error fetching active events from Firestore (Client SDK):", error);
     // Gracefully degrade by returning an empty array.
-    // This prevents the entire page from crashing if the database is unreachable.
     return [];
   }
 }
@@ -150,16 +179,18 @@ export async function getEventById(id: string): Promise<Event | null> {
 export async function getEventBySlug(slug: string): Promise<Event | null> {
   noStore();
   try {
-    const eventsColRef = adminDb.collection('events');
-    const query = eventsColRef.where('slug', '==', slug).where('isActive', '==', true).limit(1);
-    const snapshot = await query.get();
+    const app = await getClientReaderApp();
+    const db = getFirestore(app);
+    const eventsColRef = collection(db, 'events');
+    const q = query(eventsColRef, where('slug', '==', slug), where('isActive', '==', true));
+    const snapshot = await getDocs(q);
     
     if (snapshot.empty) {
       return null;
     }
     return snapshot.docs[0].data() as Event;
   } catch (error) {
-    console.error(`Error fetching event by slug "${slug}" from Firestore:`, error);
+    console.error(`Error fetching event by slug "${slug}" from Firestore (Client SDK):`, error);
     return null;
   }
 }
