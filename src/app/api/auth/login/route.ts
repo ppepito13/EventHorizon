@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getIronSession } from 'iron-session';
-import { cookies } from 'next/headers';
 import { adminAuth } from '@/lib/firebase-admin';
-import { sessionOptions, type SessionData } from '@/lib/session';
-import { getUserByEmail } from '@/lib/data'; // Use email to link accounts
+import { getSession, type SessionData } from '@/lib/session';
+import { getUserByEmail } from '@/lib/data';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +24,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'User not found in application database.' }, { status: 404 });
     }
     
-    const session = await getIronSession<SessionData>(cookies(), sessionOptions);
+    const session = await getSession();
     
     const { password, ...userToStore } = appUser;
     session.user = userToStore;
