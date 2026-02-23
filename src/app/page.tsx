@@ -56,14 +56,11 @@ export default async function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
-        <section className="relative flex h-[60vh] flex-col items-center justify-center text-center overflow-hidden py-24 md:py-36">
-            <Image
-                src="/images/hero-background.png"
-                alt="Golden ribbon flowing over a dark blue background"
-                fill
-                className="object-cover -z-10"
-                quality={100}
-            />
+        <section 
+          className="relative flex h-[60vh] flex-col items-center justify-center text-center overflow-hidden py-24 md:py-36 bg-cover bg-center"
+          style={{ backgroundImage: `url('/images/hero-background.png')` }}
+        >
+            <div className="absolute inset-0 bg-black/30 z-0" />
             <div className="container relative z-10 flex flex-col items-center">
                 <h1 className="font-headline text-4xl sm:text-6xl md:text-7xl text-white drop-shadow-md">
                     Connect. <span className="text-primary">Code.</span> <span className="text-primary">Celebrate.</span>
