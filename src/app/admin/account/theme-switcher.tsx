@@ -2,20 +2,20 @@
 
 import * as React from 'react'
 import { Moon, Sun } from 'lucide-react'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/components/theme-provider'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 
 export function ThemeSwitcher() {
   const { theme, setTheme } = useTheme()
+  
   const [isMounted, setIsMounted] = React.useState(false)
-
   React.useEffect(() => {
     setIsMounted(true)
   }, [])
 
   if (!isMounted) {
-    return null
+    return <div className="flex items-center space-x-4 rounded-lg border p-4 h-[78px]"></div>;
   }
 
   const isDarkMode = theme === 'dark'

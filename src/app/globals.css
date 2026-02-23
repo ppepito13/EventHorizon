@@ -3,27 +3,66 @@
 @tailwind utilities;
 
 @layer base {
-  :root, .dark {
+  :root, .light {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+ 
+    --primary: 48 96% 53%; /* Keep yellow */
+    --primary-foreground: 210 70% 10%; /* Dark blue on yellow */
+ 
+    --secondary: 210 50% 95%; /* Light blue-gray */
+    --secondary-foreground: 222.2 84% 4.9%;
+ 
+    --muted: 210 50% 95%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+ 
+    --accent: 45 80% 95%; /* Lighter yellow */
+    --accent-foreground: 222.2 84% 4.9%;
+ 
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+ 
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 48 96% 53%; /* Keep yellow for ring */
+
+    --radius: 0.8rem;
+  }
+
+  .dark {
     --background: 210 70% 10%;
     --foreground: 210 20% 98%;
+
     --card: 210 50% 18%;
     --card-foreground: 210 20% 98%;
+
     --popover: 210 70% 8%;
     --popover-foreground: 210 20% 98%;
+
     --primary: 48 96% 53%;
     --primary-foreground: 210 70% 10%;
+
     --secondary: 210 50% 25%;
     --secondary-foreground: 210 20% 98%;
+
     --muted: 210 50% 25%;
     --muted-foreground: 210 20% 65%;
+
     --accent: 45 80% 60%;
     --accent-foreground: 210 70% 10%;
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
+
     --border: 210 50% 30%;
     --input: 210 50% 30%;
     --ring: 48 96% 53%;
-    --radius: 0.8rem;
   }
 }
  

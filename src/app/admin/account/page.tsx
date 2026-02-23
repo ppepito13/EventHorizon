@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { ChangePasswordForm } from './change-password-form';
+import { ThemeSwitcher } from './theme-switcher';
 
 export default async function AccountPage() {
   const user = await getSessionUser();
@@ -27,6 +28,18 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent>
             <ChangePasswordForm userId={user.id} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>
+            Choose between light and dark mode.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ThemeSwitcher />
         </CardContent>
       </Card>
     </div>
