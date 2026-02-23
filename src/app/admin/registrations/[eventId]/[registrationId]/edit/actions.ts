@@ -2,24 +2,22 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { initializeFirebase } from '@/firebase/init';
-import { doc, updateDoc } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function updateRegistrationAction(
     eventId: string,
     registrationId: string,
     formData: { [key: string]: any }
 ) {
-  const { firestore } = initializeFirebase();
   if (!eventId || !registrationId) {
     return { success: false, message: 'Event ID and Registration ID are required.' };
   }
 
   try {
-    const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', registrationId);
+    const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
     
     // We update only the formData field.
-    await updateDoc(registrationDocRef, {
+    await registrationDocRef.update({
       formData: formData
     });
     

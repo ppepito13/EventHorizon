@@ -3,9 +3,8 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query } from 'firebase/firestore';
-import { useFirestore, useCollection, useMemoFirebase, useAuth } from '@/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { collection, query, onSnapshot, FirestoreError } from 'firebase/firestore';
+import { useFirestore, useMemoFirebase } from '@/firebase';
 
 import {
   Card,
@@ -65,6 +64,10 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const [isGenerating, startGeneratingTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
 
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [isLoadingFirestore, setIsLoadingFirestore] = useState(true);
+  const [firestoreError, setFirestoreError] = useState<FirestoreError | null>(null);
+
   const [dialogState, setDialogState] = useState<{
     isOpen: boolean;
     eventId: string | null;
@@ -80,19 +83,32 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     }
   }, [events, selectedEventId]);
 
-  const registrationsQuery = useMemoFirebase(() => {
+  useEffect(() => {
     if (!firestore || !selectedEventId) {
-      return null;
+        setIsLoadingFirestore(false);
+        setRegistrations([]);
+        return;
     }
-    return query(collection(firestore, 'events', selectedEventId, 'registrations'));
+
+    setIsLoadingFirestore(true);
+    const q = query(collection(firestore, 'events', selectedEventId, 'registrations'));
+    
+    const unsubscribe = onSnapshot(q, 
+        (querySnapshot) => {
+            const regs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Registration));
+            setRegistrations(regs.sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime()));
+            setIsLoadingFirestore(false);
+            setFirestoreError(null);
+        }, 
+        (error) => {
+            console.error("Firestore snapshot error:", error);
+            setFirestoreError(error);
+            setIsLoadingFirestore(false);
+        }
+    );
+
+    return () => unsubscribe();
   }, [firestore, selectedEventId]);
-
-  const { data: firestoreRegistrations, isLoading: isLoadingFirestore, error: firestoreError } = useCollection<Registration>(registrationsQuery);
-
-  const allRegistrations = useMemo(() => {
-    if (!firestoreRegistrations) return [];
-    return [...firestoreRegistrations].sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime());
-  }, [firestoreRegistrations]);
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
@@ -100,7 +116,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     setDialogState({ isOpen: true, eventId, regId: registrationId });
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = () => {
     if (!dialogState.eventId || !dialogState.regId) return;
     const { eventId, regId } = dialogState;
 
@@ -189,7 +205,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
       );
     }
 
-    if (!allRegistrations || allRegistrations.length === 0) {
+    if (!registrations || registrations.length === 0) {
        return (
         <div className="text-center py-12 text-muted-foreground">
           <p>No registrations found for this event.</p>
@@ -199,7 +215,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     
     return (
       <RegistrationsTable
-        registrations={allRegistrations}
+        registrations={registrations}
         event={selectedEvent!}
         userRole={userRole}
         onDelete={handleDeleteRequest}
@@ -248,7 +264,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
                     </Select>
                     <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" disabled={isExporting || !selectedEventId || !allRegistrations || allRegistrations.length === 0}>
+                        <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
                             {isExporting ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             ) : (

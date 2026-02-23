@@ -4,8 +4,7 @@
 import { z } from 'zod';
 import { getEventById } from '@/lib/data';
 import type { Registration } from '@/lib/types';
-import { initializeFirebase } from '@/firebase/init';
-import { collection, addDoc, doc, setDoc, getDoc } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 import { randomUUID } from 'crypto';
 
 export async function registerForEvent(
@@ -16,7 +15,6 @@ export async function registerForEvent(
   registration?: Registration;
   errors?: { [key:string]: string[] } | { _form: string[] };
 }> {
-  const { firestore } = initializeFirebase();
   try {
     // Get event data from JSON for form validation and basic info
     const jsonEvent = await getEventById(eventId);
@@ -25,12 +23,12 @@ export async function registerForEvent(
     }
 
     // Get event data from Firestore to retrieve ownership for security rules
-    const eventDocRef = doc(firestore, 'events', eventId);
-    const eventDoc = await getDoc(eventDocRef);
-    if (!eventDoc.exists()) {
+    const eventDocRef = adminDb.doc(`events/${eventId}`);
+    const eventDoc = await eventDocRef.get();
+    if (!eventDoc.exists) {
         throw new Error('Event not found in database.');
     }
-    const firestoreEvent = eventDoc.data();
+    const firestoreEvent = eventDoc.data()!;
 
     // Dynamically build Zod schema from event configuration on the server
     const schemaFields = jsonEvent.formFields.reduce(
@@ -103,7 +101,7 @@ export async function registerForEvent(
         formData: validated.data,
         registrationDate: registrationTime.toISOString(),
     };
-    const qrDocRef = await addDoc(collection(firestore, "qrcodes"), qrCodeData);
+    const qrDocRef = await adminDb.collection("qrcodes").add(qrCodeData);
 
     // 2. Create the main registration document, now with denormalized owner fields
     const registrationId = `reg_${randomUUID()}`;
@@ -118,8 +116,8 @@ export async function registerForEvent(
         eventMembers: firestoreEvent.members,
     };
     
-    const registrationDocRef = doc(firestore, 'events', jsonEvent.id, 'registrations', registrationId);
-    await setDoc(registrationDocRef, newRegistrationData);
+    const registrationDocRef = adminDb.doc(`events/${jsonEvent.id}/registrations/${registrationId}`);
+    await registrationDocRef.set(newRegistrationData);
 
     // Reconstruct the final object without the security fields for the client response
     const { eventOwnerId, eventMembers, ...clientSafeRegistration } = newRegistrationData;

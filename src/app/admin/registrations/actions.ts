@@ -57,6 +57,16 @@ function convertToCSV(data: Registration[], headers: {key: string, label: string
     return [headerRow, ...rows].join('\n');
 }
 
+async function getRegistrationsFromFirestore(eventId: string): Promise<Registration[]> {
+  const registrationsColRef = adminDb.collection(`events/${eventId}/registrations`);
+  const snapshot = await registrationsColRef.get();
+  if (snapshot.empty) {
+    return [];
+  }
+  return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
+}
+
+
 export async function exportRegistrationsAction(eventId: string, format: 'excel' | 'plain' = 'plain') {
     if (!eventId) {
         return { success: false, error: 'Event ID is required.' };
