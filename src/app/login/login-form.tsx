@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useFormState, useFormStatus } from 'react-dom';
-import { useEffect, useState } from 'react';
+import { useFormStatus } from 'react-dom';
+import { useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +31,7 @@ function SubmitButton() {
 }
 
 export function LoginForm({ demoUsers }: LoginFormProps) {
-  const [state, formAction] = useFormState(login, undefined);
+  const [state, formAction] = useActionState(login, undefined);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const { toast } = useToast();
 
