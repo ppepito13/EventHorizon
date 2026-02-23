@@ -21,8 +21,9 @@ export default async function AdminLayout({
 }) {
   const user = await getSessionUser();
 
-  // This is the new, authoritative guard for all admin routes.
-  // If no user is found, we redirect to the login page.
+  // Middleware now handles the redirection for unauthenticated users.
+  // We still fetch the user here for the UI, but if they are null,
+  // it's a sign of a problem. A redirect here serves as a fallback.
   if (!user) {
     redirect('/login');
   }
