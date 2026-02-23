@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useFormStatus } from 'react-dom';
-import { useActionState, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth } from '@/firebase/provider'; 
 
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -14,26 +16,76 @@ import { TicketPercent, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import type { User } from '@/lib/types';
-import { login } from './actions';
 
 interface LoginFormProps {
     demoUsers: User[];
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button className="w-full" type="submit" disabled={pending}>
-      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      {pending ? 'Logging in...' : 'Log in'}
-    </Button>
-  );
-}
-
 export function LoginForm({ demoUsers }: LoginFormProps) {
-  const [state, formAction] = useActionState(login, undefined);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // 1. Sign in with Firebase on the client
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // 2. Get the ID token
+      const token = await user.getIdToken();
+
+      // 3. Send token to our backend to create a server-side session file
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Session login failed.');
+      }
+      
+      // 4. If session is created, redirect to admin panel
+      router.push('/admin');
+
+    } catch (err: any) {
+      console.error(err);
+      let errorMessage = 'An unknown error occurred.';
+      // Map common Firebase error codes to user-friendly messages
+      if (err.code) {
+          switch (err.code) {
+              case 'auth/user-not-found':
+              case 'auth/wrong-password':
+              case 'auth/invalid-credential':
+                  errorMessage = 'Invalid email or password.';
+                  break;
+              case 'auth/invalid-email':
+                  errorMessage = 'Please enter a valid email address.';
+                  break;
+              default:
+                  errorMessage = 'Login failed. Please check your credentials and try again.';
+                  break;
+          }
+      } else if (err.message) {
+          errorMessage = err.message;
+      }
+      setError(errorMessage);
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -50,7 +102,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
       </Link>
       
       <Card className="w-full max-w-sm shadow-xl">
-        <form action={formAction}>
+        <form onSubmit={handleSubmit}>
           <CardHeader>
             <CardTitle className="text-center text-2xl font-headline">
               Admin Panel
@@ -60,11 +112,11 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {state?.error && (
+             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {state.error}
+                  {error}
                 </AlertDescription>
               </Alert>
             )}
@@ -76,6 +128,9 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                 type="email"
                 placeholder="admin@example.com"
                 required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -86,11 +141,17 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                 type="password"
                 placeholder="••••••••"
                 required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-             <SubmitButton />
+             <Button className="w-full" type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading ? 'Logging in...' : 'Log in'}
+            </Button>
           </CardFooter>
         </form>
       </Card>
