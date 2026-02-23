@@ -4,11 +4,27 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { revalidatePath } from 'next/cache';
-import { getEventById, getRegistrationsFromFirestore } from '@/lib/data';
 import type { Registration, Event, User, FormField } from '@/lib/types';
-import { adminDb } from '@/lib/firebase-admin';
-import { getSession } from '@/lib/session';
 import { randomUUID } from 'crypto';
+
+import { firebaseConfig } from '@/firebase/config';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, doc, collection, writeBatch, getDoc } from 'firebase/firestore';
+
+const dataDir = path.join(process.cwd(), 'src', 'data');
+const usersFilePath = path.join(dataDir, 'users.json');
+
+async function readUsersFile(): Promise<User[]> {
+    try {
+        const fileContent = await fs.readFile(usersFilePath, 'utf8');
+        return JSON.parse(fileContent);
+    } catch (error) {
+        console.error("Error reading users file:", error);
+        return [];
+    }
+}
+
 
 export async function getSeedDataAction(): Promise<{ 
     success: boolean; 
@@ -61,15 +77,30 @@ export async function exportRegistrationsAction(eventId: string, format: 'excel'
     if (!eventId) {
         return { success: false, error: 'Event ID is required.' };
     }
-
+    const tempAppName = `temp-export-app-${randomUUID()}`;
+    const tempApp = initializeApp(firebaseConfig, tempAppName);
     try {
-        const event = await getEventById(eventId);
-        if (!event) {
-            return { success: false, error: 'Event not found.' };
-        }
+        const tempAuth = getAuth(tempApp);
+        const tempDb = getFirestore(tempApp);
         
-        // Use only Firestore as the source of truth
-        const firestoreRegistrations = await getRegistrationsFromFirestore(eventId);
+        const users = await readUsersFile();
+        const adminUser = users.find(u => u.role === 'Administrator');
+        if (!adminUser || !adminUser.password) {
+            throw new Error('Could not find admin user credentials to perform this action.');
+        }
+        await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
+
+        const eventDocRef = doc(tempDb, 'events', eventId);
+        const eventSnap = await getDoc(eventDocRef);
+        if (!eventSnap.exists()) {
+             return { success: false, error: 'Event not found.' };
+        }
+        const event = eventSnap.data() as Event;
+
+        const registrationsColRef = collection(tempDb, `events/${eventId}/registrations`);
+        const snapshot = await getDocs(registrationsColRef);
+        const firestoreRegistrations = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
+
 
         if (firestoreRegistrations.length === 0) {
             return { success: false, error: 'No registrations to export for this event.' };
@@ -86,6 +117,8 @@ export async function exportRegistrationsAction(eventId: string, format: 'excel'
     } catch (error) {
         console.error("Export error: ", error);
         return { success: false, error: 'Failed to export data.' };
+    } finally {
+        await deleteApp(tempApp);
     }
 }
 
@@ -147,23 +180,36 @@ export async function generateFakeRegistrationsAction(
   if (!eventId) {
     return { success: false, message: 'Event ID is required.' };
   }
+  
+  const tempAppName = `temp-writer-app-${randomUUID()}`;
+  const tempApp = initializeApp(firebaseConfig, tempAppName);
 
   try {
-    const eventDocRef = adminDb.doc(`events/${eventId}`);
-    const eventDoc = await eventDocRef.get();
+    const tempAuth = getAuth(tempApp);
+    const tempDb = getFirestore(tempApp);
+    
+    const users = await readUsersFile();
+    const adminUser = users.find(u => u.role === 'Administrator');
+    if (!adminUser || !adminUser.password) {
+      throw new Error('Could not find admin user credentials to perform this action.');
+    }
+    await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
 
-    if (!eventDoc.exists) {
+    const eventDocRef = doc(tempDb, 'events', eventId);
+    const eventDoc = await getDoc(eventDocRef);
+
+    if (!eventDoc.exists()) {
       return { success: false, message: 'Parent event not found in Firestore.' };
     }
     const firestoreEvent = eventDoc.data()!;
     
-    const batch = adminDb.batch();
+    const batch = writeBatch(tempDb);
     for (let i = 0; i < 5; i++) {
         const registrationTime = new Date();
         const formData = generateFakeData(formFields, i);
 
-        // 1. Create QR code doc
-        const qrDocRef = adminDb.collection("qrcodes").doc();
+        const qrId = `qr_${randomUUID()}`;
+        const qrDocRef = doc(tempDb, "qrcodes", qrId);
         const qrCodeData = {
             eventId: eventId,
             eventName: firestoreEvent.name,
@@ -172,18 +218,17 @@ export async function generateFakeRegistrationsAction(
         };
         batch.set(qrDocRef, qrCodeData);
 
-        // 2. Create Registration doc
         const registrationId = `reg_${randomUUID()}`;
         const newRegistrationData = {
             eventId: eventId,
             eventName: firestoreEvent.name,
             formData: formData,
-            qrId: qrDocRef.id,
+            qrId: qrId,
             registrationDate: registrationTime.toISOString(),
             eventOwnerId: firestoreEvent.ownerId,
             eventMembers: firestoreEvent.members,
         };
-        const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
+        const registrationDocRef = doc(tempDb, `events/${eventId}/registrations/${registrationId}`);
         batch.set(registrationDocRef, newRegistrationData);
     }
     
@@ -196,47 +241,53 @@ export async function generateFakeRegistrationsAction(
     const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
     console.error("Generate fake data error:", error);
     return { success: false, message };
+  } finally {
+      await deleteApp(tempApp);
   }
 }
 
 // New, secure server action for deleting registrations
 export async function deleteRegistrationAction(eventId: string, registrationId: string) {
+  const tempAppName = `temp-deleter-app-${randomUUID()}`;
+  const tempApp = initializeApp(firebaseConfig, tempAppName);
+
   try {
-    const session = await getSession();
-    const user = session.user;
-
-    // 1. Security Check: Ensure user is an administrator
-    if (!user || user.role !== 'Administrator') {
-      throw new Error('Permission denied. You must be an administrator to delete registrations.');
+    const tempAuth = getAuth(tempApp);
+    const tempDb = getFirestore(tempApp);
+        
+    const users = await readUsersFile();
+    const adminUser = users.find(u => u.role === 'Administrator');
+    if (!adminUser || !adminUser.password) {
+        throw new Error('Could not find admin user credentials to perform this action.');
     }
-
-    const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
+    await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
     
-    // 2. Get the document to find the associated qrId before deleting
-    const registrationSnap = await registrationDocRef.get();
-    if (!registrationSnap.exists) {
+    const registrationDocRef = doc(tempDb, `events/${eventId}/registrations/${registrationId}`);
+    
+    const registrationSnap = await getDoc(registrationDocRef);
+    if (!registrationSnap.exists()) {
       throw new Error('Registration not found.');
     }
     const registrationData = registrationSnap.data();
     const qrId = registrationData?.qrId;
 
-    // 3. Perform the deletions in a batch for atomicity
-    const batch = adminDb.batch();
+    const batch = writeBatch(tempDb);
     batch.delete(registrationDocRef);
 
     if (qrId) {
-      const qrDocRef = adminDb.doc(`qrcodes/${qrId}`);
+      const qrDocRef = doc(tempDb, `qrcodes/${qrId}`);
       batch.delete(qrDocRef);
     }
     
     await batch.commit();
 
-    // 4. Revalidate the path to update the UI
     revalidatePath('/admin/registrations');
     return { success: true, message: 'Registration and associated QR code deleted successfully.' };
 
   } catch (error: any) {
     console.error("Delete registration error:", error);
     return { success: false, message: error.message || 'An unknown server error occurred.' };
+  } finally {
+      await deleteApp(tempApp);
   }
 }

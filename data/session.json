@@ -1,2 +1,11 @@
 {
+  "user": {
+    "id": "usr_admin",
+    "name": "Admin User",
+    "email": "admin@example.com",
+    "role": "Administrator",
+    "assignedEvents": [
+      "All"
+    ]
+  }
 }
