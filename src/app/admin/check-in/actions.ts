@@ -4,15 +4,13 @@
 import { revalidatePath } from 'next/cache';
 import type { Registration, Event, FormField } from '@/lib/types';
 import { adminDb } from '@/lib/firebase-admin';
-import { collection, query, where, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
-
 
 export async function checkInUserByQrId(eventId: string, qrId: string) {
   try {
-    const registrationsRef = collection(adminDb, 'events', eventId, 'registrations');
-    const q = query(registrationsRef, where('qrId', '==', qrId));
+    const registrationsRef = adminDb.collection(`events/${eventId}/registrations`);
+    const q = registrationsRef.where('qrId', '==', qrId);
     
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await q.get();
 
     if (querySnapshot.empty) {
         return { success: false, message: 'Registration not found.' };
@@ -30,7 +28,7 @@ export async function checkInUserByQrId(eventId: string, qrId: string) {
         };
     }
 
-    await updateDoc(registrationDoc.ref, {
+    await registrationDoc.ref.update({
         checkedIn: true,
         checkInTime: new Date().toISOString()
     });
@@ -51,9 +49,9 @@ export async function checkInUserByQrId(eventId: string, qrId: string) {
 
 export async function toggleCheckInStatus(eventId: string, registrationId: string, newStatus: boolean) {
     try {
-        const registrationRef = doc(adminDb, 'events', eventId, 'registrations', registrationId);
+        const registrationRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
         
-        await updateDoc(registrationRef, {
+        await registrationRef.update({
             checkedIn: newStatus,
             checkInTime: newStatus ? new Date().toISOString() : null
         });
@@ -110,15 +108,15 @@ export async function exportCheckedInAttendeesAction(eventId: string, format: 'e
     }
 
     try {
-        const eventDocRef = doc(adminDb, 'events', eventId);
-        const eventSnap = await getDoc(eventDocRef);
+        const eventDocRef = adminDb.doc(`events/${eventId}`);
+        const eventSnap = await eventDocRef.get();
         if (!eventSnap.exists()) {
              return { success: false, error: 'Event not found in Firestore.' };
         }
         const event = eventSnap.data() as Event;
 
-        const registrationsColRef = collection(adminDb, `events/${eventId}/registrations`);
-        const snapshot = await getDocs(registrationsColRef);
+        const registrationsColRef = adminDb.collection(`events/${eventId}/registrations`);
+        const snapshot = await registrationsColRef.get();
         const firestoreRegistrations = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
 
         if (firestoreRegistrations.length === 0) {
