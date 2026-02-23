@@ -56,18 +56,18 @@ export default async function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
-        <section 
-          className="relative flex h-[60vh] flex-col items-center justify-end text-center overflow-hidden bg-cover bg-top"
+        <section
+          className="relative flex h-[60vh] flex-col items-center justify-end text-center overflow-hidden bg-cover bg-[center_30%]"
           style={{ backgroundImage: `url('/images/hero-background.png')` }}
         >
-            <div className="container relative z-10 flex flex-col items-center pb-20">
-                <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base px-8 py-6">
-                    <Link href="/login">
-                        <Users className="w-5 h-5 mr-2" />
-                        Admin Panel
-                    </Link>
-                </Button>
-            </div>
+          <div className="container relative z-10 flex flex-col items-center pb-20">
+            <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base px-8 py-6">
+              <Link href="/login">
+                <Users className="w-5 h-5 mr-2" />
+                Admin Panel
+              </Link>
+            </Button>
+          </div>
         </section>
 
         <section className="py-16 md:py-24 bg-secondary/20">
