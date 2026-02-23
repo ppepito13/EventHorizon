@@ -56,17 +56,16 @@ export default async function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
-        <section className="relative flex h-[60vh] flex-col items-center justify-center text-center overflow-hidden py-24 md:py-36 text-white">
+        <section className="relative flex h-[60vh] flex-col items-center justify-center text-center overflow-hidden py-24 md:py-36">
             <Image
                 src="https://storage.googleapis.com/studioprod/429B492E5B534940A39A20A3036B92C4/assets/e08b1a37-5d51-4f92-809e-7117565d7042"
                 alt="Golden ribbon flowing over a dark blue background"
-                layout="fill"
-                objectFit="cover"
-                className="-z-10"
+                fill
+                className="object-cover -z-10"
                 quality={100}
             />
             <div className="container relative z-10 flex flex-col items-center">
-                <h1 className="font-headline text-4xl sm:text-6xl md:text-7xl font-bold max-w-4xl mx-auto">
+                <h1 className="font-headline text-4xl sm:text-6xl md:text-7xl text-white drop-shadow-md">
                     Connect. <span className="text-primary">Code.</span> <span className="text-primary">Celebrate.</span>
                 </h1>
                 <p className="mt-4 text-lg md:text-xl text-white/80 max-w-2xl mx-auto">
