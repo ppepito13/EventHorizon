@@ -58,7 +58,7 @@ export default async function Home() {
       <main className="flex-1">
         <section className="relative flex h-[60vh] flex-col items-center justify-center text-center overflow-hidden py-24 md:py-36">
             <Image
-                src="https://storage.googleapis.com/studioprod/429B492E5B534940A39A20A3036B92C4/assets/e08b1a37-5d51-4f92-809e-7117565d7042"
+                src="/images/hero-background.png"
                 alt="Golden ribbon flowing over a dark blue background"
                 fill
                 className="object-cover -z-10"
