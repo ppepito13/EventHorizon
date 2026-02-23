@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useTransition } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useAuth } from '@/firebase';
@@ -10,18 +10,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TicketPercent, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { TicketPercent, Loader2, AlertCircle, Copy, Check, Server } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import type { User } from '@/lib/types';
-import { seedAuthUsersAction } from './actions';
+
+export interface SeedResult {
+  success: boolean;
+  message: string;
+}
 
 interface LoginFormProps {
     demoUsers: User[];
+    seedResult: SeedResult;
 }
 
-export function LoginForm({ demoUsers }: LoginFormProps) {
+export function LoginForm({ demoUsers, seedResult }: LoginFormProps) {
   const router = useRouter();
   const auth = useAuth();
   const { toast } = useToast();
@@ -31,7 +36,23 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [isSeeding, startSeedTransition] = useTransition();
+
+  useEffect(() => {
+    if (seedResult) {
+      if (seedResult.success) {
+        toast({
+          title: 'System Ready',
+          description: seedResult.message,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'System Initializaton Failed',
+          description: "Could not sync demo users. See status for details.",
+        });
+      }
+    }
+  }, [seedResult, toast]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -66,7 +87,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-          setError('Invalid credentials. Have you synced the demo users?');
+          setError('Invalid credentials. Please check the System Status below.');
       } else {
           setError(err.message || 'An unexpected error occurred.');
       }
@@ -81,24 +102,6 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
     setTimeout(() => setCopiedKey(null), 2000);
   };
   
-  const handleSeedUsers = () => {
-    startSeedTransition(async () => {
-      const result = await seedAuthUsersAction();
-      if (result.success) {
-        toast({
-          title: 'Success!',
-          description: result.message,
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Seeding Failed',
-          description: result.message,
-        });
-      }
-    });
-  };
-
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-secondary p-4">
        <Link href="/" className="flex items-center gap-2 absolute top-8 left-8">
@@ -159,22 +162,30 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
         </form>
       </Card>
 
-      <div className="w-full max-w-sm space-y-2">
-        <Card>
-            <CardHeader className='pb-4'>
-                <CardTitle className="text-lg font-headline">First time login?</CardTitle>
-                <CardDescription>
-                    If login fails, your demo users may not exist in the authentication system. Click the button below to create them.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-            <Button variant="outline" className="w-full" onClick={handleSeedUsers} disabled={isSeeding}>
-                {isSeeding && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSeeding ? 'Creating users...' : 'Sync & Create Demo Users'}
-            </Button>
-            </CardContent>
-        </Card>
-      </div>
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2 font-headline">
+            <Server className="w-5 h-5" />
+            System Status
+          </CardTitle>
+          <CardDescription>
+            This panel shows the result of the automatic demo user synchronization.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {seedResult.success ? (
+            <Alert variant="default" className="border-green-500 text-green-700">
+              <AlertTitle>Success</AlertTitle>
+              <AlertDescription>{seedResult.message}</AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant="destructive">
+              <AlertTitle>Seeding Failed</AlertTitle>
+              <AlertDescription className="break-words">{seedResult.message}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
       
       <Card className="w-full max-w-sm shadow-xl">
         <CardHeader>
@@ -182,7 +193,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
             Demo Login Credentials
           </CardTitle>
           <CardDescription>
-            Use the credentials below for demonstration purposes.
+            Use these credentials after the system status is successful.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">

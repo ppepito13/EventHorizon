@@ -1,8 +1,8 @@
 import { getSessionUser } from '@/lib/session';
 import { redirect } from 'next/navigation';
-import { LoginForm } from './login-form';
+import { LoginForm, type SeedResult } from './login-form';
 import users from '@/data/users.json';
-
+import { seedAuthUsersAction } from './actions';
 
 export default async function LoginPage() {
   const user = await getSessionUser();
@@ -10,5 +10,8 @@ export default async function LoginPage() {
     redirect('/admin');
   }
 
-  return <LoginForm demoUsers={users} />;
+  // Automatically run the seeding action on page load.
+  const seedResult: SeedResult = await seedAuthUsersAction();
+
+  return <LoginForm demoUsers={users} seedResult={seedResult} />;
 }
