@@ -70,12 +70,19 @@ export async function seedAuthUsersAction(): Promise<SeedResult> {
             authErrors.push(`Failed to create ${user.email}: ${createError.message}`);
           }
         } else {
-           // For any other auth error, re-throw to be caught by the main try/catch
-          throw error;
+          // This is a different kind of error, likely an initialization or network issue.
+          // Capture its details for the final error message.
+          authErrors.push(`Error checking ${user.email}: ${error.message}`);
         }
       }
     }
     
+    // If any auth checks failed with a non-'user-not-found' error, we should stop and report.
+    if (authErrors.length > 0) {
+      // Throw a single error that aggregates all the issues.
+      throw new Error(`Seeding complete. Created: ${createdAuthCount}, Already existed: ${existingAuthCount}. Errors: ${authErrors.join(', ')}`);
+    }
+
     // Part 2: Seed Firestore events
     const { seededCount, totalJsonEvents } = await seedEventsIntoFirestore();
 
@@ -83,16 +90,14 @@ export async function seedAuthUsersAction(): Promise<SeedResult> {
     const firestoreMessage = `Firestore events - Seeded: ${seededCount}/${totalJsonEvents}.`;
     const finalMessage = `${authMessage} ${firestoreMessage}`;
 
-    if (authErrors.length > 0) {
-      return { success: false, message: `${finalMessage} Errors: ${authErrors.join(', ')}` };
-    }
-
     return { success: true, message: finalMessage };
 
   } catch (error: any) {
-    // Instead of logging here and returning a simplified object,
-    // we throw the raw error. This allows the calling server component
-    // to catch it and get the full stack trace for better debugging.
-    throw error;
+    // This will catch errors from the initial setup (like `getUsers`) 
+    // or the aggregated error thrown from the user loop above.
+    console.error("Critical error in seedAuthUsersAction:", error);
+    // Re-throw a new, plain Error object to ensure it's serializable
+    // and can be caught properly by the Server Component.
+    throw new Error(error.message || 'An unknown server error occurred during seeding.');
   }
 }
