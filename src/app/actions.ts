@@ -114,6 +114,9 @@ export async function registerForEvent(
         // Add denormalized fields for security rules
         eventOwnerId: firestoreEvent.ownerId,
         eventMembers: firestoreEvent.members,
+        // Add check-in status
+        checkedIn: false,
+        checkInTime: null,
     };
     
     const registrationDocRef = adminDb.doc(`events/${jsonEvent.id}/registrations/${registrationId}`);

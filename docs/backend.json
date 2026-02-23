@@ -183,6 +183,15 @@
           "items": {
             "type": "string"
           }
+        },
+        "checkedIn": {
+          "type": "boolean",
+          "description": "Indicates if the attendee has checked in to the event."
+        },
+        "checkInTime": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the attendee checked in."
         }
       },
       "required": [

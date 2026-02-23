@@ -1,4 +1,4 @@
-import { CalendarDays, Users, UserCog, Settings, type LucideIcon } from 'lucide-react';
+import { CalendarDays, Users, UserCog, Settings, QrCode, type LucideIcon } from 'lucide-react';
 
 export type NavItem = {
   href: string;
@@ -11,6 +11,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: '/admin', icon: 'CalendarDays', label: 'Events' },
   { href: '/admin/registrations', icon: 'Users', label: 'Registrations' },
+  { href: '/admin/check-in', icon: 'QrCode', label: 'Check-In', organizerOnly: true },
   { href: '/admin/users', icon: 'UserCog', label: 'Users', adminOnly: true },
   { href: '/admin/account', icon: 'Settings', label: 'Account Settings', organizerOnly: true },
 ];
@@ -20,4 +21,5 @@ export const iconMap: { [key: string]: LucideIcon } = {
   Users,
   UserCog,
   Settings,
+  QrCode,
 };

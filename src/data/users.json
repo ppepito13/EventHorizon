@@ -32,12 +32,13 @@
   },
   {
     "name": "John Doe",
-    "email": "john.doe@example.com",
+    "email": "johndoe@a.com",
     "role": "Organizer",
     "assignedEvents": [
-      "Creative Design Workshop"
+      "Summer Music Fest 2026",
+      "Tech Summit 2026"
     ],
     "password": "qwe123",
-    "id": "usr_1edcd68b-ce5a-42b1-b337-4b9dc5802502"
+    "id": "usr_aaafbf27-2db4-4f93-9da4-2bb898e03336"
   }
 ]

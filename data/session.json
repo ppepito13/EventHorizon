@@ -1,11 +1,12 @@
 {
   "user": {
-    "id": "usr_admin",
-    "name": "Admin User",
-    "email": "admin@example.com",
-    "role": "Administrator",
+    "id": "usr_organizer1",
+    "name": "Anna Smith",
+    "email": "organizer1@example.com",
+    "role": "Organizer",
     "assignedEvents": [
-      "All"
+      "Tech Summit 2026",
+      "Creative Design Workshop"
     ]
   }
 }

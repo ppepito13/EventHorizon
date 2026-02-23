@@ -43,4 +43,6 @@ export type Registration = {
   eventName: string;
   registrationDate: string; // ISO string
   formData: { [key: string]: any };
+  checkedIn?: boolean;
+  checkInTime?: string | null;
 };

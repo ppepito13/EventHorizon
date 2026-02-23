@@ -10,7 +10,7 @@ import { randomUUID } from 'crypto';
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, collection, writeBatch, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, collection, writeBatch, getDoc, getDocs } from 'firebase/firestore';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
 const usersFilePath = path.join(dataDir, 'users.json');
@@ -227,6 +227,8 @@ export async function generateFakeRegistrationsAction(
             registrationDate: registrationTime.toISOString(),
             eventOwnerId: firestoreEvent.ownerId,
             eventMembers: firestoreEvent.members,
+            checkedIn: false,
+            checkInTime: null,
         };
         const registrationDocRef = doc(tempDb, `events/${eventId}/registrations/${registrationId}`);
         batch.set(registrationDocRef, newRegistrationData);
