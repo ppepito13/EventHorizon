@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useTransition } from 'react';
@@ -8,6 +9,7 @@ import jsQR from 'jsqr';
 
 import { useToast } from '@/hooks/use-toast';
 import { checkInUserByQrId, toggleCheckInStatus } from './actions';
+import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
