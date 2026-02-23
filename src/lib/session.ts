@@ -11,6 +11,8 @@ export const sessionOptions = {
   password: process.env.IRON_SESSION_PASSWORD as string,
   cookieName: 'event-platform-auth-session',
   cookieOptions: {
+    // This is the key fix: Ensure the cookie is available for all paths in the application.
+    path: '/',
     secure: process.env.NODE_ENV === 'production',
   },
 };
