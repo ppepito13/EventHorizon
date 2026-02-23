@@ -3,58 +3,27 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* New Commerzbank Theme */
-    --background: 210 70% 10%; /* Dark Blue */
-    --foreground: 210 20% 98%; /* White-ish */
-    
+  :root, .dark {
+    --background: 210 70% 10%;
+    --foreground: 210 20% 98%;
     --card: 210 50% 18%;
     --card-foreground: 210 20% 98%;
-
     --popover: 210 70% 8%;
     --popover-foreground: 210 20% 98%;
-
-    --primary: 48 96% 53%; /* Gold */
-    --primary-foreground: 210 70% 10%; /* Dark Blue on Gold buttons */
-
+    --primary: 48 96% 53%;
+    --primary-foreground: 210 70% 10%;
     --secondary: 210 50% 25%;
     --secondary-foreground: 210 20% 98%;
-
     --muted: 210 50% 25%;
     --muted-foreground: 210 20% 65%;
-
-    --accent: 45 80% 60%; /* Slightly different Gold for accents */
+    --accent: 45 80% 60%;
     --accent-foreground: 210 70% 10%;
-    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-
     --border: 210 50% 30%;
     --input: 210 50% 30%;
-    --ring: 48 96% 53%; /* Gold ring */
-    
+    --ring: 48 96% 53%;
     --radius: 0.8rem;
-  }
- 
-  .dark {
-    /* Keeping the old dark theme as a fallback, but the new root is dark already */
-    --background: 200 20% 8%;
-    --foreground: 210 20% 98%;
-    --card: 200 20% 12%;
-    --card-foreground: 210 20% 98%;
-    --primary: 195 90% 18%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 200 20% 15%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 200 20% 15%;
-    --muted-foreground: 210 20% 65%;
-    --accent: 48 96% 53%;
-    --accent-foreground: 200 20% 10%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 200 20% 15%;
-    --input: 200 20% 15%;
-    --ring: 195 90% 18%;
   }
 }
  

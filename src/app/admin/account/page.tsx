@@ -17,12 +17,12 @@ export default async function AccountPage() {
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Account Settings</CardTitle>
+          <CardTitle>Account Security</CardTitle>
           <CardDescription>
-            Manage your account settings.
+            Manage your account password.
           </CardDescription>
         </CardHeader>
         <CardContent>
