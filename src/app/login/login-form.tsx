@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useFormState, useFormStatus } from 'react-dom';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,58 +14,32 @@ import { TicketPercent, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import type { User } from '@/lib/types';
+import { login } from './actions';
 
 interface LoginFormProps {
     demoUsers: User[];
 }
 
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button className="w-full" type="submit" disabled={pending}>
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {pending ? 'Logging in...' : 'Log in'}
+    </Button>
+  );
+}
+
 export function LoginForm({ demoUsers }: LoginFormProps) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, formAction] = useFormState(login, undefined);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: 'Copied to clipboard!' });
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
-  };
-  
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    const formData = new FormData(event.currentTarget);
-    const email = formData.get('email');
-    const password = formData.get('password');
-
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Something went wrong');
-      }
-
-      // On success, redirect to the admin panel
-      router.push('/admin');
-      router.refresh(); // Ensure the layout is re-rendered with the new session
-
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
   };
   
   return (
@@ -74,7 +50,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
       </Link>
       
       <Card className="w-full max-w-sm shadow-xl">
-        <form onSubmit={handleSubmit}>
+        <form action={formAction}>
           <CardHeader>
             <CardTitle className="text-center text-2xl font-headline">
               Admin Panel
@@ -84,11 +60,11 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {error && (
+             {state?.error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {error}
+                  {state.error}
                 </AlertDescription>
               </Alert>
             )}
@@ -100,7 +76,6 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                 type="email"
                 placeholder="admin@example.com"
                 required
-                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -111,15 +86,11 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                 type="password"
                 placeholder="••••••••"
                 required
-                disabled={isLoading}
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-             <Button className="w-full" type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? 'Logging in...' : 'Log in'}
-            </Button>
+             <SubmitButton />
           </CardFooter>
         </form>
       </Card>
