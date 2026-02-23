@@ -2,6 +2,7 @@
 
 import { Menu, TicketPercent } from 'lucide-react';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +18,21 @@ interface MobileNavProps {
 }
 
 export function MobileNav({ navItems }: MobileNavProps) {
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    if (!isMounted) {
+        return (
+            <Button variant="outline" size="icon" className="shrink-0 md:hidden" disabled>
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle navigation menu</span>
+            </Button>
+        );
+    }
+    
     return (
         <Sheet>
             <SheetTrigger asChild>
