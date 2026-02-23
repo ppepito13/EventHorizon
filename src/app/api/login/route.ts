@@ -1,29 +1,26 @@
 'use server';
 
-import { z } from 'zod';
+import { NextRequest, NextResponse } from 'next/server';
 import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { getUserByEmail } from '@/lib/data';
 import { sessionOptions, type SessionData } from '@/lib/session';
+import { z } from 'zod';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address.'),
-  password: z.string().min(1, 'Password is required.'),
+  email: z.string().email(),
+  password: z.string().min(1),
 });
 
-export async function loginAction(
-  prevState: { error?: string } | undefined,
-  formData: FormData
-) {
-  const validatedFields = loginSchema.safeParse(
-    Object.fromEntries(formData.entries())
-  );
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  const validatedFields = loginSchema.safeParse(body);
 
   if (!validatedFields.success) {
-    return {
-      error: 'Invalid email or password.',
-    };
+    return NextResponse.json(
+      { error: 'Invalid email or password.' },
+      { status: 400 }
+    );
   }
 
   const { email, password } = validatedFields.data;
@@ -32,20 +29,23 @@ export async function loginAction(
     const user = await getUserByEmail(email);
 
     if (!user || user.password !== password) {
-      return { error: 'Invalid email or password.' };
+      return NextResponse.json(
+        { error: 'Invalid email or password.' },
+        { status: 401 }
+      );
     }
 
     const session = await getIronSession<SessionData>(cookies(), sessionOptions);
-    // Omit password before storing in session
     const { password: _, ...userToStore } = user;
     session.user = userToStore;
     await session.save();
-    
+
+    return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(error);
-    return { error: 'A server error occurred. Please try again.' };
+    return NextResponse.json(
+      { error: 'A server error occurred. Please try again.' },
+      { status: 500 }
+    );
   }
-  
-  // If we get here, login was successful.
-  redirect('/admin');
 }
