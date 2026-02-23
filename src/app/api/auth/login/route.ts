@@ -1,3 +1,5 @@
+'use server';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth } from '@/lib/firebase-admin';
 import { getSession } from '@/lib/session';
@@ -26,6 +28,7 @@ export async function POST(request: NextRequest) {
     
     const session = await getSession();
     
+    // IMPORTANT: Do not store the password in the session
     const { password, ...userToStore } = appUser;
     session.user = userToStore;
     await session.save();
