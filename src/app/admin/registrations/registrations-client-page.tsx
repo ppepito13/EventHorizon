@@ -3,8 +3,8 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, onSnapshot, FirestoreError } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { collection, query, onSnapshot, FirestoreError, doc, deleteDoc, getDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase/provider';
 
 import {
   Card,
