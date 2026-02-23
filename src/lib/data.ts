@@ -4,12 +4,11 @@ import path from 'path';
 import { unstable_noStore as noStore } from 'next/cache';
 import type { Event, User, Registration } from './types';
 import { randomUUID } from 'crypto';
-import { adminDb } from '@/lib/firebase-admin';
 
 // NEW: Import client SDK modules for public data fetching
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { initializeApp, getApps, getApp, deleteApp } from 'firebase/app';
+import { getFirestore, collection, query, where, getDocs, getDoc, doc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
 import { firebaseConfig } from '../firebase/config';
 
 
@@ -17,24 +16,6 @@ import { firebaseConfig } from '../firebase/config';
 const dataDir = path.join(process.cwd(), 'src', 'data');
 const usersFilePath = path.join(dataDir, 'users.json');
 const eventsFilePath = path.join(dataDir, 'events.json');
-
-
-// Helper for a one-time, server-side client app instance
-const getClientReaderApp = async () => {
-    const appName = 'server-side-client-reader';
-    const existingApp = getApps().find(app => app.name === appName);
-    if (existingApp) {
-        const auth = getAuth(existingApp);
-        // Ensure we have an authenticated user, even if it's anonymous
-        if (!auth.currentUser) await signInAnonymously(auth);
-        return existingApp;
-    }
-
-    const newApp = initializeApp(firebaseConfig, appName);
-    const auth = getAuth(newApp);
-    await signInAnonymously(auth);
-    return newApp;
-};
 
 
 // --- Helper Functions ---
@@ -230,21 +211,59 @@ export async function deactivateEvent(id: string): Promise<Event | null> {
 
 export async function getRegistrationsFromFirestore(eventId: string): Promise<Registration[]> {
   noStore();
-  const registrationsColRef = adminDb.collection(`events/${eventId}/registrations`);
-  const snapshot = await registrationsColRef.get();
-  if (snapshot.empty) {
-    return [];
+  const tempAppName = `temp-reader-regs-${randomUUID()}`;
+  const tempApp = initializeApp(firebaseConfig, tempAppName);
+  try {
+    const tempAuth = getAuth(tempApp);
+    const tempDb = getFirestore(tempApp);
+    const users = await readJsonFile<User[]>(usersFilePath);
+    const adminUser = users.find(u => u.role === 'Administrator');
+    if (!adminUser || !adminUser.password) {
+      throw new Error('Could not find admin user credentials to perform this action.');
+    }
+    await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
+
+    const registrationsColRef = collection(tempDb, `events/${eventId}/registrations`);
+    const snapshot = await getDocs(registrationsColRef);
+    if (snapshot.empty) {
+      return [];
+    }
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    console.error("getRegistrationsFromFirestore error:", error);
+    throw new Error(message);
+  } finally {
+    await deleteApp(tempApp);
   }
-  return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
 }
 
 
 export async function getRegistrationFromFirestore(eventId: string, registrationId: string): Promise<Registration | null> {
   noStore();
-  const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
-  const docSnap = await registrationDocRef.get();
-  if (!docSnap.exists) {
-    return null;
+  const tempAppName = `temp-reader-reg-${randomUUID()}`;
+  const tempApp = initializeApp(firebaseConfig, tempAppName);
+  try {
+    const tempAuth = getAuth(tempApp);
+    const tempDb = getFirestore(tempApp);
+    const users = await readJsonFile<User[]>(usersFilePath);
+    const adminUser = users.find(u => u.role === 'Administrator');
+    if (!adminUser || !adminUser.password) {
+      throw new Error('Could not find admin user credentials to perform this action.');
+    }
+    await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
+
+    const registrationDocRef = doc(tempDb, `events/${eventId}/registrations/${registrationId}`);
+    const docSnap = await getDoc(registrationDocRef);
+    if (!docSnap.exists()) {
+      return null;
+    }
+    return { id: docSnap.id, ...docSnap.data() } as Registration;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
+    console.error("getRegistrationFromFirestore error:", error);
+    throw new Error(message);
+  } finally {
+    await deleteApp(tempApp);
   }
-  return { id: docSnap.id, ...docSnap.data() } as Registration;
 }
