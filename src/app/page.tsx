@@ -57,18 +57,11 @@ export default async function Home() {
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
         <section 
-          className="relative flex h-[60vh] flex-col items-center justify-center text-center overflow-hidden py-24 md:py-36 bg-cover bg-center"
+          className="relative flex h-[60vh] flex-col items-center justify-end text-center overflow-hidden bg-cover bg-center"
           style={{ backgroundImage: `url('/images/hero-background.png')` }}
         >
-            <div className="absolute inset-0 bg-black/30 z-0" />
-            <div className="container relative z-10 flex flex-col items-center">
-                <h1 className="font-headline text-4xl sm:text-6xl md:text-7xl text-white drop-shadow-md">
-                    Connect. <span className="text-primary">Code.</span> <span className="text-primary">Celebrate.</span>
-                </h1>
-                <p className="mt-4 text-lg md:text-xl text-white/80 max-w-2xl mx-auto">
-                    Commerzbank Łódź Event Registration
-                </p>
-                <Button asChild size="lg" className="mt-8 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base px-8 py-6">
+            <div className="container relative z-10 flex flex-col items-center pb-20">
+                <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base px-8 py-6">
                     <Link href="/login">
                         <Users className="w-5 h-5 mr-2" />
                         Admin Panel
