@@ -6,23 +6,24 @@ import { sessionOptions, type SessionData } from './src/lib/session';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const session = await getIronSession<SessionData>(request.cookies, sessionOptions);
-  const isLoggedIn = !!session.user;
+  // This middleware now has a single, focused responsibility:
+  // Redirect users who are already logged in away from the login page.
+  // The protection for the /admin routes is now handled exclusively by the
+  // src/app/admin/layout.tsx file, which has proven to be more reliable.
+  if (pathname.startsWith('/login')) {
+    const session = await getIronSession<SessionData>(request.cookies, sessionOptions);
+    const isLoggedIn = !!session.user;
 
-  // If trying to access a protected route and not logged in, redirect to login
-  if (pathname.startsWith('/admin') && !isLoggedIn) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // If logged in and trying to access login page, redirect to admin dashboard
-  if (pathname.startsWith('/login') && isLoggedIn) {
-    return NextResponse.redirect(new URL('/admin', request.url));
+    if (isLoggedIn) {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
   }
 
   return NextResponse.next();
 }
 
-// Apply middleware to all admin routes and the login page.
+// Apply middleware ONLY to the login page. The /admin routes are protected
+// by the layout file.
 export const config = {
-  matcher: ['/admin/:path*', '/login'],
+  matcher: ['/login'],
 };
