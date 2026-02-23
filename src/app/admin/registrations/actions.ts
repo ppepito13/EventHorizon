@@ -6,7 +6,7 @@ import path from 'path';
 import { revalidatePath } from 'next/cache';
 import { getEventById } from '@/lib/data';
 import type { Registration, Event, User, FormField } from '@/lib/types';
-import { adminDb, adminAuth } from '@/lib/firebase-admin';
+import { adminDb } from '@/lib/firebase-admin';
 import { getSession } from '@/lib/session';
 import { randomUUID } from 'crypto';
 
