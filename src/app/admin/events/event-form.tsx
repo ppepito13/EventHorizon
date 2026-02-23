@@ -447,9 +447,18 @@ export function EventForm({ event }: EventFormProps) {
                 <FormControl>
                   <div className="flex items-center gap-2">
                     <Input placeholder="https://picsum.photos/seed/event/1200/800" {...field} />
-                    <Button type="button" variant="outline" disabled>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        toast({
+                          title: 'Upload Mockup',
+                          description: "Here, you'd select a file to upload.",
+                        });
+                      }}
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload
                     </Button>
                   </div>
                 </FormControl>
