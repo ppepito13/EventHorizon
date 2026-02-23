@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     const decodedToken = await adminAuth.verifyIdToken(token);
-    const { email } = decodedToken;
+    const { email, uid } = decodedToken;
     
     if (!email) {
         return NextResponse.json({ error: 'No email found in token.' }, { status: 400 });
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     
     // IMPORTANT: Do not store the password in the session
     const { password, ...userToStore } = appUser;
-    session.user = userToStore;
+    session.user = { ...userToStore, uid };
     await session.save();
 
     return NextResponse.json({ ok: true });

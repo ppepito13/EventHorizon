@@ -16,7 +16,6 @@ import { firebaseConfig } from '../firebase/config';
 // Use a directory not watched by the dev server for the session file.
 const dataDir = path.join(process.cwd(), 'src', 'data');
 const usersFilePath = path.join(dataDir, 'users.json');
-const eventsFilePath = path.join(dataDir, 'events.json');
 
 
 // Helper for a one-time, server-side client app instance
@@ -115,16 +114,17 @@ export async function deleteUser(id: string): Promise<boolean> {
 export async function getEvents(user?: User | null): Promise<Event[]> {
     noStore();
     try {
-        const events = await readJsonFile<Event[]>(eventsFilePath);
+        const eventsSnapshot = await adminDb.collection('events').get();
+        const events = eventsSnapshot.docs.map(doc => doc.data() as Event);
 
         if (user?.role === 'Organizer' && !user.assignedEvents.includes('All')) {
             return events.filter(event => user.assignedEvents.includes(event.name));
         }
         
-        // Admins see all events
+        // Admins see all events, or if no user is provided
         return events;
     } catch (error) {
-        console.error("Error fetching events from JSON:", error);
+        console.error("Error fetching events from Firestore:", error);
         return []; // Return empty array to prevent page crash
     }
 }
@@ -183,13 +183,15 @@ export async function getEventBySlug(slug: string): Promise<Event | null> {
   }
 }
 
-export async function createEvent(eventData: Omit<Event, 'id' | 'slug'>): Promise<Event> {
+export async function createEvent(eventData: Omit<Event, 'id' | 'slug' | 'ownerId' | 'members'>, ownerId: string): Promise<Event> {
     const id = `evt_${randomUUID()}`;
     const slug = eventData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
     const newEvent: Event = {
         ...eventData,
         id,
         slug,
+        ownerId: ownerId,
+        members: {},
     };
 
     const eventDocRef = adminDb.doc(`events/${id}`);

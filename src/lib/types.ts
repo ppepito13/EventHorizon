@@ -25,6 +25,8 @@ export type Event = {
   rodo: string;
   isActive: boolean;
   themeColor: string;
+  ownerId?: string;
+  members?: { [key: string]: string };
 };
 
 export type User = {
@@ -34,6 +36,7 @@ export type User = {
   role: 'Administrator' | 'Organizer';
   assignedEvents: string[];
   password?: string;
+  uid?: string;
 };
 
 export type Registration = {
