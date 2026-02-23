@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { createEventAction, updateEventAction } from '../actions';
-import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Upload } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -445,7 +445,13 @@ export function EventForm({ event }: EventFormProps) {
                 <FormItem>
                 <FormLabel>Hero Image URL *</FormLabel>
                 <FormControl>
+                  <div className="flex items-center gap-2">
                     <Input placeholder="https://picsum.photos/seed/event/1200/800" {...field} />
+                    <Button type="button" variant="outline" disabled>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload
+                    </Button>
+                  </div>
                 </FormControl>
                 <FormMessage />
                 </FormItem>
