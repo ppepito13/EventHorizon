@@ -6,6 +6,8 @@ import { getEventById } from '@/lib/data';
 import type { Registration } from '@/lib/types';
 import { adminDb } from '@/lib/firebase-admin';
 import { randomUUID } from 'crypto';
+import { sendConfirmationEmail } from '@/lib/email';
+import QRCode from 'qrcode';
 
 export async function registerForEvent(
   eventId: string,
@@ -93,6 +95,7 @@ export async function registerForEvent(
     }
     
     const registrationTime = new Date();
+    const qrId = `qr_${randomUUID()}`;
 
     // 1. Create QR code document
     const qrCodeData = {
@@ -101,7 +104,9 @@ export async function registerForEvent(
         formData: validated.data,
         registrationDate: registrationTime.toISOString(),
     };
-    const qrDocRef = await adminDb.collection("qrcodes").add(qrCodeData);
+    const qrDocRef = adminDb.collection("qrcodes").doc(qrId);
+    await qrDocRef.set(qrCodeData);
+
 
     // 2. Create the main registration document, now with denormalized owner fields
     const registrationId = `reg_${randomUUID()}`;
@@ -109,7 +114,7 @@ export async function registerForEvent(
         eventId: jsonEvent.id,
         eventName: jsonEvent.name,
         formData: validated.data,
-        qrId: qrDocRef.id,
+        qrId: qrId,
         registrationDate: registrationTime.toISOString(),
         // Add denormalized fields for security rules
         eventOwnerId: firestoreEvent.ownerId,
@@ -121,6 +126,33 @@ export async function registerForEvent(
     
     const registrationDocRef = adminDb.doc(`events/${jsonEvent.id}/registrations/${registrationId}`);
     await registrationDocRef.set(newRegistrationData);
+    
+    // 3. Send confirmation email
+    try {
+        const qrCodeDataUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
+        
+        // Extract recipient name and email safely
+        const recipientName = (validated.data as any).full_name || 'Uczestniku';
+        const recipientEmail = (validated.data as any).email;
+        
+        if (recipientEmail) {
+            await sendConfirmationEmail({
+                to: recipientEmail,
+                name: recipientName,
+                eventName: jsonEvent.name,
+                eventDate: jsonEvent.date,
+                qrCodeDataUrl: qrCodeDataUrl,
+            });
+        } else {
+             console.warn("No email address found in registration data, skipping email confirmation.");
+        }
+
+    } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+        // We don't fail the whole registration if the email fails,
+        // but we should log it for monitoring.
+    }
+
 
     // Reconstruct the final object without the security fields for the client response
     const { eventOwnerId, eventMembers, ...clientSafeRegistration } = newRegistrationData;
