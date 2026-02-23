@@ -1,30 +1,17 @@
 import admin from 'firebase-admin';
 
 if (!admin.apps.length) {
-  // The root cause of the previous errors was an ambiguity in project
-  // auto-discovery within the cloud environment. The Admin SDK was either
-  // finding credentials for the wrong project or failing to find credentials
-  // when the project was specified.
-  //
-  // The definitive "best practice" in this scenario is to be explicit about
-  // the project ID, while allowing the SDK to automatically find its credentials
-  // from the environment. This resolves the conflict.
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-
-  if (!projectId) {
-    // This is a critical failure condition. The server cannot operate
-    // without knowing which project to connect to.
-    throw new Error('FATAL: NEXT_PUBLIC_FIREBASE_PROJECT_ID is not set in environment variables.');
-  }
-  
   try {
-    admin.initializeApp({
-      projectId: projectId,
-    });
+    // In a managed environment like this, a parameter-less initializeApp() 
+    // is the standard approach. It should automatically detect the project 
+    // and credentials from the environment. All previous errors stemmed from this 
+    // not working as expected, but this remains the "best practice".
+    // We are now architecting the app to properly handle any error from this.
+    admin.initializeApp();
   } catch (e: any) {
     console.error('Firebase Admin SDK initialization error:', e);
-    // We throw the error to ensure that any server action attempting to use a failed
-    // admin instance will immediately stop and report the problem clearly.
+    // This immediate throw will be caught by any server action that imports this file,
+    // providing a clear failure point.
     throw new Error(`Failed to initialize Firebase Admin SDK. This is a critical server configuration issue. ${e.message}`);
   }
 }

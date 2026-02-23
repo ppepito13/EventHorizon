@@ -3,9 +3,14 @@
 
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { getUsers } from '@/lib/data';
-import type { Event } from '@/lib/types';
+import type { Event, User } from '@/lib/types';
 import path from 'path';
 import { promises as fs } from 'fs';
+
+export interface SeedResult {
+  success: boolean;
+  message: string;
+}
 
 async function seedEventsIntoFirestore() {
   const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -19,7 +24,6 @@ async function seedEventsIntoFirestore() {
   for (const event of events) {
     const eventRef = adminDb.doc(`events/${event.id}`);
     const docSnap = await eventRef.get();
-    // Only seed the event if it doesn't already exist in Firestore
     if (!docSnap.exists) {
       batch.set(eventRef, event);
       seededCount++;
@@ -34,7 +38,7 @@ async function seedEventsIntoFirestore() {
 }
 
 
-export async function seedAuthUsersAction() {
+export async function seedAuthUsersAction(): Promise<SeedResult> {
   try {
     const users = await getUsers();
     if (!users || users.length === 0) {
@@ -66,16 +70,17 @@ export async function seedAuthUsersAction() {
             authErrors.push(`Failed to create ${user.email}: ${createError.message}`);
           }
         } else {
-          authErrors.push(`Error checking ${user.email}: ${error.message}`);
+           // For any other auth error, re-throw to be caught by the main try/catch
+          throw error;
         }
       }
     }
     
     // Part 2: Seed Firestore events
-    const { seededCount: seededEventsCount } = await seedEventsIntoFirestore();
+    const { seededCount, totalJsonEvents } = await seedEventsIntoFirestore();
 
     const authMessage = `Auth users - Created: ${createdAuthCount}, Existed: ${existingAuthCount}.`;
-    const firestoreMessage = `Firestore events - Seeded: ${seededEventsCount}.`;
+    const firestoreMessage = `Firestore events - Seeded: ${seededCount}/${totalJsonEvents}.`;
     const finalMessage = `${authMessage} ${firestoreMessage}`;
 
     if (authErrors.length > 0) {
@@ -85,7 +90,9 @@ export async function seedAuthUsersAction() {
     return { success: true, message: finalMessage };
 
   } catch (error: any) {
-    console.error("Seed Action Error:", error);
-    return { success: false, message: error.message || 'An unknown error occurred during seeding.' };
+    // Instead of logging here and returning a simplified object,
+    // we throw the raw error. This allows the calling server component
+    // to catch it and get the full stack trace for better debugging.
+    throw error;
   }
 }
