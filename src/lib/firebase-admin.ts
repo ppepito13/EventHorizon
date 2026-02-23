@@ -3,10 +3,12 @@ import admin from 'firebase-admin';
 // This ensures that we are not trying to initialize the app more than once.
 if (!admin.apps.length) {
   try {
-    // When running in a Google Cloud environment (like Firebase App Hosting or Cloud Run),
-    // calling initializeApp() with no arguments allows the Admin SDK to automatically
-    // discover credentials and other configuration. This is the recommended, secure approach.
-    admin.initializeApp();
+    // When running in a Google Cloud environment, we can pass the projectId
+    // to ensure the Admin SDK connects to the correct Firebase project.
+    // The credentials will still be discovered automatically from the environment.
+    admin.initializeApp({
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    });
   } catch (e: any) {
     console.error('Firebase Admin SDK initialization error', e.stack);
   }
