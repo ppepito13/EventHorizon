@@ -8,7 +8,7 @@ import { collection, query, onSnapshot, FirestoreError, orderBy } from 'firebase
 import jsQR from 'jsqr';
 
 import { useToast } from '@/hooks/use-toast';
-import { checkInUserByQrId, toggleCheckInStatus } from './actions';
+import { checkInUserByQrId, toggleCheckInStatus, exportCheckedInAttendeesAction } from './actions';
 import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,13 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, CameraOff } from 'lucide-react';
+import { Loader2, AlertCircle, CameraOff, Download, ChevronDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 
 export function CheckInClientPage({ events }: { events: Event[] }) {
@@ -42,6 +48,8 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   // Manual Check-in State
   const [searchTerm, setSearchTerm] = useState('');
   const [isToggling, startToggleTransition] = useTransition();
+  const [isExporting, startExportTransition] = useTransition();
+
 
   useEffect(() => {
     if (!firestore || !selectedEventId) {
@@ -180,6 +188,30 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
           }
       });
   };
+  
+  const handleExport = (format: 'excel' | 'plain') => {
+    if (!selectedEventId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Please select an event to export.' });
+        return;
+    }
+    startExportTransition(async () => {
+        const result = await exportCheckedInAttendeesAction(selectedEventId, format);
+        if (result.success && result.csvData) {
+            const blob = new Blob([result.csvData], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            const safeEventName = result.eventName?.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            link.setAttribute('download', `checkin-status_${safeEventName}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast({ title: 'Success', description: 'Attendee check-in status exported successfully.' });
+        } else {
+            toast({ variant: 'destructive', title: 'Export Failed', description: result.error || 'No registrations to export.' });
+        }
+    });
+  };
 
   const selectedEvent = events.find(e => e.id === selectedEventId);
 
@@ -188,7 +220,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
       <CardHeader>
         <CardTitle>Event Check-In</CardTitle>
         <CardDescription>Scan QR codes or manually check in attendees for an event.</CardDescription>
-        <div className="pt-4">
+        <div className="pt-4 flex flex-col sm:flex-row gap-4">
           <Select onValueChange={setSelectedEventId} defaultValue={selectedEventId}>
             <SelectTrigger className="w-full sm:w-[320px]">
               <SelectValue placeholder="Select an event" />
@@ -199,6 +231,23 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
               ))}
             </SelectContent>
           </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
+                    {isExporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Export
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => handleExport('excel')}>For Excel</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent>
