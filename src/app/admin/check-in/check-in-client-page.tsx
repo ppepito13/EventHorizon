@@ -50,7 +50,6 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   const [isToggling, startToggleTransition] = useTransition();
   const [isExporting, startExportTransition] = useTransition();
 
-
   useEffect(() => {
     if (!firestore || !selectedEventId) {
       setRegistrations([]);
@@ -80,73 +79,90 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
 
   // QR Scanner Logic
   useEffect(() => {
-    // Clean up streams when component unmounts or tab changes
-    return () => {
-      if (videoRef.current?.srcObject) {
-        (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
+    let stream: MediaStream | null = null;
+    let animationFrameId: number;
+
+    const tick = () => {
+      if (videoRef.current?.readyState === videoRef.current?.HAVE_ENOUGH_DATA && canvasRef.current) {
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        if (ctx) {
+          canvas.height = video.videoHeight;
+          canvas.width = video.videoWidth;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          try {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: 'dontInvert',
+            });
+            if (code && !isProcessingScan) {
+              handleQrCode(code.data);
+              return; // Stop scanning after finding a code
+            }
+          } catch (e) {
+            // getImageData can throw a security error in some cases, e.g., with a tainted canvas
+            console.error('Error getting image data from canvas:', e);
+          }
+        }
+      }
+      if (isScanning) {
+        animationFrameId = requestAnimationFrame(tick);
       }
     };
-  }, []);
 
-  const startCamera = async () => {
-    setIsScanning(true);
-    setScanResult(null);
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        setHasCameraPermission(true);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+    const startCamera = async () => {
+      setScanResult(null);
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          setHasCameraPermission(true);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.play(); // Explicitly play the video
+            // Start scanning loop only when video is playing
+            videoRef.current.oncanplay = () => {
+              animationFrameId = requestAnimationFrame(tick);
+            };
+          }
+        } catch (err) {
+          console.error("Camera access denied:", err);
+          setHasCameraPermission(false);
+          setIsScanning(false);
         }
-        requestAnimationFrame(tick);
-      } catch (err) {
-        console.error("Camera access denied:", err);
+      } else {
         setHasCameraPermission(false);
         setIsScanning(false);
       }
-    } else {
-      setHasCameraPermission(false);
-      setIsScanning(false);
-    }
-  };
+    };
 
-  const stopCamera = () => {
-    setIsScanning(false);
-    if (videoRef.current?.srcObject) {
-      (videoRef.current.srcObject as MediaStream).getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-  };
-  
-  const tick = () => {
-    if (videoRef.current?.readyState === videoRef.current?.HAVE_ENOUGH_DATA && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      if(ctx) {
-        canvas.height = video.videoHeight;
-        canvas.width = video.videoWidth;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: 'dontInvert',
-        });
-
-        if (code && !isProcessingScan) {
-           handleQrCode(code.data);
-           return; // Stop scanning after finding a code
-        }
+    const stopCamera = () => {
+      cancelAnimationFrame(animationFrameId);
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
       }
-    }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+        videoRef.current.oncanplay = null; // Clean up event listener
+      }
+    };
+
     if (isScanning) {
-      requestAnimationFrame(tick);
+      startCamera();
+    } else {
+      stopCamera();
     }
-  };
-  
+    
+    // Cleanup on unmount or when isScanning changes to false
+    return () => {
+      stopCamera();
+    };
+  }, [isScanning]); // Effect depends only on the scanning state
+
   const handleQrCode = (qrId: string) => {
     if (!selectedEventId) return;
-    stopCamera();
+    setIsScanning(false); // Stop scanning process
     startScanTransition(async () => {
         const result = await checkInUserByQrId(selectedEventId, qrId);
         setScanResult(result);
@@ -162,8 +178,8 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   // Manual check-in logic
   const filteredRegistrations = useMemo(() => {
     return registrations.filter(reg => {
-      const name = reg.formData.full_name || '';
-      const email = reg.formData.email || '';
+      const name = (reg.formData as any).full_name || '';
+      const email = (reg.formData as any).email || '';
       return name.toLowerCase().includes(searchTerm.toLowerCase()) || 
              email.toLowerCase().includes(searchTerm.toLowerCase());
     });
@@ -177,7 +193,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
           if (result.success) {
               toast({
                   title: 'Success',
-                  description: `${registration.formData.full_name} status updated.`,
+                  description: `${(registration.formData as any).full_name} status updated.`,
               });
           } else {
               toast({
@@ -254,8 +270,8 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
         {selectedEventId ? (
           <Tabs defaultValue="scanner" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="scanner" onClick={stopCamera}>QR Scanner</TabsTrigger>
-              <TabsTrigger value="manual" onClick={stopCamera}>Manual Check-in</TabsTrigger>
+              <TabsTrigger value="scanner" onClick={() => setIsScanning(false)}>QR Scanner</TabsTrigger>
+              <TabsTrigger value="manual" onClick={() => setIsScanning(false)}>Manual Check-in</TabsTrigger>
             </TabsList>
 
             <TabsContent value="scanner" className="mt-4">
@@ -266,9 +282,9 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
                 </CardHeader>
                 <CardContent className="flex flex-col items-center gap-4">
                     {!isScanning ? (
-                        <Button onClick={startCamera}>Start Scanner</Button>
+                        <Button onClick={() => setIsScanning(true)}>Start Scanner</Button>
                     ) : (
-                        <Button onClick={stopCamera} variant="destructive">Stop Scanner</Button>
+                        <Button onClick={() => setIsScanning(false)} variant="destructive">Stop Scanner</Button>
                     )}
                     
                     {isScanning && hasCameraPermission === null && (
@@ -335,8 +351,8 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
                                     {filteredRegistrations.length > 0 ? filteredRegistrations.map(reg => (
                                         <TableRow key={reg.id}>
                                             <TableCell>
-                                                <div className="font-medium">{reg.formData.full_name || 'N/A'}</div>
-                                                <div className="text-sm text-muted-foreground">{reg.formData.email || 'N/A'}</div>
+                                                <div className="font-medium">{(reg.formData as any).full_name || 'N/A'}</div>
+                                                <div className="text-sm text-muted-foreground">{(reg.formData as any).email || 'N/A'}</div>
                                             </TableCell>
                                             <TableCell>
                                                 {reg.checkedIn ? (
