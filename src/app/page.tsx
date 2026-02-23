@@ -57,7 +57,7 @@ export default async function Home() {
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
         <section 
-          className="relative flex h-[60vh] flex-col items-center justify-end text-center overflow-hidden bg-cover bg-center"
+          className="relative flex h-[60vh] flex-col items-center justify-end text-center overflow-hidden bg-cover bg-top"
           style={{ backgroundImage: `url('/images/hero-background.png')` }}
         >
             <div className="container relative z-10 flex flex-col items-center pb-20">
