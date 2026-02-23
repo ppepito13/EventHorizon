@@ -1,99 +1,40 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { useAuth } from '@/firebase/provider';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
+import { loginAction } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TicketPercent, Loader2, AlertCircle, Copy, Check, Server } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
+import { TicketPercent, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import type { User } from '@/lib/types';
 
-export interface SeedResult {
-  success: boolean;
-  message: string;
-}
 
 interface LoginFormProps {
     demoUsers: User[];
-    seedResult: SeedResult;
 }
 
-export function LoginForm({ demoUsers, seedResult }: LoginFormProps) {
-  const router = useRouter();
-  const auth = useAuth();
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button className="w-full" type="submit" disabled={pending}>
+        {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {pending ? 'Logging in...' : 'Log in'}
+    </Button>
+  );
+}
+
+export function LoginForm({ demoUsers }: LoginFormProps) {
   const { toast } = useToast();
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [state, formAction] = useActionState(loginAction, undefined);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (seedResult) {
-      if (seedResult.success) {
-        toast({
-          title: 'System Ready',
-          description: seedResult.message,
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'System Initializaton Failed',
-          description: "Could not sync demo users. See status for details.",
-        });
-      }
-    }
-  }, [seedResult, toast]);
-
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    if (!auth) {
-        setError("Firebase Auth is not available. Please try again later.");
-        setIsLoading(false);
-        return;
-    }
-
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      const token = await user.getIdToken();
-
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Session creation failed.');
-      }
-
-      router.push('/admin');
-      router.refresh();
-
-    } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-          setError('Invalid credentials. Please check the System Status below.');
-      } else {
-          setError(err.message || 'An unexpected error occurred.');
-      }
-      setIsLoading(false);
-    }
-  };
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -110,7 +51,7 @@ export function LoginForm({ demoUsers, seedResult }: LoginFormProps) {
       </Link>
       
       <Card className="w-full max-w-sm shadow-xl">
-        <form onSubmit={handleLogin}>
+        <form action={formAction}>
           <CardHeader>
             <CardTitle className="text-center text-2xl font-headline">
               Admin Panel
@@ -120,11 +61,11 @@ export function LoginForm({ demoUsers, seedResult }: LoginFormProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {error && (
+             {state?.error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {error}
+                  {state.error}
                 </AlertDescription>
               </Alert>
             )}
@@ -136,8 +77,6 @@ export function LoginForm({ demoUsers, seedResult }: LoginFormProps) {
                 type="email"
                 placeholder="admin@example.com"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -148,43 +87,13 @@ export function LoginForm({ demoUsers, seedResult }: LoginFormProps) {
                 type="password"
                 placeholder="••••••••"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button className="w-full" type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? 'Logging in...' : 'Log in'}
-            </Button>
+            <SubmitButton />
           </CardFooter>
         </form>
-      </Card>
-
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2 font-headline">
-            <Server className="w-5 h-5" />
-            System Status
-          </CardTitle>
-          <CardDescription>
-            This panel shows the result of the automatic demo user synchronization.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {seedResult.success ? (
-            <Alert variant="default" className="border-green-500 text-green-700">
-              <AlertTitle>Success</AlertTitle>
-              <AlertDescription>{seedResult.message}</AlertDescription>
-            </Alert>
-          ) : (
-            <Alert variant="destructive">
-              <AlertTitle>Seeding Failed</AlertTitle>
-              <AlertDescription className="break-words">{seedResult.message}</AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
       </Card>
       
       <Card className="w-full max-w-sm shadow-xl">
@@ -193,7 +102,7 @@ export function LoginForm({ demoUsers, seedResult }: LoginFormProps) {
             Demo Login Credentials
           </CardTitle>
           <CardDescription>
-            Use these credentials after the system status is successful.
+            Use these credentials to log in.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
