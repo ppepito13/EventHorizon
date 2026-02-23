@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Calendar, MonitorSmartphone, Users } from 'lucide-react';
+import { Calendar, Users } from 'lucide-react';
 import type { Event } from '@/lib/types';
 import { SiteFooter } from '@/components/site-footer';
 
@@ -56,23 +56,21 @@ export default async function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
-        <section className="relative flex items-center justify-center text-center overflow-hidden py-24 md:py-36">
-            <div
-                className="absolute inset-0"
-                style={{
-                    background: `linear-gradient(135deg, hsl(var(--background)) 42%, hsl(var(--accent)) 49%, hsl(var(--primary)) 51%, hsl(var(--background)) 58%)`
-                }}
+        <section className="relative flex h-[60vh] flex-col items-center justify-center text-center overflow-hidden py-24 md:py-36 text-white">
+            <Image
+                src="https://storage.googleapis.com/studioprod/429B492E5B534940A39A20A3036B92C4/assets/e08b1a37-5d51-4f92-809e-7117565d7042"
+                alt="Golden ribbon flowing over a dark blue background"
+                layout="fill"
+                objectFit="cover"
+                className="-z-10"
+                quality={100}
             />
-            <div className="container relative z-10">
-                 <div className="inline-block bg-black/20 text-xs font-semibold px-4 py-1 rounded-full mb-4 text-foreground/80 backdrop-blur-sm">
-                    <MonitorSmartphone className="w-3 h-3 inline-block mr-2" />
-                    Event Registration Platform
-                </div>
-                <h1 className="font-headline text-4xl sm:text-5xl md:text-6xl font-bold max-w-4xl mx-auto text-foreground">
-                    Event Registration System
+            <div className="container relative z-10 flex flex-col items-center">
+                <h1 className="font-headline text-4xl sm:text-6xl md:text-7xl font-bold max-w-4xl mx-auto">
+                    Connect. <span className="text-primary">Code.</span> <span className="text-primary">Celebrate.</span>
                 </h1>
-                <p className="mt-4 text-lg text-foreground/80 max-w-2xl mx-auto">
-                    Dedicated pages for each event with full management capabilities
+                <p className="mt-4 text-lg md:text-xl text-white/80 max-w-2xl mx-auto">
+                    Commerzbank Łódź Event Registration
                 </p>
                 <Button asChild size="lg" className="mt-8 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base px-8 py-6">
                     <Link href="/login">
