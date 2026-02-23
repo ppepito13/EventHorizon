@@ -56,6 +56,7 @@ export default async function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <main className="flex-1">
+        {/* BACKUP OF OLD HERO SECTION (2024-07-26) - DO NOT DELETE UNLESS INSTRUCTED
         <section className="relative py-20 md:py-32">
           <div
             className="absolute inset-0"
@@ -82,20 +83,27 @@ export default async function Home() {
             </Button>
           </div>
         </section>
+        */}
 
-        <div className="relative">
-          <svg
-              className="absolute -top-px left-0 w-full h-[50px] sm:h-[80px] md:h-[120px] text-background"
-              viewBox="0 0 1440 120"
-              preserveAspectRatio="none"
-          >
-              <path
-                  className="fill-current"
-                  d="M0,120 C480,30, 960,30, 1440,120 L1440,0 L0,0 Z"
-              ></path>
-          </svg>
-        </div>
-
+        <section className="relative h-[60vh] min-h-[500px] md:h-[70vh] flex items-center justify-center text-white">
+          <Image
+            src="https://images.unsplash.com/photo-1620121692029-d088224ddc74?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1920"
+            alt="Abstract golden wave on a dark blue background"
+            fill
+            className="object-cover"
+            data-ai-hint="gold wave abstract"
+            priority
+          />
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative z-10 text-center px-4">
+            <h1 className="font-headline text-5xl sm:text-6xl md:text-7xl font-bold">
+              Connect. Code. Celebrate.
+            </h1>
+            <p className="mt-4 text-xl text-white/80">
+              Commerzbank Łódź Event Registration
+            </p>
+          </div>
+        </section>
 
         <section className="py-16 md:py-24 bg-background">
           <div className="container">

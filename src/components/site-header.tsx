@@ -19,7 +19,7 @@ export function SiteHeader({ user }: SiteHeaderProps) {
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <Icons.Logo className="h-6 w-6 text-accent" />
             <span className="font-bold font-headline sm:inline-block">
-              EventHorizon
+              Commerzbank Łódź Events
             </span>
           </Link>
         </div>

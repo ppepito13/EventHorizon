@@ -4,29 +4,40 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 210 10% 23%;
-    --card: 0 0% 100%;
-    --card-foreground: 210 10% 23%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 10% 23%;
-    --primary: 195 100% 13%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 210 7% 40%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 210 8% 45%;
-    --accent: 48 96% 53%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* New Commerzbank Theme */
+    --background: 210 70% 10%; /* Dark Blue */
+    --foreground: 210 20% 98%; /* White-ish */
+    
+    --card: 210 50% 18%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 210 70% 8%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 48 96% 53%; /* Gold */
+    --primary-foreground: 210 70% 10%; /* Dark Blue on Gold buttons */
+
+    --secondary: 210 50% 25%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 210 50% 25%;
+    --muted-foreground: 210 20% 65%;
+
+    --accent: 45 80% 60%; /* Slightly different Gold for accents */
+    --accent-foreground: 210 70% 10%;
+    
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 210 20% 88%;
-    --input: 210 20% 94%;
-    --ring: 195 100% 13%;
+
+    --border: 210 50% 30%;
+    --input: 210 50% 30%;
+    --ring: 48 96% 53%; /* Gold ring */
+    
     --radius: 0.8rem;
   }
  
   .dark {
+    /* Keeping the old dark theme as a fallback, but the new root is dark already */
     --background: 200 20% 8%;
     --foreground: 210 20% 98%;
     --card: 200 20% 12%;

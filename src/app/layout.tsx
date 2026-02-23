@@ -16,8 +16,8 @@ const fontHeadline = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'EventHorizon',
-  description: 'Your gateway to exclusive events. Register now!',
+  title: 'Commerzbank Łódź Events',
+  description: 'Connect. Code. Celebrate. Event Registration for Commerzbank Łódź.',
 };
 
 export default function RootLayout({

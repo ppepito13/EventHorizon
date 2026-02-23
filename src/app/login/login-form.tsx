@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useFormStatus } from 'react-dom';
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useToast } from '@/hooks/use-toast';
@@ -46,7 +46,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-secondary p-4">
        <Link href="/" className="flex items-center gap-2 absolute top-8 left-8">
         <TicketPercent className="h-6 w-6 text-primary" />
-        <span className="text-lg font-semibold">Event Registration Platform</span>
+        <span className="text-lg font-semibold">Commerzbank Łódź Events</span>
       </Link>
       
       <Card className="w-full max-w-sm shadow-xl">
