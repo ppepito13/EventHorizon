@@ -1,11 +1,10 @@
 'use client';
 
-import { getEvents } from '@/lib/data';
 import { useUser } from '@/firebase/provider';
 import { redirect } from 'next/navigation';
 import { CheckInClientPage } from './check-in-client-page';
 import { useEffect, useState } from 'react';
-import type { Event } from '@/lib/types';
+import type { Event, User } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 
 export default function CheckInPage() {
@@ -14,27 +13,25 @@ export default function CheckInPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-      // The user object from useUser might not have the correct `role` and `assignedEvents` from our app's DB.
-      // We need a way to get the full user profile. For now, we assume the user object is sufficient
-      // or that getEvents can handle a Firebase user.
-      // Let's assume a full profile is needed. For this prototype, we will just fetch all events for admins/organizers
-      // as the logic in getEvents is based on the user type from our JSON file, not Firebase directly.
-      // This is a simplification for now.
-      const simplifiedUserForGetEvents = {
-        id: user.uid,
-        email: user.email || '',
-        name: user.displayName || 'User',
-        role: 'Administrator' as const, // Simplification: assume admin/organizer to fetch events.
-        assignedEvents: ['All']
-      };
-      getEvents(simplifiedUserForGetEvents).then(userEvents => {
-        setEvents(userEvents);
+    const loadData = async () => {
+      if (!isUserLoading && user) {
+        const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
+        const currentAppUser = allUsers.find(u => u.email === user.email);
+
+        if (currentAppUser) {
+            let eventsData = await import('@/data/events.json').then(m => m.default) as Event[];
+            if (currentAppUser.role === 'Organizer' && !currentAppUser.assignedEvents.includes('All')) {
+                eventsData = eventsData.filter(event => currentAppUser.assignedEvents.includes(event.name));
+            }
+            setEvents(eventsData);
+        }
+        
         setIsLoading(false);
-      });
-    } else if (!isUserLoading && !user) {
-      redirect('/login');
-    }
+      } else if (!isUserLoading && !user) {
+        redirect('/login');
+      }
+    };
+    loadData();
   }, [user, isUserLoading]);
 
   if (isUserLoading || isLoading) {

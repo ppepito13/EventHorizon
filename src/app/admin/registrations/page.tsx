@@ -1,6 +1,5 @@
 'use client';
 
-import { getEvents, getUsers } from '@/lib/data';
 import { useUser } from '@/firebase/provider';
 import { redirect } from 'next/navigation';
 import { RegistrationsClientPage } from './registrations-client-page';
@@ -23,14 +22,17 @@ export default function RegistrationsPage() {
           return;
         }
 
-        const allUsers = await getUsers();
+        const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
         setDemoUsers(allUsers);
 
         const currentAppUser = allUsers.find(u => u.email === firebaseUser.email);
         setAppUser(currentAppUser || null);
 
         if (currentAppUser) {
-          const events = await getEvents(currentAppUser);
+          let events = await import('@/data/events.json').then(m => m.default) as Event[];
+          if (currentAppUser.role === 'Organizer' && !currentAppUser.assignedEvents.includes('All')) {
+              events = events.filter(event => currentAppUser.assignedEvents.includes(event.name));
+          }
           setUserEvents(events);
         }
         

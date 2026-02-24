@@ -1,6 +1,5 @@
 'use client';
 
-import { getEvents } from '@/lib/data';
 import { EventsTable } from './events-table';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,14 +30,17 @@ export default function AdminDashboardPage() {
           return;
         }
         
-        // Fetch the detailed app user from our own data source
         const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
         const currentAppUser = allUsers.find(u => u.email === firebaseUser.email);
         
         if (currentAppUser) {
           setAppUser(currentAppUser);
-          const userEvents = await getEvents(currentAppUser);
-          setEvents(userEvents);
+          
+          let eventsData = await import('@/data/events.json').then(m => m.default) as Event[];
+          if (currentAppUser.role === 'Organizer' && !currentAppUser.assignedEvents.includes('All')) {
+            eventsData = eventsData.filter(event => currentAppUser.assignedEvents.includes(event.name));
+          }
+          setEvents(eventsData);
         }
         setIsLoading(false);
       }
