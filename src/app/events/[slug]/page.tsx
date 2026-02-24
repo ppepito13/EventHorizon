@@ -52,11 +52,12 @@ export default function EventPage() {
 
 
   useEffect(() => {
-    // If loading is complete and we still haven't found the event, it's a 404.
-    if (!isLoading && !event) {
+    // This prevents a race condition where data loads before params are ready.
+    // Only trigger notFound if loading is finished, we have a slug, but no event was found.
+    if (!isLoading && params.slug && !event) {
       notFound();
     }
-  }, [isLoading, event]);
+  }, [isLoading, event, params.slug]);
   
   if (isLoading || !event) {
       return (
