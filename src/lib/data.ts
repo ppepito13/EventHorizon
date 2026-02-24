@@ -175,12 +175,43 @@ export async function updateEvent(id: string, eventData: Partial<Omit<Event, 'id
     return updatedDoc.data() as Event;
 }
 
+// Helper function to delete all documents in a collection.
+async function deleteCollection(collectionPath: string) {
+    const collectionRef = adminDb.collection(collectionPath);
+    const snapshot = await collectionRef.limit(500).get(); // Read up to 500 docs
+
+    if (snapshot.empty) {
+        return; // Nothing to delete
+    }
+
+    // Delete documents in a batch
+    const batch = adminDb.batch();
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    // Recurse on the same function to delete remaining documents
+    if (snapshot.size >= 500) {
+        await deleteCollection(collectionPath);
+    }
+}
+
+
 export async function deleteEvent(id: string): Promise<boolean> {
     try {
+        const registrationsPath = `events/${id}/registrations`;
+        const formFieldsPath = `events/${id}/formFields`;
+
+        // Delete all documents in subcollections
+        await deleteCollection(registrationsPath);
+        await deleteCollection(formFieldsPath);
+        
+        // Then delete the event document itself
         await adminDb.collection('events').doc(id).delete();
         return true;
     } catch (error) {
-        console.error(`Error deleting event ${id} from Firestore:`, error);
+        console.error(`Error deleting event ${id} and its subcollections from Firestore:`, error);
         return false;
     }
 }
