@@ -3,6 +3,7 @@
 import type { Event, User } from '@/lib/types';
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -52,6 +53,7 @@ function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address
 
 export function EventsTable({ events, userRole }: EventsTableProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
 
       if (result.success) {
         toast({ title: 'Success', description: result.message });
+        router.refresh();
       } else {
         toast({
           variant: 'destructive',
@@ -87,6 +90,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
         toast({ title: 'Success', description: result.message });
         setAlertOpen(false);
         setEventToDelete(null);
+        router.refresh();
       } else {
         toast({
           variant: 'destructive',

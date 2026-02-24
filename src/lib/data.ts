@@ -173,18 +173,16 @@ export async function deleteEvent(id: string): Promise<boolean> {
 }
 
 export async function setActiveEvent(id: string): Promise<Event | null> {
-    let events = await getEvents();
+    const events = await getEvents();
     let activatedEvent: Event | null = null;
+    const eventIndex = events.findIndex(e => e.id === id);
 
-    events = events.map(event => {
-        if (event.id === id) {
-            activatedEvent = { ...event, isActive: true };
-            return activatedEvent;
-        }
-        return { ...event, isActive: false };
-    });
+    if (eventIndex !== -1) {
+        activatedEvent = { ...events[eventIndex], isActive: true };
+        events[eventIndex] = activatedEvent;
+        await writeJsonFile(eventsFilePath, events);
+    }
     
-    await writeJsonFile(eventsFilePath, events);
     return activatedEvent;
 }
 
