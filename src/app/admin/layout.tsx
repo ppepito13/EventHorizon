@@ -9,10 +9,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { UserActions } from './user-actions';
 import { MobileNav } from './mobile-nav';
 import { NAV_ITEMS, iconMap } from './nav-config';
-import { useUser } from '@/firebase/provider';
+import { useUser, useAuth } from '@/firebase/provider';
 import type { User as AppUser } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { signOut } from 'firebase/auth';
 
 export default function AdminLayout({
   children,
@@ -20,31 +21,43 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, isUserLoading } = useUser();
+  const auth = useAuth();
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [isAppUserLoading, setAppUserLoading] = useState(true);
   const pathname = usePathname();
 
   useEffect(() => {
     const loadAppUser = async () => {
-      if (!isUserLoading) {
-        if (!user) {
-          redirect('/login');
-        } else {
-          // The user object from Firebase doesn't contain our app-specific roles.
-          // We need to fetch the user profile from our database (users.json).
-          // This is a workaround because the UID from Firebase Auth might not match the ID in users.json.
-          // For this prototype, we'll assume the email is the link.
-          if (user.email) {
-              const allUsers = await import('@/data/users.json').then(m => m.default) as AppUser[];
-              const currentAppUser = allUsers.find(u => u.email === user.email);
-              setAppUser(currentAppUser || null);
-          }
-          setAppUserLoading(false);
-        }
+      if (isUserLoading) return; // Wait until Firebase auth state is resolved
+
+      if (!user) {
+        redirect('/login');
+        return;
       }
+      
+      // At this point, we have a Firebase user.
+      // Try to find their profile in our app's database.
+      let foundAppUser: AppUser | null = null;
+      if (user.email) {
+          const allUsers = await import('@/data/users.json').then(m => m.default) as AppUser[];
+          foundAppUser = allUsers.find(u => u.email === user.email) || null;
+      }
+
+      if (foundAppUser) {
+          setAppUser(foundAppUser);
+      } else {
+          // CRITICAL: Firebase user exists but is not in our users.json.
+          // This is an inconsistent state. Log them out to prevent being stuck.
+          console.error(`User ${user.email || user.uid} not found in app database. Logging out.`);
+          await signOut(auth);
+          // The onIdTokenChanged listener in the provider will set the user to null,
+          // which will trigger the `!user` redirect on the next render, breaking the loop.
+      }
+      setAppUserLoading(false);
     };
+    
     loadAppUser();
-  }, [user, isUserLoading]);
+  }, [user, isUserLoading, auth]);
 
   if (isUserLoading || isAppUserLoading) {
     return (
@@ -54,9 +67,15 @@ export default function AdminLayout({
     );
   }
 
+  // This check is important. If appUser is null after loading,
+  // it means the signOut process has been initiated, and we should wait for the redirect.
   if (!user || !appUser) {
-    // This will be caught by the redirect in useEffect, but as a fallback:
-    return null;
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="ml-4">Session invalid, logging out...</p>
+        </div>
+    );
   }
 
   const accessibleNavItems = NAV_ITEMS.filter(item => {
