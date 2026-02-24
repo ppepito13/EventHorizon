@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { ChangePasswordForm } from './change-password-form';
-import { ThemeSwitcher } from './theme-switcher';
+import { DescriptiveThemeSwitcher } from './descriptive-theme-switcher';
 
 export default function AccountPage() {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
@@ -74,7 +74,7 @@ export default function AccountPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ThemeSwitcher />
+          <DescriptiveThemeSwitcher />
         </CardContent>
       </Card>
     </div>
