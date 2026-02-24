@@ -7,7 +7,8 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { Event } from '@/lib/types';
-import { useUser } from '@/firebase/provider';
+import { useFirestore, useUser } from '@/firebase/provider';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { createEventAction, updateEventAction } from '../actions';
 import { Loader2, PlusCircle, Trash2, Upload } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -148,6 +148,7 @@ export function EventForm({ event }: EventFormProps) {
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useUser();
+  const firestore = useFirestore();
 
   const dateParts = event?.date?.split(' - ') ?? [];
   const isRange = dateParts.length > 1;
@@ -181,56 +182,58 @@ export function EventForm({ event }: EventFormProps) {
 
   const onSubmit = (values: EventFormValues) => {
     startTransition(async () => {
-      const { dateType, startDate, endDate, locationTypes, locationAddress, ...restOfValues } = values;
+      if (!firestore || !user?.uid) {
+          toast({ variant: 'destructive', title: 'Error', description: 'User or database not available.' });
+          return;
+      }
+
+      const { dateType, startDate, endDate, locationTypes, locationAddress, heroImageSrc, heroImageHint, formFields, ...restOfValues } = values;
+      
       const dateString = dateType === 'range' && endDate ? `${startDate} - ${endDate}` : startDate;
       
-      const submissionData = {
-        ...restOfValues,
-        date: dateString,
-        location: JSON.stringify({ types: locationTypes, address: locationAddress }),
-        formFields: JSON.stringify(values.formFields, null, 2),
-        isActive: String(values.isActive),
-        heroImageSrc: values.heroImageSrc,
-        heroImageHint: values.heroImageHint || '',
+      const slug = values.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+
+      const eventPayload: Omit<Event, 'id' | 'slug' | 'ownerId' | 'members'> = {
+          ...restOfValues,
+          date: dateString,
+          location: { types: locationTypes, address: locationAddress },
+          heroImage: { src: heroImageSrc, hint: heroImageHint || '' },
+          formFields: formFields,
+          themeColor: event?.themeColor || '#3b82f6',
       };
 
-      const formData = new FormData();
-      Object.entries(submissionData).forEach(([key, value]) => {
-        formData.append(key, value as string);
-      });
-
-      const result = event
-        ? await updateEventAction(event.id, formData)
-        : await (async () => {
-            if (!user?.uid) {
-              toast({
-                variant: 'destructive',
-                title: 'Authentication Error',
-                description: 'You must be logged in to create an event.',
+      try {
+          if (event) {
+              // Update existing event
+              const eventRef = doc(firestore, 'events', event.id);
+              await updateDoc(eventRef, {
+                  ...eventPayload,
+                  name: values.name,
+                  slug: slug
               });
-              return { success: false, message: 'User not authenticated' };
-            }
-            return createEventAction(user.uid, formData);
-          })();
-
-      if (result.success) {
-        toast({ title: 'Success!', description: `Event has been ${event ? 'updated' : 'created'}.` });
-        router.push('/admin');
-        router.refresh();
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: (result as { message: string }).message || (result.errors ? 'Please check the form for errors.' : 'An unknown error occurred.'),
-        });
-        if (result.errors) {
-            Object.keys(result.errors).forEach((field) => {
-                form.setError(field as keyof EventFormValues, {
-                    type: 'server',
-                    message: result.errors[field as keyof typeof result.errors]!.join(', '),
-                });
-            });
-        }
+              toast({ title: 'Success!', description: 'Event has been updated.' });
+          } else {
+              // Create new event
+              const eventId = `evt_${crypto.randomUUID()}`;
+              const eventRef = doc(firestore, 'events', eventId);
+              const newEventData: Event = {
+                  ...eventPayload,
+                  id: eventId,
+                  name: values.name,
+                  slug: slug,
+                  ownerId: user.uid,
+                  members: { [user.uid]: 'owner' }
+              };
+              await setDoc(eventRef, newEventData);
+              toast({ title: 'Success!', description: 'Event has been created.' });
+          }
+          router.push('/admin');
+      } catch (error: any) {
+          toast({
+              variant: 'destructive',
+              title: 'Database Error',
+              description: error.message || 'An unknown error occurred.',
+          });
       }
     });
   };

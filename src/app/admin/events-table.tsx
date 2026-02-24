@@ -34,10 +34,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { MoreHorizontal, Trash2, Edit, Loader2, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { deleteEventAction } from './actions';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirestore } from '@/firebase/provider';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, writeBatch, collection, getDocs } from 'firebase/firestore';
 
 interface EventsTableProps {
   events: Event[];
@@ -88,18 +87,42 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
   const handleDelete = () => {
     if (!eventToDelete) return;
     startTransition(async () => {
-      const result = await deleteEventAction(eventToDelete);
-      if (result.success) {
-        toast({ title: 'Success', description: result.message });
-        setAlertOpen(false);
-        setEventToDelete(null);
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: result.message,
-        });
-      }
+        if (!firestore) {
+            toast({ variant: "destructive", title: "Error", description: "Firestore is not available." });
+            return;
+        }
+        try {
+            const eventId = eventToDelete;
+            const batch = writeBatch(firestore);
+            
+            // Delete subcollections is not trivial on the client.
+            // A more robust solution would be a Firebase Function.
+            // For this app, we assume we can list and delete.
+            const registrationsRef = collection(firestore, 'events', eventId, 'registrations');
+            const registrationsSnap = await getDocs(registrationsRef);
+            registrationsSnap.forEach(doc => batch.delete(doc.ref));
+
+            const formFieldsRef = collection(firestore, 'events', eventId, 'formFields');
+            const formFieldsSnap = await getDocs(formFieldsRef);
+            formFieldsSnap.forEach(doc => batch.delete(doc.ref));
+
+            // Delete main doc
+            const eventRef = doc(firestore, 'events', eventId);
+            batch.delete(eventRef);
+
+            await batch.commit();
+
+            toast({ title: 'Success', description: 'Event and all related data deleted.' });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Deletion Failed',
+                description: error.message || 'An unknown error occurred.',
+            });
+        } finally {
+            setAlertOpen(false);
+            setEventToDelete(null);
+        }
     });
   };
 
