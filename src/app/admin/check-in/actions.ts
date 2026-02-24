@@ -14,8 +14,7 @@ import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 
 
-const dataDir = path.join(process.cwd(), 'src/data');
-const usersFilePath = path.join(dataDir, 'users.json');
+const usersFilePath = path.join(process.cwd(), 'data', 'users.json');
 
 async function readUsersFile(): Promise<User[]> {
     try {

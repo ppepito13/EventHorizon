@@ -12,7 +12,7 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, doc, collection, writeBatch, getDoc, getDocs } from 'firebase/firestore';
 
-const dataDir = path.join(process.cwd(), 'src', 'data');
+const dataDir = path.join(process.cwd(), 'data');
 const usersFilePath = path.join(dataDir, 'users.json');
 
 async function readUsersFile(): Promise<User[]> {
@@ -32,7 +32,6 @@ export async function getSeedDataAction(): Promise<{
     message?: string;
 }> {
   try {
-    const dataDir = path.join(process.cwd(), 'src', 'data');
     const eventsPath = path.join(dataDir, 'events.json');
     const regsPath = path.join(dataDir, 'registrations.json');
     const usersPath = path.join(dataDir, 'users.json');

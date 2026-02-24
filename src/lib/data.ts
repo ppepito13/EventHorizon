@@ -13,7 +13,7 @@ import { firebaseConfig } from '../firebase/config';
 
 
 // Use a directory not watched by the dev server for the session file.
-const dataDir = path.join(process.cwd(), 'src', 'data');
+const dataDir = path.join(process.cwd(), 'data');
 const usersFilePath = path.join(dataDir, 'users.json');
 const eventsFilePath = path.join(dataDir, 'events.json');
 
