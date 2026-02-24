@@ -83,6 +83,10 @@ export async function deleteUser(id: string): Promise<boolean> {
   return true;
 }
 
+export async function overwriteUsers(users: User[]): Promise<void> {
+  await writeJsonFile(usersFilePath, users);
+}
+
 // --- Event Functions (Now using Firestore as the Source of Truth) ---
 
 export async function getEvents(): Promise<Event[]> {
