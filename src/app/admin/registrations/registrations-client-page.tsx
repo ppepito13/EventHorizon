@@ -40,6 +40,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -148,6 +158,8 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   }>({ isOpen: false, eventId: null, regId: null });
   
   const [isPurgeAlertOpen, setPurgeAlertOpen] = useState(false);
+  const [isGenerateDialogOpen, setGenerateDialogOpen] = useState(false);
+  const [generationCount, setGenerationCount] = useState(5);
 
 
   const firestore = useFirestore();
@@ -239,17 +251,24 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     });
   };
   
-  const handleGenerateData = () => {
+  const handleGenerateData = (count: number) => {
     if (!selectedEventId || !selectedEvent || !firestore) {
       toast({ variant: 'destructive', title: 'Error', description: 'Please select an event first.' });
       return;
     }
+    if (!count || count <= 0 || count > 100) {
+      toast({ variant: 'destructive', title: 'Invalid amount', description: 'Please enter a number between 1 and 100.' });
+      return;
+    }
+    
     startGeneratingTransition(async () => {
+      setGenerateDialogOpen(false);
       try {
         const batch = writeBatch(firestore);
-        for (let i = 0; i < 5; i++) {
+        const existingRegsCount = registrations.length;
+        for (let i = 0; i < count; i++) {
             const registrationTime = new Date();
-            const formData = generateFakeData(selectedEvent.formFields, i);
+            const formData = generateFakeData(selectedEvent.formFields, existingRegsCount + i);
 
             const qrId = `qr_${crypto.randomUUID()}`;
             const qrDocRef = doc(firestore, 'qrcodes', qrId);
@@ -278,7 +297,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
         }
         
         await batch.commit();
-        toast({ title: 'Success', description: `5 new registrations have been generated.` });
+        toast({ title: 'Success', description: `${count} new registrations have been generated.` });
       } catch (error: any) {
         toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'An unknown error occurred.' });
       }
@@ -423,7 +442,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
               </div>
               {userRole === 'Administrator' && isMounted && showTestDataButtons && (
                   <div className="flex flex-wrap gap-2">
-                      <Button onClick={handleGenerateData} disabled={isGenerating || !selectedEventId} size="sm">
+                      <Button onClick={() => setGenerateDialogOpen(true)} disabled={isGenerating || !selectedEventId} size="sm">
                           {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                           {isGenerating ? 'Generating...' : 'Generate Test Data'}
                       </Button>
@@ -522,6 +541,45 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isGenerateDialogOpen} onOpenChange={setGenerateDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Generate Test Data</DialogTitle>
+                <DialogDescription>
+                    How many test registrations would you like to create for "{selectedEvent?.name}"?
+                </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                handleGenerateData(generationCount);
+            }}>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="generation-count" className="text-right">
+                            Amount
+                        </Label>
+                        <Input
+                            id="generation-count"
+                            type="number"
+                            value={generationCount}
+                            onChange={(e) => setGenerationCount(Number(e.target.value))}
+                            className="col-span-3"
+                            min="1"
+                            max="100"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setGenerateDialogOpen(false)}>Cancel</Button>
+                    <Button type="submit" disabled={isGenerating}>
+                        {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Generate
+                    </Button>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
