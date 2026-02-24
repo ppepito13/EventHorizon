@@ -1,40 +1,54 @@
+
 'use client';
 
-import { useUser } from '@/firebase/provider';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { redirect } from 'next/navigation';
 import { CheckInClientPage } from './check-in-client-page';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { Event, User } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { collection, query } from 'firebase/firestore';
+import { getAppUserByEmailAction } from '../actions';
 
 export default function CheckInPage() {
-  const { user, isUserLoading } = useUser();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
+  const [appUser, setAppUser] = useState<User | null>(null);
+  const [isAppUserLoading, setIsAppUserLoading] = useState(true);
+
+  const firestore = useFirestore();
+
+  const eventsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'events')) : null, [firestore]);
+  const { data: allEvents, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!isUserLoading && user) {
-        const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
-        const currentAppUser = allUsers.find(u => u.email === user.email);
-
-        if (currentAppUser) {
-            let eventsData = await import('@/data/events.json').then(m => m.default) as Event[];
-            if (currentAppUser.role === 'Organizer' && !currentAppUser.assignedEvents.includes('All')) {
-                eventsData = eventsData.filter(event => currentAppUser.assignedEvents.includes(event.name));
-            }
-            setEvents(eventsData);
+    const loadAppUser = async () => {
+      if (!isAuthLoading) {
+        if (!firebaseUser) {
+          redirect('/login');
+          return;
         }
-        
-        setIsLoading(false);
-      } else if (!isUserLoading && !user) {
-        redirect('/login');
+
+        if (firebaseUser.email) {
+            const currentAppUser = await getAppUserByEmailAction(firebaseUser.email);
+            setAppUser(currentAppUser || null);
+        }
+        setIsAppUserLoading(false);
       }
     };
-    loadData();
-  }, [user, isUserLoading]);
+    loadAppUser();
+  }, [firebaseUser, isAuthLoading]);
 
-  if (isUserLoading || isLoading) {
+  const userEvents = useMemo(() => {
+    if (!allEvents || !appUser) return [];
+    if (appUser.role === 'Administrator' || (appUser.assignedEvents && appUser.assignedEvents.includes('All'))) {
+        return allEvents;
+    }
+    return allEvents.filter(event => appUser.assignedEvents && appUser.assignedEvents.includes(event.name));
+  }, [allEvents, appUser]);
+  
+  const isLoading = isAuthLoading || isAppUserLoading || areEventsLoading;
+
+  if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -42,9 +56,9 @@ export default function CheckInPage() {
     );
   }
   
-  if (!user) {
+  if (!firebaseUser) {
     return null; // Redirect is handled in useEffect
   }
 
-  return <CheckInClientPage events={events} />;
+  return <CheckInClientPage events={userEvents} />;
 }
