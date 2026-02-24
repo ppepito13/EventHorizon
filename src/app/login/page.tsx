@@ -2,7 +2,6 @@
 
 import { redirect } from 'next/navigation';
 import { LoginForm } from './login-form';
-import { getUsers } from '@/lib/data';
 import { useUser } from '@/firebase/provider';
 import { useEffect, useState } from 'react';
 import type { User } from '@/lib/types';
@@ -16,7 +15,7 @@ export default function LoginPage() {
     if (!isUserLoading && user) {
       redirect('/admin');
     }
-    getUsers().then(setDemoUsers);
+    import('@/data/users.json').then(m => setDemoUsers(m.default as User[]));
   }, [user, isUserLoading]);
 
   if (isUserLoading || user) {
