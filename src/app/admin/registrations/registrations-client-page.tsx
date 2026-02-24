@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { RegistrationsTable } from './registrations-table';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2, ChevronDown, AlertCircle } from 'lucide-react';
+import { Download, Loader2, ChevronDown, AlertCircle, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +44,7 @@ import {
     exportRegistrationsAction,
     generateFakeRegistrationsAction,
     deleteRegistrationAction,
+    purgeRegistrationsAction,
 } from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,16 +66,20 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const [isExporting, startExportTransition] = useTransition();
   const [isGenerating, startGeneratingTransition] = useTransition();
   const [isDeleting, startDeleteTransition] = useTransition();
+  const [isPurging, startPurgeTransition] = useTransition();
 
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [isLoadingFirestore, setIsLoadingFirestore] = useState(true);
   const [firestoreError, setFirestoreError] = useState<FirestoreError | null>(null);
 
-  const [dialogState, setDialogState] = useState<{
+  const [deleteDialogState, setDeleteDialogState] = useState<{
     isOpen: boolean;
     eventId: string | null;
     regId: string | null;
   }>({ isOpen: false, eventId: null, regId: null });
+  
+  const [isPurgeAlertOpen, setPurgeAlertOpen] = useState(false);
+
 
   const firestore = useFirestore();
   const { user, isUserLoading: isAuthLoading } = useUser();
@@ -125,12 +130,12 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
   const handleDeleteRequest = (eventId: string, registrationId: string) => {
-    setDialogState({ isOpen: true, eventId, regId: registrationId });
+    setDeleteDialogState({ isOpen: true, eventId, regId: registrationId });
   };
 
   const handleDeleteConfirm = () => {
-    if (!dialogState.eventId || !dialogState.regId) return;
-    const { eventId, regId } = dialogState;
+    if (!deleteDialogState.eventId || !deleteDialogState.regId) return;
+    const { eventId, regId } = deleteDialogState;
 
     startDeleteTransition(async () => {
         const result = await deleteRegistrationAction(eventId, regId);
@@ -147,7 +152,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
                 description: result.message,
             });
         }
-        setDialogState({ isOpen: false, eventId: null, regId: null });
+        setDeleteDialogState({ isOpen: false, eventId: null, regId: null });
     });
   };
   
@@ -163,6 +168,22 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
       } else {
         toast({ variant: 'destructive', title: 'Generation Failed', description: result.message || 'An unknown error occurred.' });
       }
+    });
+  };
+
+  const handlePurgeData = () => {
+    if (!selectedEventId) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Please select an event first.' });
+        return;
+    }
+    startPurgeTransition(async () => {
+        const result = await purgeRegistrationsAction(selectedEventId);
+        if (result.success) {
+            toast({ title: 'Success', description: result.message || `${result.count} registrations have been purged.` });
+        } else {
+            toast({ variant: 'destructive', title: 'Purge Failed', description: result.message || 'An unknown error occurred.' });
+        }
+        setPurgeAlertOpen(false);
     });
   };
 
@@ -253,6 +274,15 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
                           {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                           {isGenerating ? 'Generating...' : 'Generate Test Data'}
                       </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => setPurgeAlertOpen(true)}
+                        disabled={isPurging || isGenerating || !selectedEventId || !registrations || registrations.length === 0}
+                        size="sm"
+                      >
+                        {isPurging ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        {isPurging ? 'Purging...' : 'Purge Data'}
+                      </Button>
                   </div>
               )}
           </div>
@@ -300,9 +330,9 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
         </CardContent>
       </Card>
 
-      <AlertDialog open={dialogState.isOpen} onOpenChange={(isOpen) => {
+      <AlertDialog open={deleteDialogState.isOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
-              setDialogState({ isOpen: false, eventId: null, regId: null });
+              setDeleteDialogState({ isOpen: false, eventId: null, regId: null });
           }
       }}>
         <AlertDialogContent>
@@ -317,6 +347,24 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
             <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting}>
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isPurgeAlertOpen} onOpenChange={setPurgeAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all registrations and their QR codes for the selected event ({selectedEvent?.name}). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPurging}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePurgeData} disabled={isPurging} className="bg-destructive hover:bg-destructive/90">
+              {isPurging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Purge All Data
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

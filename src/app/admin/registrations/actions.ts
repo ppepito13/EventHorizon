@@ -206,3 +206,46 @@ export async function deleteRegistrationAction(eventId: string, registrationId: 
     return { success: false, message: error.message || 'An unknown server error occurred.' };
   }
 }
+
+export async function purgeRegistrationsAction(eventId: string): Promise<{ success: boolean; message?: string; count?: number }> {
+    if (!eventId) {
+        return { success: false, message: 'Event ID is required.' };
+    }
+
+    try {
+        const registrationsColRef = adminDb.collection(`events/${eventId}/registrations`);
+        const snapshot = await registrationsColRef.get();
+
+        if (snapshot.empty) {
+            return { success: true, message: 'No registrations to purge.', count: 0 };
+        }
+
+        const batch = adminDb.batch();
+        const qrIdsToDelete: string[] = [];
+        snapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+            const data = doc.data();
+            if (data.qrId) {
+                qrIdsToDelete.push(data.qrId);
+            }
+        });
+
+        // Also delete associated QR codes
+        for (const qrId of qrIdsToDelete) {
+            const qrDocRef = adminDb.doc(`qrcodes/${qrId}`);
+            batch.delete(qrDocRef);
+        }
+
+        await batch.commit();
+
+        revalidatePath('/admin/registrations');
+
+        const count = snapshot.size;
+        return { success: true, message: `Successfully purged ${count} registrations.`, count };
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
+        console.error("Purge registrations error:", error);
+        return { success: false, message };
+    }
+}
