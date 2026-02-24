@@ -154,28 +154,22 @@ export async function registerForEvent(
     await batch.commit();
     
     // 3. Send confirmation email
-    try {
-        const qrCodeDataUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
-        
-        const recipientName = (validated.data as any).full_name || 'Uczestniku';
-        const recipientEmail = (validated.data as any).email;
-        
-        if (recipientEmail) {
-            await sendConfirmationEmail({
-                to: recipientEmail,
-                name: recipientName,
-                eventName: jsonEvent.name,
-                eventDate: jsonEvent.date,
-                qrCodeDataUrl: qrCodeDataUrl,
-            });
-        } else {
-             console.warn("No email address found in registration data, skipping email confirmation.");
-        }
-
-    } catch (emailError) {
-        console.error('Failed to send confirmation email:', emailError);
+    const qrCodeDataUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
+    
+    const recipientName = (validated.data as any).full_name || 'Uczestniku';
+    const recipientEmail = (validated.data as any).email;
+    
+    if (recipientEmail) {
+        await sendConfirmationEmail({
+            to: recipientEmail,
+            name: recipientName,
+            eventName: jsonEvent.name,
+            eventDate: jsonEvent.date,
+            qrCodeDataUrl: qrCodeDataUrl,
+        });
+    } else {
+         console.warn("No email address found in registration data, skipping email confirmation.");
     }
-
 
     // Reconstruct the final object without the security fields for the client response
     const { eventOwnerId, eventMembers, ...clientSafeRegistration } = newRegistrationData;
