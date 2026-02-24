@@ -22,10 +22,10 @@ export async function sendConfirmationEmail(payload: EmailPayload) {
     if (!process.env.RESEND_API_KEY) {
         console.warn(`
             WARN: RESEND_API_KEY is not set in the .env file.
-            Email sending is disabled.
+            Email sending is disabled. The registration process will continue without sending an email.
         `);
-        // To make debugging easier, we'll throw an error here if the key is missing.
-        throw new Error("RESEND_API_KEY is not configured on the server.");
+        // Silently fail to not interrupt registration flow
+        return; 
     }
 
     try {
@@ -48,15 +48,16 @@ export async function sendConfirmationEmail(payload: EmailPayload) {
         });
 
         if (error) {
-            console.error('Error sending confirmation email via Resend:', error);
-            // Re-throw the specific error from Resend to be caught by the server action
-            throw new Error(`Could not send confirmation email: ${error.message}`);
+            // Log the error for debugging, but do NOT throw it.
+            // This ensures that a failure in email sending does not break the entire registration flow for the user.
+            console.error('Resend API returned an error:', error);
+        } else {
+            console.log('Confirmation email sent successfully via Resend:', data);
         }
 
-        console.log('Confirmation email sent successfully via Resend:', data);
     } catch (e) {
+        // Catch any other exceptions (e.g., network issues)
         const error = e as Error;
-        // Re-throw the error to be handled by the server action
-        throw error;
+        console.error('Failed to execute sendConfirmationEmail:', error.message);
     }
 }
