@@ -1,3 +1,5 @@
+'use client';
+
 import { getEvents } from '@/lib/data';
 import { EventsTable } from './events-table';
 import { Button } from '@/components/ui/button';
@@ -8,18 +10,53 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { PlusCircle } from 'lucide-react';
-import { getSessionUser } from '@/lib/session';
-import { redirect } from 'next/navigation';
+import { PlusCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useUser } from '@/firebase/provider';
+import { useEffect, useState } from 'react';
+import type { Event, User } from '@/lib/types';
+import { redirect } from 'next/navigation';
 
-export default async function AdminDashboardPage() {
-  const user = await getSessionUser();
-  if (!user) {
-    redirect('/login');
+export default function AdminDashboardPage() {
+  const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
+  const [appUser, setAppUser] = useState<User | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!isAuthLoading) {
+        if (!firebaseUser) {
+          redirect('/login');
+          return;
+        }
+        
+        // Fetch the detailed app user from our own data source
+        const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
+        const currentAppUser = allUsers.find(u => u.email === firebaseUser.email);
+        
+        if (currentAppUser) {
+          setAppUser(currentAppUser);
+          const userEvents = await getEvents(currentAppUser);
+          setEvents(userEvents);
+        }
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, [firebaseUser, isAuthLoading]);
+
+  if (isLoading || isAuthLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
-  
-  const events = await getEvents(user);
+
+  if (!appUser) {
+    return <p>User profile not found.</p>;
+  }
 
   return (
     <>
@@ -30,7 +67,7 @@ export default async function AdminDashboardPage() {
             Manage your events and view their status.
           </p>
         </div>
-        {user.role === 'Administrator' && (
+        {appUser.role === 'Administrator' && (
           <Button asChild>
             <Link href="/admin/events/new">
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -43,14 +80,14 @@ export default async function AdminDashboardPage() {
         <CardHeader>
           <CardTitle>All Events</CardTitle>
           <CardDescription>
-            {user.role === 'Administrator' 
+            {appUser.role === 'Administrator'
               ? "Set an event as active to display it on the homepage."
               : "Below is a list of events you have access to."
             }
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <EventsTable events={events} userRole={user.role} />
+          <EventsTable events={events} userRole={appUser.role} />
         </CardContent>
       </Card>
     </>

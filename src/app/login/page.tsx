@@ -1,15 +1,31 @@
+'use client';
+
 import { redirect } from 'next/navigation';
 import { LoginForm } from './login-form';
 import { getUsers } from '@/lib/data';
-import { getSession } from '@/lib/session';
+import { useUser } from '@/firebase/provider';
+import { useEffect, useState } from 'react';
+import type { User } from '@/lib/types';
+import { Loader2 } from 'lucide-react';
 
-export default async function LoginPage() {
-  const session = await getSession();
-  if (session.user) {
-    redirect('/admin');
+export default function LoginPage() {
+  const { user, isUserLoading } = useUser();
+  const [demoUsers, setDemoUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      redirect('/admin');
+    }
+    getUsers().then(setDemoUsers);
+  }, [user, isUserLoading]);
+
+  if (isUserLoading || user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
   }
-  
-  const demoUsers = await getUsers();
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-secondary p-4">

@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useAuth } from '@/firebase/provider';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -14,26 +15,50 @@ import { TicketPercent, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import type { User } from '@/lib/types';
-import { loginAction } from './actions';
 
 interface LoginFormProps {
     demoUsers: User[];
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button className="w-full" type="submit" disabled={pending}>
-      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      {pending ? 'Logging in...' : 'Log in'}
-    </Button>
-  );
-}
-
 export function LoginForm({ demoUsers }: LoginFormProps) {
   const { toast } = useToast();
-  const [state, formAction] = useActionState(loginAction, undefined);
+  const router = useRouter();
+  const auth = useAuth();
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    const formData = new FormData(event.currentTarget);
+    const email = formData.get('email') as string;
+    const password = formData.get('password') as string;
+
+    if (!email || !password) {
+      setError('Email and password are required.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged in the provider will handle the user state.
+      // Redirect to the admin panel.
+      router.push('/admin');
+    } catch (err: any) {
+      console.error("Firebase login error:", err);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid email or password.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
+      setIsLoading(false);
+    }
+  };
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -46,11 +71,11 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-secondary p-4">
        <Link href="/" className="flex items-center gap-2 absolute top-8 left-8">
         <TicketPercent className="h-6 w-6 text-primary" />
-        <span className="text-lg font-semibold">Commerzbank Łódź Events</span>
+        <span className="text-lg font-semibold">EventHorizon</span>
       </Link>
       
       <Card className="w-full max-w-sm shadow-xl">
-        <form action={formAction}>
+        <form onSubmit={handleLogin}>
           <CardHeader>
             <CardTitle className="text-center text-2xl font-headline">
               Admin Panel
@@ -60,11 +85,11 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {state?.error && (
+             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {state.error}
+                  {error}
                 </AlertDescription>
               </Alert>
             )}
@@ -76,6 +101,7 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                 type="email"
                 placeholder="admin@example.com"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -86,11 +112,15 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                 type="password"
                 placeholder="••••••••"
                 required
+                disabled={isLoading}
               />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-             <SubmitButton />
+             <Button className="w-full" type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading ? 'Logging in...' : 'Log in'}
+            </Button>
           </CardFooter>
         </form>
       </Card>
