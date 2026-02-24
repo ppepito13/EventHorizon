@@ -3,8 +3,8 @@
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, onSnapshot, FirestoreError, doc, deleteDoc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase/provider';
+import { collection, query, onSnapshot, FirestoreError } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase/provider';
 
 import {
   Card,
@@ -75,6 +75,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   }>({ isOpen: false, eventId: null, regId: null });
 
   const firestore = useFirestore();
+  const { user, isUserLoading: isAuthLoading } = useUser();
   
   useEffect(() => {
     setIsMounted(true);
@@ -84,10 +85,17 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   }, [events, selectedEventId]);
 
   useEffect(() => {
-    if (!firestore || !selectedEventId) {
-        if (isMounted) { // Only set loading to false if component is mounted and there's nothing to fetch
-          setIsLoadingFirestore(false);
+    if (isAuthLoading || !firestore || !selectedEventId) {
+        if (isMounted) {
+          setIsLoadingFirestore(true);
         }
+        setRegistrations([]);
+        return;
+    }
+    
+    if (!user) {
+        setFirestoreError(new FirestoreError('permission-denied', 'You must be logged in to view registrations.'));
+        setIsLoadingFirestore(false);
         setRegistrations([]);
         return;
     }
@@ -110,7 +118,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     );
 
     return () => unsubscribe();
-  }, [firestore, selectedEventId, isMounted]);
+  }, [firestore, selectedEventId, isMounted, user, isAuthLoading]);
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
@@ -180,7 +188,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
     });
   };
 
-  const isLoading = !isMounted || isLoadingFirestore;
+  const isLoading = !isMounted || isLoadingFirestore || isAuthLoading;
 
   const renderContent = () => {
     if (isLoading) {

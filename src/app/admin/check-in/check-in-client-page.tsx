@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useRef, useTransition } from 'react';
 import type { Event, Registration } from '@/lib/types';
-import { useFirestore } from '@/firebase/provider';
+import { useFirestore, useUser } from '@/firebase/provider';
 import { collection, query, onSnapshot, FirestoreError, orderBy } from 'firebase/firestore';
 import jsQR from 'jsqr';
 
@@ -36,6 +36,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
 
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user, isUserLoading: isAuthLoading } = useUser();
 
   // QR Scanner State
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -51,9 +52,16 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   const [isExporting, startExportTransition] = useTransition();
 
   useEffect(() => {
-    if (!firestore || !selectedEventId) {
+    if (isAuthLoading || !firestore || !selectedEventId) {
+      setIsLoading(true);
       setRegistrations([]);
+      return;
+    }
+
+    if (!user) {
+      setError("Authentication is required to access check-in data.");
       setIsLoading(false);
+      setRegistrations([]);
       return;
     }
     
@@ -75,7 +83,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
     );
 
     return () => unsubscribe();
-  }, [firestore, selectedEventId]);
+  }, [firestore, selectedEventId, user, isAuthLoading]);
 
   // QR Scanner Logic
   useEffect(() => {
@@ -158,7 +166,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
     return () => {
       stopCamera();
     };
-  }, [isScanning]); // Effect depends only on the scanning state
+  }, [isScanning, isProcessingScan, selectedEventId]);
 
   const handleQrCode = (qrId: string) => {
     if (!selectedEventId) return;
@@ -333,7 +341,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
                   </div>
                 </CardHeader>
                 <CardContent>
-                    {isLoading ? (
+                    {isLoading || isAuthLoading ? (
                         <div className="flex justify-center items-center py-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
                     ) : error ? (
                         <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>
