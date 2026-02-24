@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -19,9 +20,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 const userFormSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
   email: z.string().email('Invalid email address.'),
-  password: z.string().min(6, 'Password must be at least 6 characters.').or(z.literal('')).optional(),
+  password: z.string().optional(),
   role: z.enum(['Administrator', 'Organizer'], { required_error: 'Role is required.' }),
   assignedEvents: z.array(z.string()).default([]),
+  changePassword: z.boolean().default(false),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
@@ -43,19 +45,41 @@ export function UserForm({ user, events }: UserFormProps) {
   
   const action = user ? updateUserAction.bind(null, user.id) : createUserAction;
   const [state, formAction] = useActionState(action, initialState);
+  
+  const isEditMode = !!user;
 
   const form = useForm<UserFormValues>({
-    resolver: zodResolver(userFormSchema),
+    resolver: zodResolver(userFormSchema.superRefine((data, ctx) => {
+        if (isEditMode) { // We are editing a user
+            if (data.changePassword && (!data.password || data.password.length < 6)) {
+                ctx.addIssue({
+                    code: 'custom',
+                    path: ['password'],
+                    message: 'New password must be at least 6 characters.'
+                });
+            }
+        } else { // We are creating a new user
+            if (!data.password || data.password.length < 6) {
+                ctx.addIssue({
+                    code: 'custom',
+                    path: ['password'],
+                    message: 'Password must be at least 6 characters.'
+                });
+            }
+        }
+    })),
     defaultValues: {
       name: user?.name || '',
       email: user?.email || '',
       password: '',
       role: user?.role || 'Organizer',
       assignedEvents: user?.assignedEvents || [],
+      changePassword: false,
     },
   });
 
   const role = form.watch('role');
+  const changePassword = form.watch('changePassword');
 
   useEffect(() => {
     if (state.success) {
@@ -87,6 +111,9 @@ export function UserForm({ user, events }: UserFormProps) {
     formData.append('role', values.role);
     if (values.password) {
       formData.append('password', values.password);
+    }
+    if (values.changePassword) {
+      formData.append('changePassword', 'on');
     }
 
 
@@ -124,17 +151,47 @@ export function UserForm({ user, events }: UserFormProps) {
             </FormItem>
           )}
         />
+        
+        {isEditMode && (
+          <FormField
+            control={form.control}
+            name="changePassword"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center gap-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    id="change-password-checkbox"
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel htmlFor="change-password-checkbox" className="cursor-pointer">
+                    Change Password
+                  </FormLabel>
+                </div>
+              </FormItem>
+            )}
+          />
+        )}
+
         <FormField
           control={form.control}
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password {user && '(leave blank to keep current)'}</FormLabel>
+              <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" {...field} value={field.value ?? ''} />
+                <Input 
+                  type="password" 
+                  {...field} 
+                  value={field.value ?? ''}
+                  disabled={isEditMode && !changePassword}
+                  placeholder={isEditMode && !changePassword ? "Password unchanged" : ""}
+                />
               </FormControl>
                <FormDescription>
-                {user ? 'Enter a new password to update it.' : 'Password must be at least 6 characters.'}
+                {isEditMode ? 'Check the box above to enable password change.' : 'Password must be at least 6 characters.'}
               </FormDescription>
               <FormMessage />
             </FormItem>

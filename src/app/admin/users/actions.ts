@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -9,9 +10,10 @@ import { adminAuth } from '@/lib/firebase-admin';
 const userSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
   email: z.string().email('Invalid email address.'),
-  password: z.string().min(6, 'Password must be at least 6 characters.').optional().or(z.literal('')),
+  password: z.string().optional(),
   role: z.enum(['Administrator', 'Organizer']),
   assignedEvents: z.array(z.string()).default([]),
+  changePassword: z.preprocess(v => v === 'on', z.boolean()).optional(),
 });
 
 export async function createUserAction(prevState: any, formData: FormData) {
@@ -33,10 +35,10 @@ export async function createUserAction(prevState: any, formData: FormData) {
     };
   }
   
-  if (!validated.data.password) {
+  if (!validated.data.password || validated.data.password.length < 6) {
      return {
       success: false,
-      errors: { password: ['Password is required for a new user.'] },
+      errors: { password: ['Password must be at least 6 characters.'] },
     };
   }
 
@@ -46,7 +48,7 @@ export async function createUserAction(prevState: any, formData: FormData) {
     // 1. Create user in Firebase Auth
     const userRecord = await adminAuth.createUser({
         email: userData.email,
-        password: password,
+        password: password!,
         displayName: userData.name,
         disabled: false,
     });
@@ -85,7 +87,8 @@ export async function updateUserAction(id: string, prevState: any, formData: For
       email: formData.get('email'),
       password: formData.get('password'),
       role: formData.get('role'),
-      assignedEvents: assignedEvents
+      assignedEvents: assignedEvents,
+      changePassword: formData.get('changePassword'),
   };
   
   const validated = userSchema.safeParse(data);
@@ -97,7 +100,14 @@ export async function updateUserAction(id: string, prevState: any, formData: For
     };
   }
   
-  const { password, ...userData } = validated.data;
+  const { password, changePassword, ...userData } = validated.data;
+  
+  if (changePassword && (!password || password.length < 6)) {
+    return {
+        success: false,
+        errors: { password: ['New password must be at least 6 characters.'] },
+    };
+  }
 
   try {
     const userToUpdate = await getUserById(id);
@@ -110,7 +120,7 @@ export async function updateUserAction(id: string, prevState: any, formData: For
         email: userData.email,
         displayName: userData.name,
     };
-    if (password) {
+    if (changePassword && password) {
         updatePayload.password = password;
     }
     await adminAuth.updateUser(userToUpdate.uid, updatePayload);
