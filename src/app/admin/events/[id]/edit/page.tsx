@@ -18,7 +18,11 @@ export default function EditEventPage() {
     [firestore, eventId]
   );
 
-  const { data: event, isLoading, error } = useDoc<Event>(eventRef);
+  const { data: event, isLoading: isDocLoading, error } = useDoc<Event>(eventRef);
+
+  // We are loading if the eventId hasn't been provided by the router yet,
+  // or if Firestore is still fetching the document.
+  const isLoading = !eventId || isDocLoading;
 
   if (isLoading) {
     return (
@@ -32,6 +36,7 @@ export default function EditEventPage() {
     return <p className="text-destructive">Error loading event: {error.message}</p>;
   }
 
+  // If loading is finished and there's still no event, it's a genuine 404.
   if (!event) {
     notFound();
   }
