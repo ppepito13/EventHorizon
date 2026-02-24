@@ -7,5 +7,14 @@
     "assignedEvents": [
       "All"
     ]
+  },
+  {
+    "name": "Han Solo",
+    "email": "han.solo@example.com",
+    "role": "Organizer",
+    "assignedEvents": [
+      "Sustainable Futures Summit"
+    ],
+    "id": "usr_b48f33f9-a8d1-45f8-9d60-30dd9e91c516"
   }
 ]
