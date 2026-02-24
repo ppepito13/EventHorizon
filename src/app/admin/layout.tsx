@@ -39,7 +39,7 @@ export default function AdminLayout({
               const currentAppUser = allUsers.find(u => u.email === user.email);
               setAppUser(currentAppUser || null);
           }
-          setIsAppUserLoading(false);
+          setAppUserLoading(false);
         }
       }
     };
