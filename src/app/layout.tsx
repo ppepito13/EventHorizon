@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AppSettingsProvider } from '@/context/app-settings-provider';
 
 const fontBody = Inter({
   subsets: ['latin'],
@@ -36,9 +37,11 @@ export default function RootLayout({
         )}
       >
         <ThemeProvider>
-          <FirebaseClientProvider>
-            {children}
-          </FirebaseClientProvider>
+          <AppSettingsProvider>
+            <FirebaseClientProvider>
+              {children}
+            </FirebaseClientProvider>
+          </AppSettingsProvider>
         </ThemeProvider>
         <Toaster />
       </body>

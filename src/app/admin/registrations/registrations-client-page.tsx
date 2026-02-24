@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User } from '@/lib/types';
 import { collection, query, onSnapshot, FirestoreError } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase/provider';
+import { useAppSettings } from '@/context/app-settings-provider';
 
 import {
   Card,
@@ -59,6 +60,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
+  const { showTestDataButtons } = useAppSettings();
 
   const [isExporting, startExportTransition] = useTransition();
   const [isGenerating, startGeneratingTransition] = useTransition();
@@ -245,7 +247,7 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
                       View and manage event registrations.
                   </CardDescription>
               </div>
-              {userRole === 'Administrator' && isMounted && (
+              {userRole === 'Administrator' && isMounted && showTestDataButtons && (
                   <div className="flex flex-wrap gap-2">
                       <Button onClick={handleGenerateData} disabled={isGenerating || !selectedEventId} size="sm">
                           {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
