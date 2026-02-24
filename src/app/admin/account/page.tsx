@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser } from '@/firebase/provider';
@@ -17,6 +18,7 @@ import { ChangePasswordForm } from './change-password-form';
 import { DescriptiveThemeSwitcher } from './descriptive-theme-switcher';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { getAppUserByEmailAction } from '../actions';
 
 export default function AccountPage() {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
@@ -34,8 +36,7 @@ export default function AccountPage() {
         }
 
         if (firebaseUser.email) {
-            const allUsers = await import('@/data/users.json').then(m => m.default) as AppUser[];
-            const currentAppUser = allUsers.find(u => u.email === firebaseUser.email);
+            const currentAppUser = await getAppUserByEmailAction(firebaseUser.email);
             setAppUser(currentAppUser || null);
         }
         setIsLoading(false);

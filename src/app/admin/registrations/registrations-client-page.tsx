@@ -58,7 +58,6 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 interface RegistrationsClientPageProps {
   events: Event[];
   userRole: User['role'];
-  demoUsers: User[];
 }
 
 // Helper functions previously in actions.ts
@@ -136,7 +135,7 @@ function generateFakeData(fields: FormFieldType[], index: number) {
 }
 
 
-export function RegistrationsClientPage({ events, userRole, demoUsers }: RegistrationsClientPageProps) {
+export function RegistrationsClientPage({ events, userRole }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();

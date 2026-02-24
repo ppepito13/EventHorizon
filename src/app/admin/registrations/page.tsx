@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase/provider';
@@ -7,11 +8,11 @@ import { useEffect, useState, useMemo } from 'react';
 import type { Event, User } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { collection, query } from 'firebase/firestore';
+import { getAppUserByEmailAction } from '../actions';
 
 export default function RegistrationsPage() {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
   const [appUser, setAppUser] = useState<User | null>(null);
-  const [demoUsers, setDemoUsers] = useState<User[]>([]);
   const [isAppUserLoading, setIsAppUserLoading] = useState(true);
   
   const firestore = useFirestore();
@@ -28,11 +29,12 @@ export default function RegistrationsPage() {
           return;
         }
 
-        const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
-        setDemoUsers(allUsers);
-
-        const currentAppUser = allUsers.find(u => u.email === firebaseUser.email);
-        setAppUser(currentAppUser || null);
+        let foundAppUser: User | null = null;
+        if (firebaseUser.email) {
+            foundAppUser = await getAppUserByEmailAction(firebaseUser.email);
+        }
+        
+        setAppUser(foundAppUser);
         setIsAppUserLoading(false);
       }
     };
@@ -61,5 +63,5 @@ export default function RegistrationsPage() {
     return <p>Could not load user profile.</p>;
   }
 
-  return <RegistrationsClientPage events={userEvents} userRole={appUser.role} demoUsers={demoUsers} />;
+  return <RegistrationsClientPage events={userEvents} userRole={appUser.role} />;
 }
