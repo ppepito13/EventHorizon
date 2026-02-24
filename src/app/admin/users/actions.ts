@@ -5,16 +5,13 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createUser, deleteUser, updateUser, getUsers, overwriteUsers } from '@/lib/data';
 import type { User, Event } from '@/lib/types';
-import { adminAuth } from '@/lib/firebase-admin';
-import type { UpdateRequest } from 'firebase-admin/auth';
+import { randomUUID } from 'crypto';
 
 const userSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
   email: z.string().email('Invalid email address.'),
-  password: z.string().nullable().optional(),
   role: z.enum(['Administrator', 'Organizer']),
   assignedEvents: z.array(z.string()).default([]),
-  changePassword: z.preprocess(v => v === 'on', z.boolean()).optional(),
 });
 
 export async function createUserAction(prevState: any, formData: FormData) {
@@ -22,7 +19,6 @@ export async function createUserAction(prevState: any, formData: FormData) {
   const data = {
       name: formData.get('name'),
       email: formData.get('email'),
-      password: formData.get('password'),
       role: formData.get('role'),
       assignedEvents: assignedEvents
   };
@@ -35,62 +31,38 @@ export async function createUserAction(prevState: any, formData: FormData) {
       errors: validated.error.flatten().fieldErrors,
     };
   }
-  
-  if (!validated.data.password || validated.data.password.length < 6) {
-     return {
-      success: false,
-      errors: { password: ['Password must be at least 6 characters.'] },
-    };
-  }
 
-  const { password, ...userData } = validated.data;
-  
   try {
-    const userRecord = await adminAuth.createUser({
-        email: userData.email,
-        password: password!,
-        displayName: userData.name,
-        emailVerified: true,
-        disabled: false,
-    });
-
-    const newUser = await createUser({ ...userData, uid: userRecord.uid });
+    const newUser = await createUser(validated.data);
     
     revalidatePath('/admin/users');
     return { 
         success: true, 
-        message: `User ${newUser.name} created successfully. They can now log in.`, 
+        message: `User ${newUser.name} created. To enable login, please go to the Firebase Console -> Authentication -> Add user, and create an account with the email ${newUser.email} and a password.`, 
         errors: {} 
     };
 
   } catch (error: any) {
     console.error("User creation error:", error);
-    let errorMessage = 'An unknown error occurred while creating the user.';
-    if (error.code === 'auth/email-already-exists') {
-        errorMessage = 'A user with this email address already exists in Firebase Authentication.';
-    } else if (error.message) {
-        errorMessage = error.message;
-    }
     return {
       success: false,
-      errors: { _form: [errorMessage] },
+      errors: { _form: [error.message || 'An unknown error occurred while creating the user.'] },
     }
   }
 }
-
 
 export async function updateUserAction(id: string, prevState: any, formData: FormData) {
   const assignedEvents = formData.getAll('assignedEvents');
   const data = {
       name: formData.get('name'),
       email: formData.get('email'),
-      password: formData.get('password'),
       role: formData.get('role'),
       assignedEvents: assignedEvents,
-      changePassword: formData.get('changePassword'),
   };
   
-  const validated = userSchema.safeParse(data);
+  // This schema is simplified as we are not handling password changes here.
+  const updateSchema = userSchema.omit({ password: true } as any);
+  const validated = updateSchema.safeParse(data);
 
   if (!validated.success) {
     return {
@@ -99,39 +71,13 @@ export async function updateUserAction(id: string, prevState: any, formData: For
     };
   }
   
-  const { password, changePassword, ...userData } = validated.data;
-  
-  if (changePassword && (!password || password.length < 6)) {
-    return {
-        success: false,
-        errors: { password: ['New password must be at least 6 characters.'] },
-    };
-  }
-
   try {
-    const userToUpdate = await getUsers().then(users => users.find(u => u.id === id));
-    if (!userToUpdate) {
-        throw new Error('User not found in the database.');
-    }
-    
-    const uid = userToUpdate.uid;
-    if (uid) {
-        const authUpdatePayload: UpdateRequest = {};
-        if (userData.email !== userToUpdate.email) authUpdatePayload.email = userData.email;
-        if (userData.name !== userToUpdate.name) authUpdatePayload.displayName = userData.name;
-        if (changePassword && password) authUpdatePayload.password = password;
-
-        if (Object.keys(authUpdatePayload).length > 0) {
-            await adminAuth.updateUser(uid, authUpdatePayload);
-        }
-    }
-    
-    await updateUser(id, userData);
+    await updateUser(id, validated.data);
 
     revalidatePath('/admin/users');
     revalidatePath(`/admin/users/${id}/edit`);
 
-    return { success: true, message: 'User updated successfully.', errors: {} };
+    return { success: true, message: 'User updated successfully. If you changed the email, please update it in Firebase Authentication manually.', errors: {} };
 
   } catch (error: any) {
      console.error("User update error:", error);
@@ -152,22 +98,11 @@ export async function deleteUserAction(id: string) {
     if (userToDelete.role === 'Administrator') {
       return { success: false, message: 'Cannot delete an administrator account.' };
     }
-    
-    if (userToDelete.uid) {
-        try {
-            await adminAuth.deleteUser(userToDelete.uid);
-        } catch (error: any) {
-             if (error.code !== 'auth/user-not-found') {
-                throw error; // Re-throw if it's not a "not found" error
-             }
-             // If user not found in auth, we can ignore and proceed to delete from JSON
-        }
-    }
 
     await deleteUser(id);
 
     revalidatePath('/admin/users');
-    return { success: true, message: `User ${userToDelete.name} was successfully removed from the app and Firebase Authentication.` };
+    return { success: true, message: `User ${userToDelete.name} was removed from the app. Please remove their login credentials from the Firebase Console manually.` };
   } catch (error) {
     console.error("Delete user error:", error);
     return {
@@ -176,7 +111,6 @@ export async function deleteUserAction(id: string) {
     };
   }
 }
-
 
 export async function generateUsersAction(count: number, allEvents: Event[]) {
   if (count <= 0 || count > 50) {
@@ -192,6 +126,7 @@ export async function generateUsersAction(count: number, allEvents: Event[]) {
     const lastNames = ['Organa', 'Skywalker', 'Solo', 'Vader', 'Amidala', 'Kenobi', 'Jedi'];
 
     let newUsersForJson: User[] = [];
+    let instructions = [];
     for (let i = 0; i < count; i++) {
         const randomFirstName = firstNames[Math.floor(Math.random() * firstNames.length)];
         const randomLastName = lastNames[Math.floor(Math.random() * lastNames.length)];
@@ -209,27 +144,20 @@ export async function generateUsersAction(count: number, allEvents: Event[]) {
           .slice(0, Math.floor(Math.random() * 3))
           .map(e => e.name);
 
-        const userRecord = await adminAuth.createUser({
-            email,
-            password: 'password',
-            displayName: name,
-            emailVerified: true,
-        });
-
         newUsersForJson.push({
             id: `usr_${randomUUID()}`,
-            uid: userRecord.uid,
             name,
             email,
             role: 'Organizer',
             assignedEvents,
         });
+        instructions.push(`- ${email}`);
     }
 
     await overwriteUsers([...existingUsers, ...newUsersForJson]);
 
     revalidatePath('/admin/users');
-    return { success: true, message: `${count} users generated successfully in the app and Firebase Authentication.` };
+    return { success: true, message: `${count} users generated. To enable login, create accounts in Firebase Auth for the following emails (password: 'password'): ${instructions.join(' ')}` };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred.';
     console.error("Generate users error:", error);
@@ -247,20 +175,14 @@ export async function purgeUsersAction() {
             return { success: true, message: 'No non-admin users to purge.' };
         }
         
-        const uidsToDelete = usersToDelete.map(u => u.uid).filter((uid): uid is string => !!uid);
-        
-        if (uidsToDelete.length > 0) {
-            await adminAuth.deleteUsers(uidsToDelete);
-        }
-        
         await overwriteUsers(adminUsers);
 
         revalidatePath('/admin/users');
-        return { success: true, message: `${usersToDelete.length} users have been purged from the app and Firebase Authentication.` };
+        return { success: true, message: `${usersToDelete.length} users have been purged from the app. Please remove their login credentials from Firebase Authentication manually.` };
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'An unknown error occurred.';
         console.error("Purge users error:", error);
         return { success: false, message };
-    }
+  }
 }
