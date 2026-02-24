@@ -13,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
  
-    --primary: 48 96% 53%; /* Keep yellow */
+    --primary: 48 96% 53%; /* #FACC14 */
     --primary-foreground: 210 70% 10%; /* Dark blue on yellow */
  
     --secondary: 210 50% 95%; /* Light blue-gray */
@@ -22,8 +22,8 @@
     --muted: 210 50% 95%;
     --muted-foreground: 215.4 16.3% 46.9%;
  
-    --accent: 48 96% 85%;
-    --accent-foreground: 210 70% 10%;
+    --accent: 48 96% 53%; /* Use primary yellow for accent */
+    --accent-foreground: 210 70% 10%; /* Use primary foreground for accent text */
  
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
@@ -45,7 +45,7 @@
     --popover: 210 70% 8%;
     --popover-foreground: 210 20% 98%;
 
-    --primary: 48 96% 53%;
+    --primary: 48 96% 53%; /* #FACC14 */
     --primary-foreground: 210 70% 10%;
 
     --secondary: 210 50% 25%;
@@ -54,8 +54,8 @@
     --muted: 210 50% 25%;
     --muted-foreground: 210 20% 65%;
 
-    --accent: 45 80% 60%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --accent: 48 96% 53%; /* Use primary yellow for accent */
+    --accent-foreground: 210 70% 10%; /* Use primary foreground for accent text */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
