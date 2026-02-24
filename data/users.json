@@ -23,5 +23,12 @@
     "role": "Organizer",
     "assignedEvents": [],
     "id": "usr_9b491f57-c579-4dee-84f6-c04efe87acfa"
+  },
+  {
+    "name": "Obi-Wan Kenobi",
+    "email": "obi-wan.kenobi@example.com",
+    "role": "Organizer",
+    "assignedEvents": [],
+    "id": "usr_bf2a6f49-0aed-49c9-86f7-3d835f92e90c"
   }
 ]
