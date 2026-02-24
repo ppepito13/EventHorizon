@@ -10,7 +10,7 @@ import { adminAuth } from '@/lib/firebase-admin';
 const userSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
   email: z.string().email('Invalid email address.'),
-  password: z.string().optional(),
+  password: z.string().nullable().optional(),
   role: z.enum(['Administrator', 'Organizer']),
   assignedEvents: z.array(z.string()).default([]),
   changePassword: z.preprocess(v => v === 'on', z.boolean()).optional(),
