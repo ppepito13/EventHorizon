@@ -30,7 +30,15 @@ export default function EventPage() {
   const firestore = useFirestore();
 
   const eventQuery = useMemoFirebase(
-    () => firestore ? query(collection(firestore, 'events'), where('slug', '==', params.slug), limit(1)) : null,
+    () =>
+      firestore
+        ? query(
+            collection(firestore, 'events'),
+            where('slug', '==', params.slug),
+            where('isActive', '==', true),
+            limit(1)
+          )
+        : null,
     [firestore, params.slug]
   );
   
