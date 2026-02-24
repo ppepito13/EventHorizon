@@ -2,12 +2,16 @@
 'use server';
 
 import { z } from 'zod';
-import { getEventById } from '@/lib/data';
+import { getEventById, getUsers } from '@/lib/data';
 import type { Registration } from '@/lib/types';
-import { adminDb } from '@/lib/firebase-admin';
 import { randomUUID } from 'crypto';
 import { sendConfirmationEmail } from '@/lib/email';
 import QRCode from 'qrcode';
+
+import { initializeApp, deleteApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, doc, getDoc, writeBatch } from 'firebase/firestore';
+import { firebaseConfig } from '@/firebase/config';
 
 export async function registerForEvent(
   eventId: string,
@@ -17,7 +21,21 @@ export async function registerForEvent(
   registration?: Registration;
   errors?: { [key:string]: string[] } | { _form: string[] };
 }> {
+  const tempAppName = `temp-register-app-${randomUUID()}`;
+  let tempApp: FirebaseApp | null = null;
+  
   try {
+    tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempAuth = getAuth(tempApp);
+    const tempDb = getFirestore(tempApp);
+
+    const users = await getUsers();
+    const adminUser = users.find(u => u.role === 'Administrator');
+    if (!adminUser || !adminUser.password) {
+        throw new Error('Critical: Could not find admin user credentials to perform this action.');
+    }
+    await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
+    
     // Get event data from JSON for form validation and basic info
     const jsonEvent = await getEventById(eventId);
     if (!jsonEvent) {
@@ -25,9 +43,9 @@ export async function registerForEvent(
     }
 
     // Get event data from Firestore to retrieve ownership for security rules
-    const eventDocRef = adminDb.doc(`events/${eventId}`);
-    const eventDoc = await eventDocRef.get();
-    if (!eventDoc.exists) {
+    const eventDocRef = doc(tempDb, `events/${eventId}`);
+    const eventDoc = await getDoc(eventDocRef);
+    if (!eventDoc.exists()) {
         throw new Error('Event not found in database.');
     }
     const firestoreEvent = eventDoc.data()!;
@@ -100,6 +118,9 @@ export async function registerForEvent(
     
     const registrationTime = new Date();
     const qrId = `qr_${randomUUID()}`;
+    const registrationId = `reg_${randomUUID()}`;
+    
+    const batch = writeBatch(tempDb);
 
     // 1. Create QR code document
     const qrCodeData = {
@@ -108,12 +129,10 @@ export async function registerForEvent(
         formData: validated.data,
         registrationDate: registrationTime.toISOString(),
     };
-    const qrDocRef = adminDb.collection("qrcodes").doc(qrId);
-    await qrDocRef.set(qrCodeData);
-
+    const qrDocRef = doc(tempDb, "qrcodes", qrId);
+    batch.set(qrDocRef, qrCodeData);
 
     // 2. Create the main registration document, now with denormalized owner fields
-    const registrationId = `reg_${randomUUID()}`;
     const newRegistrationData = {
         eventId: jsonEvent.id,
         eventName: jsonEvent.name,
@@ -128,14 +147,16 @@ export async function registerForEvent(
         checkInTime: null,
     };
     
-    const registrationDocRef = adminDb.doc(`events/${jsonEvent.id}/registrations/${registrationId}`);
-    await registrationDocRef.set(newRegistrationData);
+    const registrationDocRef = doc(tempDb, `events/${jsonEvent.id}/registrations/${registrationId}`);
+    batch.set(registrationDocRef, newRegistrationData);
+
+    // Commit both writes atomically
+    await batch.commit();
     
     // 3. Send confirmation email
     try {
         const qrCodeDataUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
         
-        // Extract recipient name and email safely
         const recipientName = (validated.data as any).full_name || 'Uczestniku';
         const recipientEmail = (validated.data as any).email;
         
@@ -153,8 +174,6 @@ export async function registerForEvent(
 
     } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
-        // We don't fail the whole registration if the email fails,
-        // but we should log it for monitoring.
     }
 
 
@@ -174,5 +193,9 @@ export async function registerForEvent(
       success: false,
       errors: { _form: [message] },
     };
+  } finally {
+      if (tempApp) {
+          await deleteApp(tempApp);
+      }
   }
 }
