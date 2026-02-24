@@ -35,14 +35,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
-import type { User } from '@/lib/types';
+import type { Event, User } from '@/lib/types';
 import { generateUsersAction, purgeUsersAction } from './actions';
 
 interface UsersClientPageProps {
     initialUsers: User[];
+    events: Event[];
 }
 
-export function UsersClientPage({ initialUsers }: UsersClientPageProps) {
+export function UsersClientPage({ initialUsers, events }: UsersClientPageProps) {
   const { showTestDataButtons } = useAppSettings();
   const { toast } = useToast();
 
@@ -58,10 +59,15 @@ export function UsersClientPage({ initialUsers }: UsersClientPageProps) {
       toast({ variant: 'destructive', title: 'Invalid amount', description: 'Please enter a number between 1 and 50.' });
       return;
     }
+    
+    if (!events || events.length === 0) {
+      toast({ variant: 'destructive', title: 'Generation Failed', description: 'Cannot generate users because no events exist. Please create an event first.' });
+      return;
+    }
 
     startGeneratingTransition(async () => {
       setGenerateDialogOpen(false);
-      const result = await generateUsersAction(generationCount);
+      const result = await generateUsersAction(generationCount, events);
       if (result.success) {
         toast({ title: 'Success', description: result.message, duration: 10000 });
       } else {

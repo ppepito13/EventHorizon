@@ -7,53 +7,5 @@
     "assignedEvents": [
       "All"
     ]
-  },
-  {
-    "name": "Luke Jedi",
-    "email": "luke.jedi@example.com",
-    "role": "Organizer",
-    "assignedEvents": [
-      "Tech Summit 2026"
-    ],
-    "id": "usr_4c181a2c-900d-4539-af68-1b7e65489555"
-  },
-  {
-    "name": "Leia Organa",
-    "email": "leia.organa@example.com",
-    "role": "Organizer",
-    "assignedEvents": [
-      "Summer Music Fest 2026",
-      "Creative Design Workshop"
-    ],
-    "id": "usr_af707bdd-d2c7-45e8-92bc-67696f6a82de"
-  },
-  {
-    "name": "Anakin Amidala",
-    "email": "anakin.amidala@example.com",
-    "role": "Organizer",
-    "assignedEvents": [
-      "Tech Summit 2026",
-      "Creative Design Workshop"
-    ],
-    "id": "usr_1d0144f9-ceb0-4912-b396-a4d0dd88bb84"
-  },
-  {
-    "name": "Yoda Kenobi",
-    "email": "yoda.kenobi@example.com",
-    "role": "Organizer",
-    "assignedEvents": [
-      "Tech Summit 2026"
-    ],
-    "id": "usr_3a3451d7-4ba8-44c9-865d-1697f2e380a2"
-  },
-  {
-    "name": "Obi-Wan Organa",
-    "email": "obi-wan.organa@example.com",
-    "role": "Organizer",
-    "assignedEvents": [
-      "Summer Music Fest 2026",
-      "Creative Design Workshop"
-    ],
-    "id": "usr_4b957e29-345f-44df-a75e-66300197866d"
   }
 ]

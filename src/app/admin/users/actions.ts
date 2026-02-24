@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createUser, deleteUser, updateUser, getUserById, getUsers, overwriteUsers, getEvents } from '@/lib/data';
+import { createUser, deleteUser, updateUser, getUserById, getUsers, overwriteUsers } from '@/lib/data';
 import type { User, Event } from '@/lib/types';
 import { adminAuth } from '@/lib/firebase-admin';
 
@@ -149,15 +149,14 @@ export async function deleteUserAction(id: string) {
 }
 
 
-export async function generateUsersAction(count: number) {
+export async function generateUsersAction(count: number, allEvents: Event[]) {
   if (count <= 0 || count > 50) {
     return { success: false, message: 'Please provide a number between 1 and 50.' };
   }
   try {
     const existingUsers = await getUsers();
-    const allEvents = await getEvents();
 
-    if (allEvents.length === 0) {
+    if (!allEvents || allEvents.length === 0) {
         return { success: false, message: 'Cannot generate users because no events exist. Please create an event first.' };
     }
 
