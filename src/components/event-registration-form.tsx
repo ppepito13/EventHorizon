@@ -120,6 +120,16 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
 
     if (result.success && result.registration) {
       setSuccessfulRegistration(result.registration);
+
+      if (result.emailStatus === 'failed') {
+        toast({
+          title: 'Problem z wysyłką e-maila',
+          description: 'Twoja rejestracja przebiegła pomyślnie, ale nie udało nam się wysłać potwierdzenia. Prosimy, zachowaj widoczny kod QR.',
+          variant: 'default',
+          duration: 10000,
+        });
+      }
+
       if (result.registration.qrId) {
         QRCode.toDataURL(result.registration.qrId, { errorCorrectionLevel: 'H', width: 256 })
           .then(url => {

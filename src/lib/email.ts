@@ -16,7 +16,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // Users should set RESEND_FROM_EMAIL to their own verified email address.
 const fromAddress = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
-export async function sendConfirmationEmail(payload: EmailPayload) {
+export async function sendConfirmationEmail(payload: EmailPayload): Promise<{ success: boolean, error?: string }> {
     const { to, name, eventName, eventDate, qrCodeDataUrl } = payload;
     
     if (!process.env.RESEND_API_KEY) {
@@ -24,8 +24,7 @@ export async function sendConfirmationEmail(payload: EmailPayload) {
             WARN: RESEND_API_KEY is not set in the .env file.
             Email sending is disabled. The registration process will continue without sending an email.
         `);
-        // Silently fail to not interrupt registration flow
-        return; 
+        return { success: false, error: 'Email service is not configured.' };
     }
 
     try {
@@ -48,16 +47,16 @@ export async function sendConfirmationEmail(payload: EmailPayload) {
         });
 
         if (error) {
-            // Log the error for debugging, but do NOT throw it.
-            // This ensures that a failure in email sending does not break the entire registration flow for the user.
             console.error('Resend API returned an error:', error);
+            return { success: false, error: error.message };
         } else {
             console.log('Confirmation email sent successfully via Resend:', data);
+            return { success: true };
         }
 
     } catch (e) {
-        // Catch any other exceptions (e.g., network issues)
         const error = e as Error;
         console.error('Failed to execute sendConfirmationEmail:', error.message);
+        return { success: false, error: error.message };
     }
 }

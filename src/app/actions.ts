@@ -20,6 +20,8 @@ export async function registerForEvent(
   success: boolean;
   registration?: Registration;
   errors?: { [key:string]: string[] } | { _form: string[] };
+  emailStatus?: 'sent' | 'failed' | 'skipped';
+  emailError?: string;
 }> {
   const tempAppName = `temp-register-app-${randomUUID()}`;
   let tempApp: FirebaseApp | null = null;
@@ -36,13 +38,11 @@ export async function registerForEvent(
     }
     await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
     
-    // Get event data from JSON for form validation and basic info
     const jsonEvent = await getEventById(eventId);
     if (!jsonEvent) {
       throw new Error('Event configuration not found.');
     }
 
-    // Get event data from Firestore to retrieve ownership for security rules
     const eventDocRef = doc(tempDb, `events/${eventId}`);
     const eventDoc = await getDoc(eventDocRef);
     if (!eventDoc.exists()) {
@@ -50,7 +50,6 @@ export async function registerForEvent(
     }
     const firestoreEvent = eventDoc.data()!;
 
-    // Dynamically build Zod schema from event configuration on the server
     const schemaFields = jsonEvent.formFields.reduce(
       (acc, field) => {
         let zodType: z.ZodTypeAny;
@@ -122,7 +121,6 @@ export async function registerForEvent(
     
     const batch = writeBatch(tempDb);
 
-    // 1. Create QR code document
     const qrCodeData = {
         eventId: jsonEvent.id,
         eventName: jsonEvent.name,
@@ -132,17 +130,14 @@ export async function registerForEvent(
     const qrDocRef = doc(tempDb, "qrcodes", qrId);
     batch.set(qrDocRef, qrCodeData);
 
-    // 2. Create the main registration document, now with denormalized owner fields
     const newRegistrationData = {
         eventId: jsonEvent.id,
         eventName: jsonEvent.name,
         formData: validated.data,
         qrId: qrId,
         registrationDate: registrationTime.toISOString(),
-        // Add denormalized fields for security rules
         eventOwnerId: firestoreEvent.ownerId,
         eventMembers: firestoreEvent.members,
-        // Add check-in status
         checkedIn: false,
         checkInTime: null,
     };
@@ -150,35 +145,42 @@ export async function registerForEvent(
     const registrationDocRef = doc(tempDb, `events/${jsonEvent.id}/registrations/${registrationId}`);
     batch.set(registrationDocRef, newRegistrationData);
 
-    // Commit both writes atomically
     await batch.commit();
     
-    // 3. Send confirmation email
+    // Send confirmation email and capture status
     const qrCodeDataUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
-    
     const recipientName = (validated.data as any).full_name || 'Uczestniku';
     const recipientEmail = (validated.data as any).email;
     
+    let emailStatus: 'sent' | 'failed' | 'skipped' = 'skipped';
+    let emailError: string | undefined = undefined;
+
     if (recipientEmail) {
-        await sendConfirmationEmail({
+        const emailResult = await sendConfirmationEmail({
             to: recipientEmail,
             name: recipientName,
             eventName: jsonEvent.name,
             eventDate: jsonEvent.date,
             qrCodeDataUrl: qrCodeDataUrl,
         });
+        if (emailResult.success) {
+            emailStatus = 'sent';
+        } else {
+            emailStatus = 'failed';
+            emailError = emailResult.error;
+        }
     } else {
          console.warn("No email address found in registration data, skipping email confirmation.");
+         emailStatus = 'skipped';
     }
 
-    // Reconstruct the final object without the security fields for the client response
     const { eventOwnerId, eventMembers, ...clientSafeRegistration } = newRegistrationData;
     const finalRegistration: Registration = {
       ...clientSafeRegistration,
       id: registrationId,
     };
 
-    return { success: true, registration: finalRegistration };
+    return { success: true, registration: finalRegistration, emailStatus, emailError };
 
   } catch (error) {
     console.error('Registration failed:', error);
