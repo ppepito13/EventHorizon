@@ -12,7 +12,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light'); // Default for SSR and first client render
+  const [theme, setTheme] = useState<Theme>('dark'); // Default to dark
 
   // On mount, read theme from localStorage
   useEffect(() => {
