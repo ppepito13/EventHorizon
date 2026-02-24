@@ -34,8 +34,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { MoreHorizontal, Trash2, Edit, Loader2, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { deleteEventAction, setActiveEventAction, deactivateEventAction } from './actions';
+import { deleteEventAction } from './actions';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useFirestore } from '@/firebase/provider';
+import { doc, updateDoc } from 'firebase/firestore';
 
 interface EventsTableProps {
   events: Event[];
@@ -53,24 +55,27 @@ function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address
 
 export function EventsTable({ events, userRole }: EventsTableProps) {
   const { toast } = useToast();
+  const firestore = useFirestore();
   const [isPending, startTransition] = useTransition();
+  const [activeToggles, setActiveToggles] = useState<Record<string, boolean>>({});
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
   const handleSetActive = (id: string, makeActive: boolean) => {
+    setActiveToggles(prev => ({ ...prev, [id]: true }));
     startTransition(async () => {
-      // The parent component's real-time listener will handle the UI update.
-      const action = makeActive ? setActiveEventAction : deactivateEventAction;
-      const result = await action(id);
-
-      if (result.success) {
-        toast({ title: 'Success', description: result.message });
-      } else {
+      try {
+        const eventRef = doc(firestore, 'events', id);
+        await updateDoc(eventRef, { isActive: makeActive });
+        toast({ title: 'Success', description: 'Event status updated successfully.' });
+      } catch(error: any) {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: result.message,
+          description: error.message || 'Could not update event status.',
         });
+      } finally {
+        setActiveToggles(prev => ({ ...prev, [id]: false }));
       }
     });
   };
@@ -130,10 +135,10 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
                       <Switch
                         checked={event.isActive}
                         onCheckedChange={(checked) => handleSetActive(event.id, checked)}
-                        disabled={isPending}
+                        disabled={isPending && activeToggles[event.id]}
                         aria-label={`Set ${event.name} as active`}
                       />
-                       {isPending && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                       {(isPending && activeToggles[event.id]) && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">{event.name}</TableCell>

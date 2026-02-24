@@ -7,8 +7,6 @@ import {
   createEvent,
   deleteEvent,
   updateEvent,
-  setActiveEvent,
-  deactivateEvent,
 } from '@/lib/data';
 import type { Event } from '@/lib/types';
 
@@ -121,32 +119,4 @@ export async function deleteEventAction(id: string) {
       message: error instanceof Error ? error.message : 'An unknown error occurred.',
     };
   }
-}
-
-export async function setActiveEventAction(id: string) {
-  try {
-    await setActiveEvent(id);
-    revalidatePath('/admin');
-    revalidatePath('/');
-    return { success: true, message: 'Event set as active.' };
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'An unknown error occurred.',
-    };
-  }
-}
-
-export async function deactivateEventAction(id: string) {
-    try {
-        await deactivateEvent(id);
-        revalidatePath('/admin');
-        revalidatePath('/');
-        return { success: true, message: 'Event deactivated successfully.' };
-    } catch (error) {
-        return {
-            success: false,
-            message: error instanceof Error ? error.message : 'An unknown error occurred.',
-        };
-    }
 }

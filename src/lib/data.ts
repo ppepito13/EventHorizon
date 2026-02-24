@@ -185,21 +185,6 @@ export async function deleteEvent(id: string): Promise<boolean> {
     }
 }
 
-export async function setActiveEvent(id: string): Promise<Event | null> {
-    const eventRef = adminDb.collection('events').doc(id);
-    await eventRef.update({ isActive: true });
-    const updatedDoc = await eventRef.get();
-    return updatedDoc.data() as Event;
-}
-
-export async function deactivateEvent(id: string): Promise<Event | null> {
-    const eventRef = adminDb.collection('events').doc(id);
-    await eventRef.update({ isActive: false });
-    const updatedDoc = await eventRef.get();
-    return updatedDoc.data() as Event;
-}
-
-
 // --- Registration Functions ---
 
 export async function getRegistrationsFromFirestore(eventId: string): Promise<Registration[]> {
