@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useMemo, useEffect, useTransition } from 'react';
-import type { Event, Registration, User } from '@/lib/types';
-import { collection, query, onSnapshot, FirestoreError } from 'firebase/firestore';
+import type { Event, Registration, User, FormField as FormFieldType } from '@/lib/types';
+import { collection, query, onSnapshot, FirestoreError, writeBatch, getDocs, doc } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase/provider';
 import { useAppSettings } from '@/context/app-settings-provider';
 
@@ -40,12 +40,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-    exportRegistrationsAction,
-    generateFakeRegistrationsAction,
-    deleteRegistrationAction,
-    purgeRegistrationsAction,
-} from './actions';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -56,6 +50,81 @@ interface RegistrationsClientPageProps {
   userRole: User['role'];
   demoUsers: User[];
 }
+
+// Helper functions previously in actions.ts
+function convertToCSV(data: Registration[], headers: {key: string, label: string}[]) {
+    const headerRow = ['Registration Date', 'QR ID', ...headers.map(h => h.label)].join('|');
+    const rows = data.map(reg => {
+        const date = reg.registrationDate ? new Date(reg.registrationDate).toLocaleString() : 'N/A';
+        const values = [
+            date,
+            reg.qrId ?? '',
+            ...headers.map(h => {
+                let value = reg.formData[h.key];
+                if (Array.isArray(value)) {
+                    value = value.join('; ');
+                }
+                 if (typeof value === 'boolean') {
+                    return value ? 'Yes' : 'No';
+                }
+                return value ?? '';
+            })
+        ];
+        return values.join('|');
+    });
+    return [headerRow, ...rows].join('\n');
+}
+
+const FAKE_NAMES = ['Amelia', 'Benjamin', 'Chloe', 'Daniel', 'Evelyn', 'Finn', 'Grace', 'Henry', 'Isabella', 'Jack'];
+
+function generateFakeData(fields: FormFieldType[], index: number) {  
+  const name = `${FAKE_NAMES[index % FAKE_NAMES.length]} Testperson${index}`;
+  const email = `${name.toLowerCase().replace(/\s/g, '.')}@example.com`;
+
+  const formData: { [key: string]: any } = { rodo: true };
+
+  fields.forEach(field => {
+    switch (field.type) {
+      case 'text':
+        if (field.name.includes('name')) {
+          formData[field.name] = name;
+        } else if (field.name.includes('url')) {
+          formData[field.name] = `https://example.com/${name.split(' ')[0].toLowerCase()}`;
+        } else {
+          formData[field.name] = `Some text for ${field.label}`;
+        }
+        break;
+      case 'email':
+        formData[field.name] = email;
+        break;
+      case 'tel':
+        formData[field.name] = `+48 ${Math.floor(100000000 + Math.random() * 900000000)}`;
+        break;
+      case 'checkbox':
+        formData[field.name] = Math.random() > 0.5;
+        break;
+      case 'textarea':
+        formData[field.name] = `This is some longer fake text for the field: ${field.label}. It is generated for ${name}.`;
+        break;
+      case 'radio':
+        if (field.options && field.options.length > 0) {
+          formData[field.name] = field.options[Math.floor(Math.random() * field.options.length)];
+        }
+        break;
+      case 'multiple-choice':
+        if (field.options && field.options.length > 0) {
+          const numChoices = Math.floor(Math.random() * field.options.length) + 1;
+          formData[field.name] = [...field.options].sort(() => 0.5 - Math.random()).slice(0, numChoices);
+        }
+        break;
+      default:
+        formData[field.name] = '';
+    }
+  });
+
+  return formData;
+}
+
 
 export function RegistrationsClientPage({ events, userRole, demoUsers }: RegistrationsClientPageProps) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
@@ -134,79 +203,163 @@ export function RegistrationsClientPage({ events, userRole, demoUsers }: Registr
   };
 
   const handleDeleteConfirm = () => {
-    if (!deleteDialogState.eventId || !deleteDialogState.regId) return;
+    if (!deleteDialogState.eventId || !deleteDialogState.regId || !firestore) return;
     const { eventId, regId } = deleteDialogState;
 
     startDeleteTransition(async () => {
-        const result = await deleteRegistrationAction(eventId, regId);
+        try {
+            const batch = writeBatch(firestore);
+            const registrationDocRef = doc(firestore, 'events', eventId, 'registrations', regId);
+            
+            const registrationToDelete = registrations.find(r => r.id === regId);
+            const qrId = registrationToDelete?.qrId;
 
-        if (result.success) {
+            batch.delete(registrationDocRef);
+
+            if (qrId) {
+                const qrDocRef = doc(firestore, 'qrcodes', qrId);
+                batch.delete(qrDocRef);
+            }
+            
+            await batch.commit();
+
             toast({
                 title: "Success",
-                description: result.message,
+                description: 'Registration and associated QR code deleted successfully.',
             });
-        } else {
-            toast({
+        } catch (error: any) {
+             toast({
                 variant: "destructive",
                 title: "Deletion Failed",
-                description: result.message,
+                description: error.message || 'An unknown error occurred.',
             });
+        } finally {
+            setDeleteDialogState({ isOpen: false, eventId: null, regId: null });
         }
-        setDeleteDialogState({ isOpen: false, eventId: null, regId: null });
     });
   };
   
   const handleGenerateData = () => {
-    if (!selectedEventId || !selectedEvent) {
+    if (!selectedEventId || !selectedEvent || !firestore) {
       toast({ variant: 'destructive', title: 'Error', description: 'Please select an event first.' });
       return;
     }
     startGeneratingTransition(async () => {
-      const result = await generateFakeRegistrationsAction(selectedEventId, selectedEvent.formFields);
-      if (result.success) {
-        toast({ title: 'Success', description: `${result.count} new registrations have been generated.` });
-      } else {
-        toast({ variant: 'destructive', title: 'Generation Failed', description: result.message || 'An unknown error occurred.' });
+      try {
+        const batch = writeBatch(firestore);
+        for (let i = 0; i < 5; i++) {
+            const registrationTime = new Date();
+            const formData = generateFakeData(selectedEvent.formFields, i);
+
+            const qrId = `qr_${crypto.randomUUID()}`;
+            const qrDocRef = doc(firestore, 'qrcodes', qrId);
+            const qrCodeData = {
+                eventId: selectedEventId,
+                eventName: selectedEvent.name,
+                formData,
+                registrationDate: registrationTime.toISOString(),
+            };
+            batch.set(qrDocRef, qrCodeData);
+
+            const registrationId = `reg_${crypto.randomUUID()}`;
+            const newRegistrationData = {
+                eventId: selectedEventId,
+                eventName: selectedEvent.name,
+                formData: formData,
+                qrId: qrId,
+                registrationDate: registrationTime.toISOString(),
+                eventOwnerId: selectedEvent.ownerId,
+                eventMembers: selectedEvent.members,
+                checkedIn: false,
+                checkInTime: null,
+            };
+            const registrationDocRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationId);
+            batch.set(registrationDocRef, newRegistrationData);
+        }
+        
+        await batch.commit();
+        toast({ title: 'Success', description: `5 new registrations have been generated.` });
+      } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'An unknown error occurred.' });
       }
     });
   };
 
   const handlePurgeData = () => {
-    if (!selectedEventId) {
+    if (!selectedEventId || !firestore) {
         toast({ variant: 'destructive', title: 'Error', description: 'Please select an event first.' });
         return;
     }
     startPurgeTransition(async () => {
-        const result = await purgeRegistrationsAction(selectedEventId);
-        if (result.success) {
-            toast({ title: 'Success', description: result.message || `${result.count} registrations have been purged.` });
-        } else {
-            toast({ variant: 'destructive', title: 'Purge Failed', description: result.message || 'An unknown error occurred.' });
+        try {
+            const registrationsColRef = collection(firestore, 'events', selectedEventId, 'registrations');
+            const snapshot = await getDocs(registrationsColRef);
+
+            if (snapshot.empty) {
+                toast({ title: 'Info', description: 'No registrations to purge.' });
+                setPurgeAlertOpen(false);
+                return;
+            }
+
+            const batch = writeBatch(firestore);
+            const qrIdsToDelete: string[] = [];
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+                const data = doc.data();
+                if (data.qrId) {
+                    qrIdsToDelete.push(data.qrId);
+                }
+            });
+
+            for (const qrId of qrIdsToDelete) {
+                const qrDocRef = doc(firestore, 'qrcodes', qrId);
+                batch.delete(qrDocRef);
+            }
+
+            await batch.commit();
+
+            const count = snapshot.size;
+            toast({ title: 'Success', description: `Successfully purged ${count} registrations.` });
+
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Purge Failed', description: error.message || 'An unknown error occurred.' });
+        } finally {
+            setPurgeAlertOpen(false);
         }
-        setPurgeAlertOpen(false);
     });
   };
 
   const handleExport = (format: 'excel' | 'plain') => {
-    if (!selectedEventId) {
+    if (!selectedEventId || !selectedEvent) {
         toast({ variant: 'destructive', title: 'Error', description: 'Please select an event to export.' });
         return;
     }
     startExportTransition(async () => {
-        const result = await exportRegistrationsAction(selectedEventId, format);
-        if (result.success && result.csvData) {
-            const blob = new Blob([result.csvData], { type: 'text/csv;charset=utf-8;' });
+        if (registrations.length === 0) {
+            toast({ variant: 'destructive', title: 'Export Failed', description: 'No registrations to export.' });
+            return;
+        }
+
+        try {
+            const headers = selectedEvent.formFields.map(field => ({ key: field.name, label: field.label }));
+            let csvData = convertToCSV(registrations, headers);
+
+            if (format === 'excel') {
+                csvData = `sep=|\n${csvData}`;
+            }
+
+            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            const safeEventName = result.eventName?.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            const safeEventName = selectedEvent.name?.replace(/[^a-z0-9]/gi, '_').toLowerCase();
             link.setAttribute('download', `registrations_${safeEventName}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             toast({ title: 'Success', description: 'Registrations exported successfully.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Export Failed', description: result.error || 'No registrations to export.' });
+        } catch(error: any) {
+            toast({ variant: 'destructive', title: 'Export Failed', description: error.message || 'Unknown error during export.' });
         }
     });
   };
