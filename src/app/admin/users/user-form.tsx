@@ -16,6 +16,9 @@ import { createUserAction, updateUserAction } from './actions';
 import { Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase/provider';
+import { collection, query } from 'firebase/firestore';
+
 
 const userFormSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
@@ -28,7 +31,6 @@ type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserFormProps {
   user?: User;
-  events: Event[];
 }
 
 const initialState = {
@@ -37,10 +39,14 @@ const initialState = {
     errors: {} as Record<string, string[]>,
 };
 
-export function UserForm({ user, events }: UserFormProps) {
+export function UserForm({ user }: UserFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
+
+  const firestore = useFirestore();
+  const eventsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'events')) : null, [firestore]);
+  const { data: events, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
   
   const action = user ? updateUserAction.bind(null, user.id) : createUserAction;
   const [state, formAction] = useActionState(action, initialState);
@@ -97,6 +103,16 @@ export function UserForm({ user, events }: UserFormProps) {
         formAction(formData);
     });
   };
+
+  if (areEventsLoading) {
+    return (
+      <div className="flex h-40 w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const eventsData = events || [];
 
   return (
     <Form {...form}>
@@ -184,7 +200,7 @@ export function UserForm({ user, events }: UserFormProps) {
                     Select events the user will have access to.
                   </FormDescription>
                 </div>
-                {events.map((event) => (
+                {eventsData.map((event) => (
                   <FormField
                     key={event.id}
                     control={form.control}
