@@ -39,6 +39,7 @@ import type { Event, User } from '@/lib/types';
 import { redirect } from 'next/navigation';
 import { collection, query, writeBatch, doc, setDoc, getDocs } from 'firebase/firestore';
 import { useAppSettings } from '@/context/app-settings-provider';
+import { getAppUserByEmailAction } from './actions';
 
 const FAKE_EVENT_THEMES = [
     { name: 'Quantum Leap Conference', slug: 'quantum-leap-conference', color: '#8b5cf6', hint: 'futuristic technology' },
@@ -105,11 +106,13 @@ export default function AdminDashboardPage() {
           return;
         }
         
-        const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
-        const userFromFile = allUsers.find(u => u.email === firebaseUser.email);
-        
-        if (userFromFile) {
-          setAppUser({ ...userFromFile, uid: firebaseUser.uid });
+        let foundAppUser: User | null = null;
+        if (firebaseUser.email) {
+            foundAppUser = await getAppUserByEmailAction(firebaseUser.email);
+        }
+
+        if (foundAppUser) {
+          setAppUser({ ...foundAppUser, uid: firebaseUser.uid });
         } else {
           setAppUser(null);
         }
