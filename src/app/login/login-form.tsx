@@ -50,9 +50,9 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
       // Redirect to the admin panel.
       router.push('/admin');
     } catch (err: any) {
-      console.error("Firebase login error:", err);
+      console.warn("Firebase login error:", err.code);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('Invalid email or password.');
+        setError('Invalid email or password. Please ensure this user exists in the Firebase Authentication console with the correct password.');
       } else {
         setError('An unexpected error occurred. Please try again.');
       }
