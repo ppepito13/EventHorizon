@@ -7,8 +7,7 @@
     "role": "Administrator",
     "assignedEvents": [
       "All"
-    ],
-    "password": "password"
+    ]
   },
   {
     "id": "usr_organizer1",
@@ -16,10 +15,9 @@
     "email": "organizer1@example.com",
     "role": "Organizer",
     "assignedEvents": [
-      "Tech Summit 2026",
-      "Creative Design Workshop"
-    ],
-    "password": "password"
+      "AI in Finance Summit 2026",
+      "Digital Art & Music Festival 2026"
+    ]
   },
   {
     "id": "usr_organizer2",
@@ -27,8 +25,7 @@
     "email": "organizer2@example.com",
     "role": "Organizer",
     "assignedEvents": [
-      "Summer Music Fest 2026"
-    ],
-    "password": "password"
+      "Sustainable Futures Expo 2026"
+    ]
   }
 ]
