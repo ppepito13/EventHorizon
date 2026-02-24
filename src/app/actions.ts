@@ -42,9 +42,13 @@ export async function registerForEvent(
             zodType = z.string().email({ message: 'Invalid email address.' });
             break;
           case 'tel':
-            zodType = z.string().min(7, "Phone number is too short.").regex(/^[\d\s+()-]+$/, {
-                message: "Phone number can only contain digits, spaces, and characters like + ( ) -",
-            });
+            zodType = z.string()
+              .refine(val => val.length === 0 || val.length >= 7, {
+                  message: "Phone number is too short.",
+              })
+              .refine(val => val.length === 0 || /^[\d\s+()-]+$/.test(val), {
+                  message: "Phone number can only contain digits, spaces, and characters like + ( ) -",
+              });
             break;
           case 'checkbox':
             zodType = z.boolean();
