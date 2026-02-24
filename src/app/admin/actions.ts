@@ -1,4 +1,3 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -11,7 +10,6 @@ import {
   deactivateEvent,
 } from '@/lib/data';
 import type { Event } from '@/lib/types';
-import { getSessionUser } from '@/lib/session';
 
 const eventSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
@@ -44,9 +42,8 @@ const eventSchema = z.object({
   isActive: z.preprocess(val => val === 'true', z.boolean()),
 });
 
-export async function createEventAction(data: FormData) {
-  const user = await getSessionUser();
-  if (!user?.uid) {
+export async function createEventAction(uid: string, data: FormData) {
+  if (!uid) {
     return {
       success: false,
       message: 'User is not properly authenticated to create an event.',
@@ -74,7 +71,7 @@ export async function createEventAction(data: FormData) {
     themeColor: '#3b82f6', // Default theme color
   };
 
-  await createEvent(newEventData, user.uid);
+  await createEvent(newEventData, uid);
 
   revalidatePath('/admin');
   revalidatePath('/');

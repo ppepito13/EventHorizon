@@ -132,7 +132,7 @@ export async function getEventBySlug(slug: string): Promise<Event | null> {
   return events.find(event => event.slug === slug) || null;
 }
 
-export async function createEvent(eventData: Omit<Event, 'id' | 'slug'>, ownerId?: string): Promise<Event> {
+export async function createEvent(eventData: Omit<Event, 'id' | 'slug' | 'ownerId' | 'members'>, ownerId: string): Promise<Event> {
     const events = await getEvents();
     const slug = eventData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
     
@@ -140,6 +140,8 @@ export async function createEvent(eventData: Omit<Event, 'id' | 'slug'>, ownerId
         ...eventData,
         id: `evt_${randomUUID()}`,
         slug: slug,
+        ownerId: ownerId,
+        members: { [ownerId]: 'owner' }
     };
     
     events.push(newEvent);

@@ -7,6 +7,7 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { Event } from '@/lib/types';
+import { useUser } from '@/firebase/provider';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -146,6 +147,7 @@ export function EventForm({ event }: EventFormProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useUser();
 
   const dateParts = event?.date?.split(' - ') ?? [];
   const isRange = dateParts.length > 1;
@@ -199,7 +201,17 @@ export function EventForm({ event }: EventFormProps) {
 
       const result = event
         ? await updateEventAction(event.id, formData)
-        : await createEventAction(formData);
+        : await (async () => {
+            if (!user?.uid) {
+              toast({
+                variant: 'destructive',
+                title: 'Authentication Error',
+                description: 'You must be logged in to create an event.',
+              });
+              return { success: false, message: 'User not authenticated' };
+            }
+            return createEventAction(user.uid, formData);
+          })();
 
       if (result.success) {
         toast({ title: 'Success!', description: `Event has been ${event ? 'updated' : 'created'}.` });
