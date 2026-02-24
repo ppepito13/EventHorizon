@@ -14,18 +14,20 @@
     "name": "Anna Smith",
     "email": "organizer1@example.com",
     "role": "Organizer",
-    "assignedEvents": [
-      "AI in Finance Summit 2026",
-      "Digital Art & Music Festival 2026"
-    ]
+    "assignedEvents": []
   },
   {
     "id": "usr_organizer2",
     "name": "Peter Jones",
     "email": "organizer2@example.com",
     "role": "Organizer",
-    "assignedEvents": [
-      "Sustainable Futures Expo 2026"
-    ]
+    "assignedEvents": []
+  },
+  {
+    "name": "John Doe",
+    "email": "johndoe@a.com",
+    "role": "Organizer",
+    "assignedEvents": [],
+    "id": "usr_aaafbf27-2db4-4f93-9da4-2bb898e03336"
   }
 ]
