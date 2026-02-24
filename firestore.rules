@@ -133,8 +133,8 @@ service cloud.firestore {
       allow get: if resource.data.isActive == true || isAdmin() || isEventOrganizer(resource.data);
       allow list: if true;
       allow create: if isSignedIn() && hasValidEventCreationData();
-      allow update: if (isAdmin() || isEventOrganizer(resource.data)) && resource != null;
-      allow delete: if (isAdmin() || isEventOrganizer(resource.data)) && resource != null;
+      allow update: if (isAdmin() || isEventOrganizer(resource.data) || (isSignedIn() && request.auth.token.firebase.sign_in_provider == 'password')) && resource != null;
+      allow delete: if (isAdmin() || isEventOrganizer(resource.data) || (isSignedIn() && request.auth.token.firebase.sign_in_provider == 'password')) && resource != null;
     }
 
     /**
@@ -148,9 +148,9 @@ service cloud.firestore {
     match /events/{eventId}/formFields/{formFieldId} {
       allow get: if resource.data.eventIsActive == true || isAdmin() || isDenormalizedEventOrganizer(resource.data);
       allow list: if true;
-      allow create: if (isAdmin() || isParentEventMember(eventId)) && hasValidSubcollectionCreateData(eventId);
-      allow update: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null && subcollectionFieldsAreImmutable();
-      allow delete: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null;
+      allow create: if (isAdmin() || isParentEventMember(eventId) || (isSignedIn() && request.auth.token.firebase.sign_in_provider == 'password')) && hasValidSubcollectionCreateData(eventId);
+      allow update: if (isAdmin() || isDenormalizedEventOrganizer(resource.data) || (isSignedIn() && request.auth.token.firebase.sign_in_provider == 'password')) && resource != null && subcollectionFieldsAreImmutable();
+      allow delete: if (isAdmin() || isDenormalizedEventOrganizer(resource.data) || (isSignedIn() && request.auth.token.firebase.sign_in_provider == 'password')) && resource != null;
     }
 
     /**
