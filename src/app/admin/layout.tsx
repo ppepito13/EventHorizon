@@ -1,3 +1,4 @@
+
 'use client';
 
 import { redirect, usePathname } from 'next/navigation';
@@ -14,6 +15,7 @@ import type { User as AppUser } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signOut } from 'firebase/auth';
+import { getAppUserByEmailAction } from './actions';
 
 export default function AdminLayout({
   children,
@@ -36,11 +38,10 @@ export default function AdminLayout({
       }
       
       // At this point, we have a Firebase user.
-      // Try to find their profile in our app's database.
+      // Use a server action to get fresh profile data.
       let foundAppUser: AppUser | null = null;
       if (user.email) {
-          const allUsers = await import('@/data/users.json').then(m => m.default) as AppUser[];
-          foundAppUser = allUsers.find(u => u.email === user.email) || null;
+          foundAppUser = await getAppUserByEmailAction(user.email);
       }
 
       if (foundAppUser) {
@@ -49,7 +50,9 @@ export default function AdminLayout({
           // CRITICAL: Firebase user exists but is not in our users.json.
           // This is an inconsistent state. Log them out to prevent being stuck.
           console.warn(`User ${user.email || user.uid} not found in app database. Logging out.`);
-          await signOut(auth);
+          if (auth) {
+            await signOut(auth);
+          }
           // The onIdTokenChanged listener in the provider will set the user to null,
           // which will trigger the `!user` redirect on the next render, breaking the loop.
       }
