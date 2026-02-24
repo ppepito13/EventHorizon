@@ -7,5 +7,21 @@
     "assignedEvents": [
       "All"
     ]
+  },
+  {
+    "name": "Han Amidala",
+    "email": "han.amidala@example.com",
+    "role": "Organizer",
+    "assignedEvents": [
+      "Summer Music Fest 2026"
+    ],
+    "id": "usr_a3da0501-b363-4b69-914b-f2f6bbb1f5ef"
+  },
+  {
+    "name": "Anakin Jedi",
+    "email": "anakin.jedi@example.com",
+    "role": "Organizer",
+    "assignedEvents": [],
+    "id": "usr_9b491f57-c579-4dee-84f6-c04efe87acfa"
   }
 ]

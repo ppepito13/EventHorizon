@@ -35,6 +35,7 @@ interface UserFormProps {
 
 const initialState = {
     success: false,
+    message: '',
     errors: {} as Record<string, string[]>,
 };
 
@@ -83,7 +84,7 @@ export function UserForm({ user, events }: UserFormProps) {
 
   useEffect(() => {
     if (state.success) {
-      toast({ title: 'Success!', description: `User has been ${user ? 'updated' : 'created'}.` });
+      toast({ title: 'Success!', description: state.message || `User has been ${user ? 'updated' : 'created'}.`, duration: 10000 });
       router.push('/admin/users');
       router.refresh();
     } else if (state.errors && Object.keys(state.errors).length > 0) {

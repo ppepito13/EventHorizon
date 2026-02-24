@@ -72,7 +72,7 @@ export default function UsersPage() {
       setGenerateDialogOpen(false);
       const result = await generateUsersAction(generationCount);
       if (result.success) {
-        toast({ title: 'Success', description: result.message });
+        toast({ title: 'Success', description: result.message, duration: 10000 });
         fetchUsers(); // Re-fetch users
       } else {
         toast({ variant: 'destructive', title: 'Generation Failed', description: result.message || 'An unknown error occurred.' });
@@ -84,7 +84,7 @@ export default function UsersPage() {
     startPurgeTransition(async () => {
       const result = await purgeUsersAction();
       if (result.success) {
-        toast({ title: 'Success', description: result.message });
+        toast({ title: 'Success', description: result.message, duration: 10000 });
         fetchUsers(); // Re-fetch users
       } else {
         toast({ variant: 'destructive', title: 'Purge Failed', description: result.message || 'An unknown error occurred.' });
@@ -152,7 +152,7 @@ export default function UsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete ALL users except for accounts with the 'Administrator' role. This action cannot be undone.
+              This will permanently delete ALL users except for accounts with the 'Administrator' role from the application database.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

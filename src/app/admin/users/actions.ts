@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createUser, deleteUser, updateUser, getUserById, getUsers, overwriteUsers } from '@/lib/data';
 import type { User, Event } from '@/lib/types';
-// import { adminAuth } from '@/lib/firebase-admin';
+// Firebase Admin Auth is not used directly anymore due to environment permission issues.
+// The logic now instructs the admin to perform Auth actions manually in the console.
 
 const userSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
@@ -45,38 +46,21 @@ export async function createUserAction(prevState: any, formData: FormData) {
   const { password, ...userData } = validated.data;
   
   try {
-    // 1. Create user in Firebase Auth - TEMPORARILY DISABLED due to server environment auth issues.
-    // const userRecord = await adminAuth.createUser({
-    //     email: userData.email,
-    //     password: password!,
-    //     displayName: userData.name,
-    //     disabled: false,
-    // });
-
-    // 2. Save user metadata to our database (users.json)
-    const newUser: Omit<User, 'id'> = {
-        ...userData,
-        // uid: userRecord.uid, // No UID available
+    const newUser = await createUser(userData);
+    revalidatePath('/admin/users');
+    return { 
+        success: true, 
+        message: `User ${newUser.name} created. To enable login, go to the Firebase Authentication console and add a user with the email ${newUser.email}.`, 
+        errors: {} 
     };
-    await createUser(newUser);
 
   } catch (error: any) {
     console.error("User creation error:", error);
-    // if (error.code === 'auth/email-already-exists') { // This check requires the adminAuth call
-    //   return {
-    //     success: false,
-    //     errors: { email: ['This email address is already in use.'] },
-    //   };
-    // }
     return {
       success: false,
       errors: { _form: [error.message || 'An unknown error occurred while creating the user.'] },
     }
   }
-
-
-  revalidatePath('/admin/users');
-  return { success: true, errors: {} };
 }
 
 
@@ -110,16 +94,16 @@ export async function updateUserAction(id: string, prevState: any, formData: For
   }
 
   try {
-    // 1. Update user in Firebase Auth -- TEMPORARILY DISABLED
-    // const userToUpdate = await getUserById(id);
-    // if (!userToUpdate) {
-    //     throw new Error('User not found in user data file.');
-    // }
-    // let authUid = userToUpdate.uid;
-    // ... logic to find and update user in Firebase Auth
-
-    // 2. Update user in our database (users.json)
     await updateUser(id, userData);
+    revalidatePath('/admin/users');
+    revalidatePath(`/admin/users/${id}/edit`);
+
+    let message = 'User updated successfully.';
+    if (changePassword) {
+        message += ' Please update the password manually in the Firebase Authentication console.';
+    }
+
+    return { success: true, message: message, errors: {} };
 
   } catch (error: any) {
      console.error("User update error:", error);
@@ -128,12 +112,6 @@ export async function updateUserAction(id: string, prevState: any, formData: For
       errors: { _form: [error.message || 'An unknown error occurred while updating the user.'] },
     }
   }
-
-
-  revalidatePath('/admin/users');
-  revalidatePath(`/admin/users/${id}/edit`);
-
-  return { success: true, errors: {} };
 }
 
 export async function deleteUserAction(id: string) {
@@ -143,16 +121,14 @@ export async function deleteUserAction(id: string) {
         throw new Error('User not found in JSON file.');
     }
 
-    // 1. Delete from Firebase Auth, if UID exists -- TEMPORARILY DISABLED
-    // if (userToDelete.uid) {
-    //     await adminAuth.deleteUser(userToDelete.uid);
-    // }
+    if (userToDelete.role === 'Administrator') {
+      return { success: false, message: 'Cannot delete an administrator account.' };
+    }
 
-    // 2. Delete from our database (users.json)
     await deleteUser(id);
 
     revalidatePath('/admin/users');
-    return { success: true, message: 'User deleted successfully.' };
+    return { success: true, message: `User ${userToDelete.name} removed. Remember to also delete them from the Firebase Authentication console.` };
   } catch (error) {
     console.error("Delete user error:", error);
     return {
@@ -174,6 +150,7 @@ export async function generateUsersAction(count: number) {
     const firstNames = ['Leia', 'Luke', 'Han', 'Anakin', 'Padme', 'Obi-Wan', 'Yoda'];
     const lastNames = ['Organa', 'Skywalker', 'Solo', 'Vader', 'Amidala', 'Kenobi', 'Jedi'];
 
+    let createdEmails = [];
     for (let i = 0; i < count; i++) {
         const randomFirstName = firstNames[Math.floor(Math.random() * firstNames.length)];
         const randomLastName = lastNames[Math.floor(Math.random() * lastNames.length)];
@@ -186,14 +163,6 @@ export async function generateUsersAction(count: number) {
 
         const email = `${name.toLowerCase().replace(/ /g, '.')}@example.com`;
         
-        // Create user in Firebase Auth -- TEMPORARILY DISABLED
-        // const userRecord = await adminAuth.createUser({
-        //     email: email,
-        //     password: 'password',
-        //     displayName: name,
-        //     disabled: false,
-        // });
-
         const assignedEvents = allEvents
           .sort(() => 0.5 - Math.random())
           .slice(0, Math.floor(Math.random() * 3))
@@ -204,13 +173,17 @@ export async function generateUsersAction(count: number) {
             email,
             role: 'Organizer',
             assignedEvents,
-            // uid: userRecord.uid, // No UID available
         };
         await createUser(newUser);
         existingUsers.push({ ...newUser, id: 'temp-id-for-uniqueness-check' });
+        createdEmails.push(email);
     }
     revalidatePath('/admin/users');
-    return { success: true, message: `${count} users generated.` };
+    const instruction = count === 1 
+      ? `To enable login, add a user in Firebase Auth with the email: ${createdEmails[0]}`
+      : `To enable logins, create users in Firebase Auth with the following emails: ${createdEmails.join(', ')}`;
+      
+    return { success: true, message: `${count} users generated in the app. ${instruction}.` };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred.';
     console.error("Generate users error:", error);
@@ -227,21 +200,11 @@ export async function purgeUsersAction() {
         if (usersToDelete.length === 0) {
             return { success: true, message: 'No non-admin users to purge.' };
         }
-
-        // Delete from Firebase Auth -- TEMPORARILY DISABLED
-        // const uidsToDelete = usersToDelete.map(u => u.uid).filter((uid): uid is string => !!uid);
-        // if (uidsToDelete.length > 0) {
-        //     try {
-        //       await adminAuth.deleteUsers(uidsToDelete);
-        //     } catch (authError: any) {
-        //       console.warn("Partial or full failure during Auth user deletion, but proceeding to purge from JSON.", authError.message);
-        //     }
-        // }
         
         await overwriteUsers(adminUsers);
 
         revalidatePath('/admin/users');
-        return { success: true, message: `${usersToDelete.length} users have been purged.` };
+        return { success: true, message: `${usersToDelete.length} users have been purged from the app. Remember to also delete them from the Firebase Authentication console.` };
 
     } catch (error) {
         const message = error instanceof Error ? error.message : 'An unknown error occurred.';
