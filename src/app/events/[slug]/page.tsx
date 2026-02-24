@@ -12,9 +12,9 @@ import {
 } from '@/components/ui/card';
 import { Calendar, MapPin, Loader2 } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase/provider';
-import { collection, query, where, limit } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import type { Event } from '@/lib/types';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address?: string }) {
     const typeLabels = location.types.map(t => t === 'Virtual' ? 'Virtual' : 'On-site');
@@ -29,27 +29,34 @@ export default function EventPage() {
   const params = useParams<{ slug: string }>();
   const firestore = useFirestore();
 
-  const eventQuery = useMemoFirebase(
+  // Fetch all active events to avoid composite index issues.
+  // This query is simple and aligns with security rules.
+  const activeEventsQuery = useMemoFirebase(
     () =>
       firestore
         ? query(
             collection(firestore, 'events'),
-            where('slug', '==', params.slug),
-            where('isActive', '==', true),
-            limit(1)
+            where('isActive', '==', true)
           )
         : null,
-    [firestore, params.slug]
+    [firestore]
   );
   
-  const { data: events, isLoading, error } = useCollection<Event>(eventQuery);
-  const event = events?.[0];
+  const { data: activeEvents, isLoading, error } = useCollection<Event>(activeEventsQuery);
+
+  // Find the specific event from the list on the client-side.
+  const event = useMemo(() => {
+    if (!activeEvents || !params.slug) return null;
+    return activeEvents.find(e => e.slug === params.slug) || null;
+  }, [activeEvents, params.slug]);
+
 
   useEffect(() => {
-    if (!isLoading && !events?.length) {
+    // If loading is complete and we still haven't found the event, it's a 404.
+    if (!isLoading && !event) {
       notFound();
     }
-  }, [isLoading, events]);
+  }, [isLoading, event]);
   
   if (isLoading || !event) {
       return (
