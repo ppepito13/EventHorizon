@@ -1,3 +1,4 @@
+
 'use client';
 
 import { EventsTable } from './events-table';
@@ -11,49 +12,53 @@ import {
 } from '@/components/ui/card';
 import { PlusCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useUser } from '@/firebase/provider';
-import { useEffect, useState } from 'react';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase/provider';
+import { useEffect, useState, useMemo } from 'react';
 import type { Event, User } from '@/lib/types';
 import { redirect } from 'next/navigation';
+import { collection, query } from 'firebase/firestore';
 
 export default function AdminDashboardPage() {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
   const [appUser, setAppUser] = useState<User | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [isAppUserLoading, setIsAppUserLoading] = useState(true);
+  
+  const firestore = useFirestore();
 
-  const handleActionComplete = () => {
-    setRefreshKey(prev => prev + 1);
-  };
+  // Real-time listener for events from Firestore
+  const eventsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'events')) : null, [firestore]);
+  const { data: allEvents, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadAppUser = async () => {
       if (!isAuthLoading) {
         if (!firebaseUser) {
           redirect('/login');
           return;
         }
         
+        // This still relies on users.json, which is fine for this scope.
         const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
         const currentAppUser = allUsers.find(u => u.email === firebaseUser.email);
         
-        if (currentAppUser) {
-          setAppUser(currentAppUser);
-          
-          let eventsData = await import('@/data/events.json').then(m => m.default) as Event[];
-          if (currentAppUser.role === 'Organizer' && !currentAppUser.assignedEvents.includes('All')) {
-            eventsData = eventsData.filter(event => currentAppUser.assignedEvents.includes(event.name));
-          }
-          setEvents(eventsData);
-        }
-        setIsLoading(false);
+        setAppUser(currentAppUser || null);
+        setIsAppUserLoading(false);
       }
     };
-    loadData();
-  }, [firebaseUser, isAuthLoading, refreshKey]);
+    loadAppUser();
+  }, [firebaseUser, isAuthLoading]);
 
-  if (isLoading || isAuthLoading) {
+  const filteredEvents = useMemo(() => {
+    if (!allEvents || !appUser) return [];
+    if (appUser.role === 'Administrator' || appUser.assignedEvents.includes('All')) {
+      return allEvents;
+    }
+    return allEvents.filter(event => appUser.assignedEvents.includes(event.name));
+  }, [allEvents, appUser]);
+
+  const isLoading = isAuthLoading || isAppUserLoading || areEventsLoading;
+
+  if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -94,7 +99,7 @@ export default function AdminDashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <EventsTable events={events} userRole={appUser.role} onActionComplete={handleActionComplete} />
+          <EventsTable events={filteredEvents} userRole={appUser.role} />
         </CardContent>
       </Card>
     </>

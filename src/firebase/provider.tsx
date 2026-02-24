@@ -3,8 +3,8 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore } from 'firebase/firestore';
-import { Auth, User, onIdTokenChanged, signInAnonymously } from 'firebase/auth';
+import { Firestore, Query, CollectionReference } from 'firebase/firestore';
+import { Auth, User, onIdTokenChanged } from 'firebase/auth';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -155,12 +155,16 @@ export const useFirebaseApp = (): FirebaseApp => {
   return firebaseApp;
 };
 
-type MemoFirebase <T> = T & {__memo?: boolean};
+type MemoFirebase<T> = T & {__memo?: boolean};
 
-export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | (MemoFirebase<T>) {
+export function useMemoFirebase<T>(factory: () => T | null, deps: DependencyList): (T | null) {
   const memoized = useMemo(factory, deps);
   
-  if(typeof memoized !== 'object' || memoized === null) return memoized;
+  if (memoized === null || typeof memoized !== 'object') {
+    return memoized;
+  }
+  
+  // Tag the object to indicate it's memoized
   (memoized as MemoFirebase<T>).__memo = true;
   
   return memoized;
@@ -175,3 +179,7 @@ export const useUser = (): UserHookResult => { // Renamed from useAuthUser
   const { user, isUserLoading, userError } = useFirebase(); // Leverages the main hook
   return { user, isUserLoading, userError };
 };
+
+
+export * from './firestore/use-collection';
+export * from './firestore/use-doc';

@@ -8,8 +8,6 @@ import { adminDb } from './firebase-admin';
 
 const dataDir = path.join(process.cwd(), 'data');
 const usersFilePath = path.join(dataDir, 'users.json');
-const eventsFilePath = path.join(dataDir, 'events.json');
-
 
 // --- Helper Functions ---
 async function readJsonFile<T>(filePath: string): Promise<T> {
@@ -85,20 +83,18 @@ export async function deleteUser(id: string): Promise<boolean> {
   return true;
 }
 
-// --- Event Functions (Now using local JSON file as the Source of Truth) ---
+// --- Event Functions (Now using Firestore as the Source of Truth) ---
 
-export async function getEvents(user?: User | null): Promise<Event[]> {
+export async function getEvents(): Promise<Event[]> {
     noStore();
     try {
-        const events = await readJsonFile<Event[]>(eventsFilePath);
-
-        if (user?.role === 'Organizer' && !user.assignedEvents.includes('All')) {
-            return events.filter(event => user.assignedEvents.includes(event.name));
+        const eventsSnapshot = await adminDb.collection('events').get();
+        if (eventsSnapshot.empty) {
+            return [];
         }
-        
-        return events;
+        return eventsSnapshot.docs.map(doc => doc.data() as Event);
     } catch (error) {
-        console.error("Error fetching events from file:", error);
+        console.error("Error fetching events from Firestore:", error);
         return [];
     }
 }
@@ -106,98 +102,101 @@ export async function getEvents(user?: User | null): Promise<Event[]> {
 export async function getActiveEvents(): Promise<Event[]> {
   noStore();
   try {
-    const events = await readJsonFile<Event[]>(eventsFilePath);
-    return events.filter(event => event.isActive);
+    const eventsSnapshot = await adminDb.collection('events').where('isActive', '==', true).get();
+    if (eventsSnapshot.empty) {
+        return [];
+    }
+    return eventsSnapshot.docs.map(doc => doc.data() as Event);
   } catch (error) {
-    console.error("Error fetching active events from file:", error);
+    console.error("Error fetching active events from Firestore:", error);
     return [];
   }
 }
 
 export async function getEventById(id: string): Promise<Event | null> {
   noStore();
-  const events = await getEvents();
-  return events.find(event => event.id === id) || null;
+  try {
+    const eventDoc = await adminDb.collection('events').doc(id).get();
+    if (!eventDoc.exists) {
+        return null;
+    }
+    return eventDoc.data() as Event;
+  } catch (error) {
+      console.error(`Error fetching event by ID ${id} from Firestore:`, error);
+      return null;
+  }
 }
 
 export async function getEventBySlug(slug: string): Promise<Event | null> {
   noStore();
-  const events = await getActiveEvents();
-  return events.find(event => event.slug === slug) || null;
+  try {
+    const eventsSnapshot = await adminDb.collection('events').where('slug', '==', slug).limit(1).get();
+    if (eventsSnapshot.empty) {
+        return null;
+    }
+    return eventsSnapshot.docs[0].data() as Event;
+  } catch (error) {
+    console.error(`Error fetching event by slug ${slug} from Firestore:`, error);
+    return null;
+  }
 }
 
 export async function createEvent(eventData: Omit<Event, 'id' | 'slug' | 'ownerId' | 'members'>, ownerId: string): Promise<Event> {
-    const events = await getEvents();
     const slug = eventData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
+    const eventId = `evt_${randomUUID()}`;
     
     const newEvent: Event = {
         ...eventData,
-        id: `evt_${randomUUID()}`,
+        id: eventId,
         slug: slug,
         ownerId: ownerId,
         members: { [ownerId]: 'owner' }
     };
     
-    events.push(newEvent);
-    await writeJsonFile(eventsFilePath, events);
+    await adminDb.collection('events').doc(eventId).set(newEvent);
     return newEvent;
 }
 
 export async function updateEvent(id: string, eventData: Partial<Omit<Event, 'id' | 'slug'>>): Promise<Event | null> {
-    const events = await getEvents();
-    const eventIndex = events.findIndex(e => e.id === id);
-    if (eventIndex === -1) {
-        return null;
-    }
-
+    const eventRef = adminDb.collection('events').doc(id);
+    
     const slug = eventData.name
         ? eventData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '')
-        : events[eventIndex].slug;
+        : undefined;
+
+    const updatePayload: { [key: string]: any } = { ...eventData };
+    if (slug) {
+        updatePayload.slug = slug;
+    }
+
+    await eventRef.update(updatePayload);
     
-    const updatedEvent = { ...events[eventIndex], ...eventData, slug };
-    events[eventIndex] = updatedEvent;
-    
-    await writeJsonFile(eventsFilePath, events);
-    return updatedEvent;
+    const updatedDoc = await eventRef.get();
+    return updatedDoc.data() as Event;
 }
 
 export async function deleteEvent(id: string): Promise<boolean> {
-    let events = await getEvents();
-    const initialLength = events.length;
-    events = events.filter(e => e.id !== id);
-    if (events.length === initialLength) {
+    try {
+        await adminDb.collection('events').doc(id).delete();
+        return true;
+    } catch (error) {
+        console.error(`Error deleting event ${id} from Firestore:`, error);
         return false;
     }
-    await writeJsonFile(eventsFilePath, events);
-    return true;
 }
 
 export async function setActiveEvent(id: string): Promise<Event | null> {
-    const events = await getEvents();
-    let activatedEvent: Event | null = null;
-    const eventIndex = events.findIndex(e => e.id === id);
-
-    if (eventIndex !== -1) {
-        activatedEvent = { ...events[eventIndex], isActive: true };
-        events[eventIndex] = activatedEvent;
-        await writeJsonFile(eventsFilePath, events);
-    }
-    
-    return activatedEvent;
+    const eventRef = adminDb.collection('events').doc(id);
+    await eventRef.update({ isActive: true });
+    const updatedDoc = await eventRef.get();
+    return updatedDoc.data() as Event;
 }
 
 export async function deactivateEvent(id: string): Promise<Event | null> {
-    const events = await getEvents();
-    let deactivatedEvent: Event | null = null;
-    const eventIndex = events.findIndex(e => e.id === id);
-
-    if (eventIndex !== -1) {
-        deactivatedEvent = { ...events[eventIndex], isActive: false };
-        events[eventIndex] = deactivatedEvent;
-        await writeJsonFile(eventsFilePath, events);
-    }
-    
-    return deactivatedEvent;
+    const eventRef = adminDb.collection('events').doc(id);
+    await eventRef.update({ isActive: false });
+    const updatedDoc = await eventRef.get();
+    return updatedDoc.data() as Event;
 }
 
 

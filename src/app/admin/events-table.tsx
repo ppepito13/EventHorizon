@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Event, User } from '@/lib/types';
@@ -39,7 +40,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 interface EventsTableProps {
   events: Event[];
   userRole: User['role'];
-  onActionComplete: () => void;
 }
 
 function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address?: string }) {
@@ -51,7 +51,7 @@ function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address
     return locationString;
 }
 
-export function EventsTable({ events, userRole, onActionComplete }: EventsTableProps) {
+export function EventsTable({ events, userRole }: EventsTableProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [isAlertOpen, setAlertOpen] = useState(false);
@@ -59,13 +59,12 @@ export function EventsTable({ events, userRole, onActionComplete }: EventsTableP
 
   const handleSetActive = (id: string, makeActive: boolean) => {
     startTransition(async () => {
-      const result = makeActive
-        ? await setActiveEventAction(id)
-        : await deactivateEventAction(id);
+      // The parent component's real-time listener will handle the UI update.
+      const action = makeActive ? setActiveEventAction : deactivateEventAction;
+      const result = await action(id);
 
       if (result.success) {
         toast({ title: 'Success', description: result.message });
-        onActionComplete();
       } else {
         toast({
           variant: 'destructive',
@@ -89,7 +88,6 @@ export function EventsTable({ events, userRole, onActionComplete }: EventsTableP
         toast({ title: 'Success', description: result.message });
         setAlertOpen(false);
         setEventToDelete(null);
-        onActionComplete();
       } else {
         toast({
           variant: 'destructive',
@@ -124,82 +122,91 @@ export function EventsTable({ events, userRole, onActionComplete }: EventsTableP
             </TableRow>
           </TableHeader>
           <TableBody>
-            {events.map(event => (
-              <TableRow key={event.id}>
-                <TableCell>
-                  <div className="flex items-center">
-                    <Switch
-                      checked={event.isActive}
-                      onCheckedChange={(checked) => handleSetActive(event.id, checked)}
-                      disabled={isPending}
-                      aria-label={`Set ${event.name} as active`}
-                    />
-                  </div>
-                </TableCell>
-                <TableCell className="font-medium">{event.name}</TableCell>
-                <TableCell>{event.date}</TableCell>
-                <TableCell>{formatLocation(event.location)}</TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" asChild>
-                          <Link href={`/admin/events/${event.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit Event</span>
-                          </Link>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Edit Event</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" onClick={() => handleCopyLink(event.slug)}>
-                            <LinkIcon className="h-4 w-4" />
-                             <span className="sr-only">Copy Link</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Copy Link</p>
-                      </TooltipContent>
-                    </Tooltip>
+            {events.length > 0 ? (
+              events.map(event => (
+                <TableRow key={event.id}>
+                  <TableCell>
+                    <div className="flex items-center">
+                      <Switch
+                        checked={event.isActive}
+                        onCheckedChange={(checked) => handleSetActive(event.id, checked)}
+                        disabled={isPending}
+                        aria-label={`Set ${event.name} as active`}
+                      />
+                       {isPending && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">{event.name}</TableCell>
+                  <TableCell>{event.date}</TableCell>
+                  <TableCell>{formatLocation(event.location)}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="icon" asChild>
+                            <Link href={`/admin/events/${event.id}/edit`}>
+                              <Edit className="h-4 w-4" />
+                              <span className="sr-only">Edit Event</span>
+                            </Link>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Edit Event</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="icon" onClick={() => handleCopyLink(event.slug)}>
+                              <LinkIcon className="h-4 w-4" />
+                               <span className="sr-only">Copy Link</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Copy Link</p>
+                        </TooltipContent>
+                      </Tooltip>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem asChild>
-                          <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer" className='cursor-pointer'>
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              Open in new tab
-                          </a>
-                        </DropdownMenuItem>
-                        {userRole === 'Administrator' && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => openDeleteDialog(event.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem asChild>
+                            <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer" className='cursor-pointer'>
+                                <ExternalLink className="mr-2 h-4 w-4" />
+                                Open in new tab
+                            </a>
+                          </DropdownMenuItem>
+                          {userRole === 'Administrator' && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => openDeleteDialog(event.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+                <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                        No events found. Start by creating a new event.
+                    </TableCell>
+                </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
@@ -208,7 +215,7 @@ export function EventsTable({ events, userRole, onActionComplete }: EventsTableP
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the event.
+              This action cannot be undone. This will permanently delete the event and all associated registrations from the database.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
