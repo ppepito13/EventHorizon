@@ -81,7 +81,7 @@ export default function AdminLayout({
               </Link>
             </div>
             <div className="flex-1">
-              <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+              <nav className="grid items-start px-2 text-sm font-medium lg:px-4 gap-1">
                 {accessibleNavItems.map(({ href, icon, label }) => {
                   const Icon = iconMap[icon];
                   const isActive = pathname === href;
