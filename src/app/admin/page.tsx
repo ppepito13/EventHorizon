@@ -106,9 +106,13 @@ export default function AdminDashboardPage() {
         }
         
         const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
-        const currentAppUser = allUsers.find(u => u.email === firebaseUser.email);
+        const userFromFile = allUsers.find(u => u.email === firebaseUser.email);
         
-        setAppUser(currentAppUser || null);
+        if (userFromFile) {
+          setAppUser({ ...userFromFile, uid: firebaseUser.uid });
+        } else {
+          setAppUser(null);
+        }
         setIsAppUserLoading(false);
       }
     };
