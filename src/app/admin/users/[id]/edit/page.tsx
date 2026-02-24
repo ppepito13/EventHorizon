@@ -1,55 +1,24 @@
-'use client';
 
 import { UserForm } from '../../user-form';
-import { notFound, useParams } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase/provider';
-import { collection, query } from 'firebase/firestore';
-import type { Event, User } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { getEvents, getUserById } from '@/lib/data';
 
-export default function EditUserPage() {
-  const params = useParams<{ id: string }>();
-  const userId = params.id;
-  
-  const [user, setUser] = useState<User | null>(null);
-  const [isUserLoading, setIsUserLoading] = useState(true);
+// This is now a Server Component to ensure fresh data is always fetched.
+export default async function EditUserPage({ params }: { params: { id: string } }) {
+  const { id } = params;
 
-  const firestore = useFirestore();
-  const eventsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'events')) : null, [firestore]);
-  const { data: events, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
+  // Fetch both user and events data on the server side.
+  // This prevents client-side caching issues with imported JSON files
+  // and ensures the most up-to-date data is used.
+  const user = await getUserById(id);
+  const events = await getEvents();
 
-  useEffect(() => {
-    async function loadUser() {
-      if (!userId) {
-        setIsUserLoading(false);
-        return;
-      };
-      setIsUserLoading(true);
-      const allUsers = await import('@/data/users.json').then(m => m.default) as User[];
-      const foundUser = allUsers.find(u => u.id === userId);
-      setUser(foundUser || null);
-      setIsUserLoading(false);
-    }
-    loadUser();
-  }, [userId]);
-
-  const isLoading = isUserLoading || areEventsLoading;
-
-  if (isLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-  
+  // If the user doesn't exist in our data source, show a 404 page.
+  // This is the correct behavior if the ID in the URL is invalid.
   if (!user) {
     notFound();
   }
-  
-  const eventsData = events || [];
 
   return (
     <Card>
@@ -58,7 +27,8 @@ export default function EditUserPage() {
         <CardDescription>Modify user details for "{user.name}".</CardDescription>
       </CardHeader>
       <CardContent>
-        <UserForm user={user} events={eventsData} />
+        {/* Pass the server-fetched data to the client component form. */}
+        <UserForm user={user} events={events} />
       </CardContent>
     </Card>
   );

@@ -7,5 +7,12 @@
     "assignedEvents": [
       "All"
     ]
+  },
+  {
+    "id": "usr_5c891236-f8b3-4ee9-8570-be796b3f6b69",
+    "name": "Padme Kenobi",
+    "email": "padme.kenobi@example.com",
+    "role": "Organizer",
+    "assignedEvents": []
   }
 ]
