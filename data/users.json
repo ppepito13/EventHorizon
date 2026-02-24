@@ -13,6 +13,8 @@
     "name": "Padme Kenobi",
     "email": "padme.kenobi@example.com",
     "role": "Organizer",
-    "assignedEvents": []
+    "assignedEvents": [
+      "Quantum Leap Conference"
+    ]
   }
 ]

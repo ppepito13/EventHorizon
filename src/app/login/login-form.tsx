@@ -149,12 +149,29 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                             {copiedKey === `email-${index}` ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                         </Button>
                     </div>
-                    <div className="flex justify-between items-center mt-1">
-                        <p className="font-semibold">Password: <span className='font-mono'>password</span></p>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy('password', `password-${index}`)}>
-                            {copiedKey === `password-${index}` ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                        </Button>
-                    </div>
+                    {user.role === 'Administrator' ? (
+                      <div className="flex justify-between items-center mt-1">
+                          <p className="font-semibold">Password: <span className='font-mono'>password</span></p>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy('password', `password-${index}`)}>
+                              {copiedKey === `password-${index}` ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                          </Button>
+                      </div>
+                    ) : (
+                      <div className="mt-2">
+                          <p className="font-semibold text-xs text-muted-foreground">Event Access:</p>
+                          {user.assignedEvents && user.assignedEvents.length > 0 ? (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                  {user.assignedEvents.map(event => (
+                                      <Badge key={event} variant="outline" className="font-normal text-xs">
+                                          {event}
+                                      </Badge>
+                                  ))}
+                              </div>
+                          ) : (
+                              <p className="text-xs text-muted-foreground">No events assigned.</p>
+                          )}
+                      </div>
+                    )}
                 </div>
             ))}
         </CardContent>
