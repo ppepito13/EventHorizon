@@ -3,10 +3,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createUser, deleteUser, updateUser, getUserById, getUsers, overwriteUsers } from '@/lib/data';
+import { createUser, deleteUser, updateUser, getUserById, getUsers, overwriteUsers, getEvents } from '@/lib/data';
 import type { User, Event } from '@/lib/types';
-// Firebase Admin Auth is not used directly anymore due to environment permission issues.
-// The logic now instructs the admin to perform Auth actions manually in the console.
+import { adminAuth } from '@/lib/firebase-admin';
 
 const userSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
@@ -94,7 +93,18 @@ export async function updateUserAction(id: string, prevState: any, formData: For
   }
 
   try {
-    await updateUser(id, userData);
+    const user = await getUserById(id);
+    let uid = user?.uid;
+    if (!uid && userData.email) {
+        try {
+            const firebaseUser = await adminAuth.getUserByEmail(userData.email);
+            uid = firebaseUser.uid;
+        } catch (e) {
+            // User might not exist in auth yet, that's ok. We can proceed without the uid.
+        }
+    }
+    await updateUser(id, { ...userData, uid });
+
     revalidatePath('/admin/users');
     revalidatePath(`/admin/users/${id}/edit`);
 
@@ -145,7 +155,11 @@ export async function generateUsersAction(count: number) {
   }
   try {
     const existingUsers = await getUsers();
-    const allEvents = await import('@/data/events.json').then(m => m.default) as Event[];
+    const allEvents = await getEvents();
+
+    if (allEvents.length === 0) {
+        return { success: false, message: 'Cannot generate users because no events exist. Please create an event first.' };
+    }
 
     const firstNames = ['Leia', 'Luke', 'Han', 'Anakin', 'Padme', 'Obi-Wan', 'Yoda'];
     const lastNames = ['Organa', 'Skywalker', 'Solo', 'Vader', 'Amidala', 'Kenobi', 'Jedi'];
