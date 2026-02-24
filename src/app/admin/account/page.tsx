@@ -83,24 +83,26 @@ export default function AccountPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Developer Options</CardTitle>
-          <CardDescription>
-            Manage visibility of developer-specific options, such as test data generators.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="flex items-center space-x-2">
-                <Switch
-                    id="developer-options"
-                    checked={showTestDataButtons}
-                    onCheckedChange={setShowTestDataButtons}
-                />
-                <Label htmlFor="developer-options">Enable Developer Options</Label>
-            </div>
-        </CardContent>
-      </Card>
+      {appUser.role === 'Administrator' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Developer Options</CardTitle>
+            <CardDescription>
+              Manage visibility of developer-specific options, such as test data generators.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+              <div className="flex items-center space-x-2">
+                  <Switch
+                      id="developer-options"
+                      checked={showTestDataButtons}
+                      onCheckedChange={setShowTestDataButtons}
+                  />
+                  <Label htmlFor="developer-options">Enable Developer Options</Label>
+              </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
