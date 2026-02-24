@@ -149,14 +149,12 @@ export function LoginForm({ demoUsers }: LoginFormProps) {
                             {copiedKey === `email-${index}` ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
                         </Button>
                     </div>
-                    {user.password && (
-                        <div className="flex justify-between items-center mt-1">
-                            <p className="font-semibold">Password: <span className='font-mono'>{user.password}</span></p>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(user.password!, `password-${index}`)}>
-                                {copiedKey === `password-${index}` ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                            </Button>
-                        </div>
-                    )}
+                    <div className="flex justify-between items-center mt-1">
+                        <p className="font-semibold">Password: <span className='font-mono'>password</span></p>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy('password', `password-${index}`)}>
+                            {copiedKey === `password-${index}` ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                    </div>
                 </div>
             ))}
         </CardContent>
