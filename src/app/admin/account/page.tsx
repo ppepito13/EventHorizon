@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 
 export default function AccountPage() {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
-  const [appUser, setAppUser] = = useState<AppUser | null>(null);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { showTestDataButtons, setShowTestDataButtons } = useAppSettings();
 
