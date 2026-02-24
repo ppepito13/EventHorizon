@@ -37,15 +37,17 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
 import type { Event, User } from '@/lib/types';
 import { generateUsersAction, purgeUsersAction } from './actions';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase/provider';
+import { collection, query } from 'firebase/firestore';
 
 interface UsersClientPageProps {
     initialUsers: User[];
-    events: Event[];
 }
 
-export function UsersClientPage({ initialUsers, events }: UsersClientPageProps) {
+export function UsersClientPage({ initialUsers }: UsersClientPageProps) {
   const { showTestDataButtons } = useAppSettings();
   const { toast } = useToast();
+  const firestore = useFirestore();
 
   const [isGenerating, startGeneratingTransition] = useTransition();
   const [isPurging, startPurgeTransition] = useTransition();
@@ -53,10 +55,18 @@ export function UsersClientPage({ initialUsers, events }: UsersClientPageProps) 
   const [isPurgeAlertOpen, setPurgeAlertOpen] = useState(false);
   const [isGenerateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [generationCount, setGenerationCount] = useState(5);
+  
+  const eventsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'events')) : null, [firestore]);
+  const { data: events, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
 
   const handleGenerateUsers = () => {
     if (!generationCount || generationCount <= 0 || generationCount > 50) {
       toast({ variant: 'destructive', title: 'Invalid amount', description: 'Please enter a number between 1 and 50.' });
+      return;
+    }
+    
+    if (areEventsLoading) {
+      toast({ variant: 'destructive', title: 'Please wait', description: 'Events are still loading. Please try again in a moment.' });
       return;
     }
     
@@ -106,8 +116,8 @@ export function UsersClientPage({ initialUsers, events }: UsersClientPageProps) 
             </Button>
              {showTestDataButtons && (
                 <>
-                    <Button onClick={() => setGenerateDialogOpen(true)} disabled={isGenerating || isPurging} variant="outline">
-                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    <Button onClick={() => setGenerateDialogOpen(true)} disabled={isGenerating || isPurging || areEventsLoading} variant="outline">
+                        {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (areEventsLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null)}
                         Generate Test Users
                     </Button>
                     <Button
@@ -182,7 +192,7 @@ export function UsersClientPage({ initialUsers, events }: UsersClientPageProps) 
                 </div>
                 <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setGenerateDialogOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={isGenerating}>
+                    <Button type="submit" disabled={isGenerating || areEventsLoading}>
                         {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Generate
                     </Button>
