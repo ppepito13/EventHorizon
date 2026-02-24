@@ -4,11 +4,10 @@
 import { useState, useMemo, useEffect, useRef, useTransition } from 'react';
 import type { Event, Registration } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase/provider';
-import { collection, query, onSnapshot, FirestoreError, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, FirestoreError, orderBy, doc, updateDoc, where, getDocs } from 'firebase/firestore';
 import jsQR from 'jsqr';
 
 import { useToast } from '@/hooks/use-toast';
-import { checkInUserByQrId, toggleCheckInStatus, exportCheckedInAttendeesAction } from './actions';
 import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +26,41 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
+
+function convertCheckInToCSV(data: Registration[], headers: {key: string, label: string}[]) {
+    const headerRow = [
+        'Registration Date',
+        ...headers.map(h => h.label),
+        'Checked-In Status',
+        'Check-In Time'
+    ].join('|');
+
+    const rows = data.map(reg => {
+         const date = reg.registrationDate ? new Date(reg.registrationDate).toLocaleString() : 'N/A';
+         const checkInStatus = reg.checkedIn ? 'YES' : 'NO';
+         const checkInTime = reg.checkedIn && reg.checkInTime ? new Date(reg.checkInTime).toLocaleString() : 'N/A';
+         const formValues = headers.map(h => {
+                let value = reg.formData[h.key];
+                if (Array.isArray(value)) {
+                    value = value.join('; ');
+                }
+                if (typeof value === 'boolean') {
+                    return value ? 'Yes' : 'No';
+                }
+                return value ?? '';
+            });
+         
+         const values = [
+            date,
+            ...formValues,
+            checkInStatus,
+            checkInTime
+         ];
+         return values.join('|');
+    });
+
+    return [headerRow, ...rows].join('\n');
+}
 
 export function CheckInClientPage({ events }: { events: Event[] }) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
@@ -84,6 +118,47 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
 
     return () => unsubscribe();
   }, [firestore, selectedEventId, user, isAuthLoading]);
+  
+  const checkInUserByQrIdClient = async (eventId: string, qrId: string) => {
+    if (!firestore) return { success: false, message: 'Firestore not available' };
+    try {
+        const registrationsRef = collection(firestore, 'events', eventId, 'registrations');
+        const q = query(registrationsRef, where('qrId', '==', qrId));
+        
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            return { success: false, message: 'Registration not found.' };
+        }
+
+        const registrationDoc = querySnapshot.docs[0];
+        const registrationData = { id: registrationDoc.id, ...registrationDoc.data() } as Registration;
+
+        if (registrationData.checkedIn) {
+            const checkInTime = registrationData.checkInTime ? new Date(registrationData.checkInTime).toLocaleString() : '';
+            return { 
+                success: false, 
+                message: `User already checked in at ${checkInTime}.`,
+                userName: (registrationData.formData as any).full_name || 'N/A'
+            };
+        }
+
+        await updateDoc(registrationDoc.ref, {
+            checkedIn: true,
+            checkInTime: new Date().toISOString()
+        });
+        
+        return { 
+            success: true, 
+            message: 'Check-in successful!',
+            userName: (registrationData.formData as any).full_name || 'N/A'
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
+        console.error("Check-in error:", error);
+        return { success: false, message };
+    }
+  };
 
   // QR Scanner Logic
   useEffect(() => {
@@ -172,7 +247,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
     if (!selectedEventId) return;
     setIsScanning(false); // Stop scanning process
     startScanTransition(async () => {
-        const result = await checkInUserByQrId(selectedEventId, qrId);
+        const result = await checkInUserByQrIdClient(selectedEventId, qrId);
         setScanResult(result);
         toast({
             title: result.success ? 'Success!' : 'Scan Result',
@@ -194,19 +269,23 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   }, [registrations, searchTerm]);
 
   const handleToggleCheckIn = (registration: Registration) => {
-      if (!selectedEventId) return;
+      if (!selectedEventId || !firestore) return;
       startToggleTransition(async () => {
           const newStatus = !registration.checkedIn;
-          const result = await toggleCheckInStatus(selectedEventId, registration.id, newStatus);
-          if (result.success) {
-              toast({
-                  title: 'Success',
-                  description: `${(registration.formData as any).full_name} status updated.`,
-              });
-          } else {
+          const registrationRef = doc(firestore, 'events', selectedEventId, 'registrations', registration.id);
+          try {
+            await updateDoc(registrationRef, {
+                checkedIn: newStatus,
+                checkInTime: newStatus ? new Date().toISOString() : null
+            });
+            toast({
+                title: 'Success',
+                description: `${(registration.formData as any).full_name} status updated.`,
+            });
+          } catch(error: any) {
               toast({
                   title: 'Error',
-                  description: result.message,
+                  description: error.message || "An unknown error occurred",
                   variant: 'destructive',
               });
           }
@@ -214,25 +293,36 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   };
   
   const handleExport = (format: 'excel' | 'plain') => {
-    if (!selectedEventId) {
+    if (!selectedEventId || !selectedEvent) {
         toast({ variant: 'destructive', title: 'Error', description: 'Please select an event to export.' });
         return;
     }
-    startExportTransition(async () => {
-        const result = await exportCheckedInAttendeesAction(selectedEventId, format);
-        if (result.success && result.csvData) {
-            const blob = new Blob([result.csvData], { type: 'text/csv;charset=utf-8;' });
+    if (registrations.length === 0) {
+        toast({ variant: 'destructive', title: 'Export Failed', description: 'No registrations to export for this event.' });
+        return;
+    }
+    startExportTransition(() => {
+        try {
+            const headers = selectedEvent.formFields.map(field => ({ key: field.name, label: field.label }));
+            let csvData = convertCheckInToCSV(registrations, headers);
+
+            if (format === 'excel') {
+                csvData = `sep=|\n${csvData}`;
+            }
+            
+            const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            const safeEventName = result.eventName?.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            const safeEventName = selectedEvent.name?.replace(/[^a-z0-9]/gi, '_').toLowerCase();
             link.setAttribute('download', `checkin-status_${safeEventName}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             toast({ title: 'Success', description: 'Attendee check-in status exported successfully.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Export Failed', description: result.error || 'No registrations to export.' });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to export data.';
+            toast({ variant: 'destructive', title: 'Export Failed', description: message });
         }
     });
   };
