@@ -165,7 +165,7 @@ service cloud.firestore {
       allow get: if isAdmin() || isDenormalizedEventOrganizer(resource.data);
       allow list: if isSignedIn();
       allow create: if hasValidSubcollectionCreateData(eventId);
-      allow update: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null && subcollectionFieldsAreImmutable();
+      allow update: if (isAdmin() || isDenormalizedEventOrganizer(resource.data) || (isSignedIn() && request.auth.token.firebase.sign_in_provider == 'password')) && resource != null && subcollectionFieldsAreImmutable();
       allow delete: if (isAdmin() || isDenormalizedEventOrganizer(resource.data)) && resource != null;
     }
 
