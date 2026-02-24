@@ -2,49 +2,16 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { randomUUID } from 'crypto';
-import type { Registration, Event, User, FormField } from '@/lib/types';
+import type { Registration, Event } from '@/lib/types';
 import { getEventById } from '@/lib/data';
-
-import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
-
-
-const usersFilePath = path.join(process.cwd(), 'data', 'users.json');
-
-async function readUsersFile(): Promise<User[]> {
-    try {
-        const fileContent = await fs.readFile(usersFilePath, 'utf8');
-        return JSON.parse(fileContent);
-    } catch (error) {
-        console.error("Error reading users file:", error);
-        return [];
-    }
-}
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function checkInUserByQrId(eventId: string, qrId: string) {
-  const tempAppName = `temp-checkin-app-${randomUUID()}`;
-  const tempApp = initializeApp(firebaseConfig, tempAppName);
-
   try {
-    const tempAuth = getAuth(tempApp);
-    const tempDb = getFirestore(tempApp);
-        
-    const users = await readUsersFile();
-    const adminUser = users.find(u => u.role === 'Administrator');
-    if (!adminUser || !adminUser.password) {
-        throw new Error('Could not find admin user credentials to perform this action.');
-    }
-    await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
-
-    const registrationsRef = collection(tempDb, `events/${eventId}/registrations`);
-    const q = query(registrationsRef, where('qrId', '==', qrId));
+    const registrationsRef = adminDb.collection(`events/${eventId}/registrations`);
+    const q = registrationsRef.where('qrId', '==', qrId);
     
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await q.get();
 
     if (querySnapshot.empty) {
         return { success: false, message: 'Registration not found.' };
@@ -62,7 +29,7 @@ export async function checkInUserByQrId(eventId: string, qrId: string) {
         };
     }
 
-    await updateDoc(registrationDoc.ref, {
+    await registrationDoc.ref.update({
         checkedIn: true,
         checkInTime: new Date().toISOString()
     });
@@ -78,28 +45,14 @@ export async function checkInUserByQrId(eventId: string, qrId: string) {
     const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
     console.error("Check-in error:", error);
     return { success: false, message };
-  } finally {
-      await deleteApp(tempApp);
   }
 }
 
 export async function toggleCheckInStatus(eventId: string, registrationId: string, newStatus: boolean) {
-    const tempAppName = `temp-toggle-app-${randomUUID()}`;
-    const tempApp = initializeApp(firebaseConfig, tempAppName);
     try {
-        const tempAuth = getAuth(tempApp);
-        const tempDb = getFirestore(tempApp);
-            
-        const users = await readUsersFile();
-        const adminUser = users.find(u => u.role === 'Administrator');
-        if (!adminUser || !adminUser.password) {
-            throw new Error('Could not find admin user credentials to perform this action.');
-        }
-        await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
+        const registrationRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
         
-        const registrationRef = doc(tempDb, `events/${eventId}/registrations/${registrationId}`);
-        
-        await updateDoc(registrationRef, {
+        await registrationRef.update({
             checkedIn: newStatus,
             checkInTime: newStatus ? new Date().toISOString() : null
         });
@@ -111,9 +64,7 @@ export async function toggleCheckInStatus(eventId: string, registrationId: strin
         const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
         console.error("Toggle check-in error:", error);
         return { success: false, message };
-    } finally {
-      await deleteApp(tempApp);
-  }
+    }
 }
 
 
@@ -157,27 +108,14 @@ export async function exportCheckedInAttendeesAction(eventId: string, format: 'e
         return { success: false, error: 'Event ID is required.' };
     }
     
-    const tempAppName = `temp-export-checkin-app-${randomUUID()}`;
-    const tempApp = initializeApp(firebaseConfig, tempAppName);
-
     try {
-        const tempAuth = getAuth(tempApp);
-        const tempDb = getFirestore(tempApp);
-            
-        const users = await readUsersFile();
-        const adminUser = users.find(u => u.role === 'Administrator');
-        if (!adminUser || !adminUser.password) {
-            throw new Error('Could not find admin user credentials to perform this action.');
-        }
-        await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
-
         const event = await getEventById(eventId);
         if (!event) {
              return { success: false, error: 'Event not found.' };
         }
 
-        const registrationsColRef = collection(tempDb, `events/${eventId}/registrations`);
-        const snapshot = await getDocs(registrationsColRef);
+        const registrationsColRef = adminDb.collection(`events/${eventId}/registrations`);
+        const snapshot = await registrationsColRef.get();
         const firestoreRegistrations = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
 
         if (firestoreRegistrations.length === 0) {
@@ -198,7 +136,5 @@ export async function exportCheckedInAttendeesAction(eventId: string, format: 'e
         console.error("Export error: ", error);
         const message = error instanceof Error ? error.message : 'Failed to export data.';
         return { success: false, error: message };
-    } finally {
-        await deleteApp(tempApp);
     }
 }

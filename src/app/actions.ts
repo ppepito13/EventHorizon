@@ -2,16 +2,12 @@
 'use server';
 
 import { z } from 'zod';
-import { getEventById, getUsers } from '@/lib/data';
+import { getEventById } from '@/lib/data';
 import type { Registration } from '@/lib/types';
 import { randomUUID } from 'crypto';
 import { sendConfirmationEmail } from '@/lib/email';
 import QRCode from 'qrcode';
-
-import { initializeApp, deleteApp, type FirebaseApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, getDoc, writeBatch } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
+import { adminDb } from '@/lib/firebase-admin';
 
 export async function registerForEvent(
   eventId: string,
@@ -23,29 +19,16 @@ export async function registerForEvent(
   emailStatus?: 'sent' | 'failed' | 'skipped';
   emailError?: string;
 }> {
-  const tempAppName = `temp-register-app-${randomUUID()}`;
-  let tempApp: FirebaseApp | null = null;
   
   try {
-    tempApp = initializeApp(firebaseConfig, tempAppName);
-    const tempAuth = getAuth(tempApp);
-    const tempDb = getFirestore(tempApp);
-
-    const users = await getUsers();
-    const adminUser = users.find(u => u.role === 'Administrator');
-    if (!adminUser || !adminUser.password) {
-        throw new Error('Critical: Could not find admin user credentials to perform this action.');
-    }
-    await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
-    
     const jsonEvent = await getEventById(eventId);
     if (!jsonEvent) {
       throw new Error('Event configuration not found.');
     }
 
-    const eventDocRef = doc(tempDb, `events/${eventId}`);
-    const eventDoc = await getDoc(eventDocRef);
-    if (!eventDoc.exists()) {
+    const eventDocRef = adminDb.doc(`events/${eventId}`);
+    const eventDoc = await eventDocRef.get();
+    if (!eventDoc.exists) {
         throw new Error('Event not found in database.');
     }
     const firestoreEvent = eventDoc.data()!;
@@ -119,7 +102,7 @@ export async function registerForEvent(
     const qrId = `qr_${randomUUID()}`;
     const registrationId = `reg_${randomUUID()}`;
     
-    const batch = writeBatch(tempDb);
+    const batch = adminDb.batch();
 
     const qrCodeData = {
         eventId: jsonEvent.id,
@@ -127,7 +110,7 @@ export async function registerForEvent(
         formData: validated.data,
         registrationDate: registrationTime.toISOString(),
     };
-    const qrDocRef = doc(tempDb, "qrcodes", qrId);
+    const qrDocRef = adminDb.doc(`qrcodes/${qrId}`);
     batch.set(qrDocRef, qrCodeData);
 
     const newRegistrationData = {
@@ -142,7 +125,7 @@ export async function registerForEvent(
         checkInTime: null,
     };
     
-    const registrationDocRef = doc(tempDb, `events/${jsonEvent.id}/registrations/${registrationId}`);
+    const registrationDocRef = adminDb.doc(`events/${jsonEvent.id}/registrations/${registrationId}`);
     batch.set(registrationDocRef, newRegistrationData);
 
     await batch.commit();
@@ -189,9 +172,5 @@ export async function registerForEvent(
       success: false,
       errors: { _form: [message] },
     };
-  } finally {
-      if (tempApp) {
-          await deleteApp(tempApp);
-      }
   }
 }

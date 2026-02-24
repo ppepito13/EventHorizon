@@ -35,7 +35,6 @@ export type User = {
   email: string;
   role: 'Administrator' | 'Organizer';
   assignedEvents: string[];
-  password?: string;
   uid?: string;
 };
 

@@ -19,38 +19,10 @@ export async function changePasswordAction(
   prevState: { error?: string; success?: boolean },
   formData: FormData
 ) {
-  const validatedFields = passwordSchema.safeParse(
-    Object.fromEntries(formData.entries())
-  );
-
-  if (!validatedFields.success) {
-    const fieldErrors = validatedFields.error.flatten().fieldErrors;
-    const firstError = Object.values(fieldErrors)[0]?.[0];
-    return {
-      error: firstError || "Invalid data.",
-    };
-  }
-
-  const { currentPassword, newPassword } = validatedFields.data;
-
-  try {
-    const user = await getUserById(userId);
-
-    if (!user) {
-      return { error: 'User not found.' };
-    }
-    
-    if (user.password !== currentPassword) {
-      return { error: 'Current password is incorrect.' };
-    }
-
-    await updateUser(userId, { password: newPassword });
-
-    revalidatePath('/admin/account');
-    return { success: true };
-
-  } catch (error) {
-    console.error(error);
-    return { error: 'A server error occurred. Please try again.' };
-  }
+  // This server-side logic is insecure and relies on plaintext passwords.
+  // The correct implementation requires client-side re-authentication using the Firebase SDK.
+  // This function is temporarily disabled to prevent security risks.
+  return {
+    error: 'Password change functionality is currently disabled for security reasons. This must be implemented on the client-side with Firebase re-authentication.',
+  };
 }

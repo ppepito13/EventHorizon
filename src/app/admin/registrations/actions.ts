@@ -6,51 +6,9 @@ import path from 'path';
 import { revalidatePath } from 'next/cache';
 import type { Registration, Event, User, FormField } from '@/lib/types';
 import { randomUUID } from 'crypto';
-
-import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, deleteApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, collection, writeBatch, getDoc, getDocs } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 
 const dataDir = path.join(process.cwd(), 'data');
-const usersFilePath = path.join(dataDir, 'users.json');
-
-async function readUsersFile(): Promise<User[]> {
-    try {
-        const fileContent = await fs.readFile(usersFilePath, 'utf8');
-        return JSON.parse(fileContent);
-    } catch (error) {
-        console.error("Error reading users file:", error);
-        return [];
-    }
-}
-
-
-export async function getSeedDataAction(): Promise<{ 
-    success: boolean; 
-    data?: { events: Event[], registrations: Registration[], users: User[] };
-    message?: string;
-}> {
-  try {
-    const eventsPath = path.join(dataDir, 'events.json');
-    const regsPath = path.join(dataDir, 'registrations.json');
-    const usersPath = path.join(dataDir, 'users.json');
-
-    const eventsContent = await fs.readFile(eventsPath, 'utf8');
-    const regsContent = await fs.readFile(regsPath, 'utf8');
-    const usersContent = await fs.readFile(usersPath, 'utf8');
-
-    const events = JSON.parse(eventsContent);
-    const registrations = JSON.parse(regsContent);
-    const users = JSON.parse(usersContent);
-    
-    return { success: true, data: { events, registrations, users } };
-  } catch (error) {
-     console.error("Seeding data read error:", error);
-     const message = error instanceof Error ? error.message : 'An unknown server error occurred while reading seed data.';
-     return { success: false, message };
-  }
-}
 
 function convertToCSV(data: Registration[], headers: {key: string, label: string}[]) {
     const headerRow = ['Registration Date', 'QR ID', ...headers.map(h => h.label)].join('|');
@@ -76,28 +34,16 @@ export async function exportRegistrationsAction(eventId: string, format: 'excel'
     if (!eventId) {
         return { success: false, error: 'Event ID is required.' };
     }
-    const tempAppName = `temp-export-app-${randomUUID()}`;
-    const tempApp = initializeApp(firebaseConfig, tempAppName);
     try {
-        const tempAuth = getAuth(tempApp);
-        const tempDb = getFirestore(tempApp);
-        
-        const users = await readUsersFile();
-        const adminUser = users.find(u => u.role === 'Administrator');
-        if (!adminUser || !adminUser.password) {
-            throw new Error('Could not find admin user credentials to perform this action.');
-        }
-        await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
-
-        const eventDocRef = doc(tempDb, 'events', eventId);
-        const eventSnap = await getDoc(eventDocRef);
-        if (!eventSnap.exists()) {
+        const eventDocRef = adminDb.doc(`events/${eventId}`);
+        const eventSnap = await eventDocRef.get();
+        if (!eventSnap.exists) {
              return { success: false, error: 'Event not found.' };
         }
         const event = eventSnap.data() as Event;
 
-        const registrationsColRef = collection(tempDb, `events/${eventId}/registrations`);
-        const snapshot = await getDocs(registrationsColRef);
+        const registrationsColRef = adminDb.collection(`events/${eventId}/registrations`);
+        const snapshot = await registrationsColRef.get();
         const firestoreRegistrations = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Registration));
 
 
@@ -116,8 +62,6 @@ export async function exportRegistrationsAction(eventId: string, format: 'excel'
     } catch (error) {
         console.error("Export error: ", error);
         return { success: false, error: 'Failed to export data.' };
-    } finally {
-        await deleteApp(tempApp);
     }
 }
 
@@ -180,35 +124,22 @@ export async function generateFakeRegistrationsAction(
     return { success: false, message: 'Event ID is required.' };
   }
   
-  const tempAppName = `temp-writer-app-${randomUUID()}`;
-  const tempApp = initializeApp(firebaseConfig, tempAppName);
-
   try {
-    const tempAuth = getAuth(tempApp);
-    const tempDb = getFirestore(tempApp);
-    
-    const users = await readUsersFile();
-    const adminUser = users.find(u => u.role === 'Administrator');
-    if (!adminUser || !adminUser.password) {
-      throw new Error('Could not find admin user credentials to perform this action.');
-    }
-    await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
-
-    const eventDocRef = doc(tempDb, 'events', eventId);
-    const eventDoc = await getDoc(eventDocRef);
+    const eventDocRef = adminDb.doc(`events/${eventId}`);
+    const eventDoc = await eventDocRef.get();
 
     if (!eventDoc.exists()) {
       return { success: false, message: 'Parent event not found in Firestore.' };
     }
     const firestoreEvent = eventDoc.data()!;
     
-    const batch = writeBatch(tempDb);
+    const batch = adminDb.batch();
     for (let i = 0; i < 5; i++) {
         const registrationTime = new Date();
         const formData = generateFakeData(formFields, i);
 
         const qrId = `qr_${randomUUID()}`;
-        const qrDocRef = doc(tempDb, "qrcodes", qrId);
+        const qrDocRef = adminDb.doc(`qrcodes/${qrId}`);
         const qrCodeData = {
             eventId: eventId,
             eventName: firestoreEvent.name,
@@ -229,7 +160,7 @@ export async function generateFakeRegistrationsAction(
             checkedIn: false,
             checkInTime: null,
         };
-        const registrationDocRef = doc(tempDb, `events/${eventId}/registrations/${registrationId}`);
+        const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
         batch.set(registrationDocRef, newRegistrationData);
     }
     
@@ -242,41 +173,26 @@ export async function generateFakeRegistrationsAction(
     const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
     console.error("Generate fake data error:", error);
     return { success: false, message };
-  } finally {
-      await deleteApp(tempApp);
   }
 }
 
 // New, secure server action for deleting registrations
 export async function deleteRegistrationAction(eventId: string, registrationId: string) {
-  const tempAppName = `temp-deleter-app-${randomUUID()}`;
-  const tempApp = initializeApp(firebaseConfig, tempAppName);
-
   try {
-    const tempAuth = getAuth(tempApp);
-    const tempDb = getFirestore(tempApp);
-        
-    const users = await readUsersFile();
-    const adminUser = users.find(u => u.role === 'Administrator');
-    if (!adminUser || !adminUser.password) {
-        throw new Error('Could not find admin user credentials to perform this action.');
-    }
-    await signInWithEmailAndPassword(tempAuth, adminUser.email, adminUser.password);
+    const registrationDocRef = adminDb.doc(`events/${eventId}/registrations/${registrationId}`);
     
-    const registrationDocRef = doc(tempDb, `events/${eventId}/registrations/${registrationId}`);
-    
-    const registrationSnap = await getDoc(registrationDocRef);
+    const registrationSnap = await registrationDocRef.get();
     if (!registrationSnap.exists()) {
       throw new Error('Registration not found.');
     }
     const registrationData = registrationSnap.data();
     const qrId = registrationData?.qrId;
 
-    const batch = writeBatch(tempDb);
+    const batch = adminDb.batch();
     batch.delete(registrationDocRef);
 
     if (qrId) {
-      const qrDocRef = doc(tempDb, `qrcodes/${qrId}`);
+      const qrDocRef = adminDb.doc(`qrcodes/${qrId}`);
       batch.delete(qrDocRef);
     }
     
@@ -288,7 +204,5 @@ export async function deleteRegistrationAction(eventId: string, registrationId: 
   } catch (error: any) {
     console.error("Delete registration error:", error);
     return { success: false, message: error.message || 'An unknown server error occurred.' };
-  } finally {
-      await deleteApp(tempApp);
   }
 }

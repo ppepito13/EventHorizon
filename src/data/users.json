@@ -1,3 +1,4 @@
+
 [
   {
     "id": "usr_admin",
@@ -6,8 +7,7 @@
     "role": "Administrator",
     "assignedEvents": [
       "All"
-    ],
-    "password": "password"
+    ]
   },
   {
     "id": "usr_organizer1",
@@ -17,8 +17,7 @@
     "assignedEvents": [
       "Tech Summit 2026",
       "Creative Design Workshop"
-    ],
-    "password": "password"
+    ]
   },
   {
     "id": "usr_organizer2",
@@ -27,8 +26,7 @@
     "role": "Organizer",
     "assignedEvents": [
       "Summer Music Fest 2026"
-    ],
-    "password": "password"
+    ]
   },
   {
     "name": "John Doe",
@@ -38,7 +36,6 @@
       "Summer Music Fest 2026",
       "Tech Summit 2026"
     ],
-    "password": "qwe123",
     "id": "usr_aaafbf27-2db4-4f93-9da4-2bb898e03336"
   }
 ]
