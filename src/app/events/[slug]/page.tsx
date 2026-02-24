@@ -1,8 +1,7 @@
-
 'use client';
 
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { EventRegistrationForm } from '@/components/event-registration-form';
 import {
   Card,
@@ -17,12 +16,6 @@ import { collection, query, where, limit } from 'firebase/firestore';
 import type { Event } from '@/lib/types';
 import { useEffect } from 'react';
 
-interface EventPageProps {
-  params: {
-    slug: string;
-  };
-}
-
 function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address?: string }) {
     const typeLabels = location.types.map(t => t === 'Virtual' ? 'Virtual' : 'On-site');
     let locationString = typeLabels.join(' & ');
@@ -32,7 +25,8 @@ function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address
     return locationString;
 }
 
-export default function EventPage({ params }: EventPageProps) {
+export default function EventPage() {
+  const params = useParams<{ slug: string }>();
   const firestore = useFirestore();
 
   const eventQuery = useMemoFirebase(
