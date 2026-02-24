@@ -21,6 +21,11 @@ export default function AdminDashboardPage() {
   const [appUser, setAppUser] = useState<User | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleActionComplete = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -46,7 +51,7 @@ export default function AdminDashboardPage() {
       }
     };
     loadData();
-  }, [firebaseUser, isAuthLoading]);
+  }, [firebaseUser, isAuthLoading, refreshKey]);
 
   if (isLoading || isAuthLoading) {
     return (
@@ -89,7 +94,7 @@ export default function AdminDashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <EventsTable events={events} userRole={appUser.role} />
+          <EventsTable events={events} userRole={appUser.role} onActionComplete={handleActionComplete} />
         </CardContent>
       </Card>
     </>

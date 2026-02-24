@@ -3,7 +3,6 @@
 import type { Event, User } from '@/lib/types';
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -40,6 +39,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 interface EventsTableProps {
   events: Event[];
   userRole: User['role'];
+  onActionComplete: () => void;
 }
 
 function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address?: string }) {
@@ -51,9 +51,8 @@ function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address
     return locationString;
 }
 
-export function EventsTable({ events, userRole }: EventsTableProps) {
+export function EventsTable({ events, userRole, onActionComplete }: EventsTableProps) {
   const { toast } = useToast();
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
@@ -66,7 +65,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
 
       if (result.success) {
         toast({ title: 'Success', description: result.message });
-        router.refresh();
+        onActionComplete();
       } else {
         toast({
           variant: 'destructive',
@@ -90,7 +89,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
         toast({ title: 'Success', description: result.message });
         setAlertOpen(false);
         setEventToDelete(null);
-        router.refresh();
+        onActionComplete();
       } else {
         toast({
           variant: 'destructive',
