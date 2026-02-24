@@ -169,9 +169,10 @@ export async function registerForEvent(
 
   } catch (error) {
     console.error('Registration failed:', error);
+    const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
     return {
       success: false,
-      errors: { _form: ['An unexpected error occurred. Please try again.'] },
+      errors: { _form: [message] },
     };
   }
 }
