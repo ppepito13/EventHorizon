@@ -1,5 +1,7 @@
+
+'use client';
+
 import Image from 'next/image';
-import { getEventBySlug } from '@/lib/data';
 import { notFound } from 'next/navigation';
 import { EventRegistrationForm } from '@/components/event-registration-form';
 import {
@@ -9,15 +11,17 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { Calendar, MapPin } from 'lucide-react';
+import { Calendar, MapPin, Loader2 } from 'lucide-react';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase/provider';
+import { collection, query, where, limit } from 'firebase/firestore';
+import type { Event } from '@/lib/types';
+import { useEffect } from 'react';
 
 interface EventPageProps {
   params: {
     slug: string;
   };
 }
-
-export const dynamic = 'force-dynamic';
 
 function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address?: string }) {
     const typeLabels = location.types.map(t => t === 'Virtual' ? 'Virtual' : 'On-site');
@@ -28,11 +32,38 @@ function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address
     return locationString;
 }
 
-export default async function EventPage({ params }: EventPageProps) {
-  const event = await getEventBySlug(params.slug);
+export default function EventPage({ params }: EventPageProps) {
+  const firestore = useFirestore();
 
-  if (!event) {
-    notFound();
+  const eventQuery = useMemoFirebase(
+    () => firestore ? query(collection(firestore, 'events'), where('slug', '==', params.slug), limit(1)) : null,
+    [firestore, params.slug]
+  );
+  
+  const { data: events, isLoading, error } = useCollection<Event>(eventQuery);
+  const event = events?.[0];
+
+  useEffect(() => {
+    if (!isLoading && !events?.length) {
+      notFound();
+    }
+  }, [isLoading, events]);
+  
+  if (isLoading || !event) {
+      return (
+          <div className="flex h-screen w-full items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="ml-4">Loading event...</p>
+          </div>
+      );
+  }
+
+  if (error) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center text-red-500">
+            <p>Error loading event: {error.message}</p>
+        </div>
+    );
   }
 
   return (

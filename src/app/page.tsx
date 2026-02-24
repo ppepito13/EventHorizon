@@ -1,7 +1,10 @@
 
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
-import { getActiveEvents } from '@/lib/data';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase/provider';
+import { collection, query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -9,11 +12,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Calendar, Users } from 'lucide-react';
-import type { Event } from '@/lib/types';
+import { Calendar, Users, Loader2 } from 'lucide-react';
+import type { Event, User as AppUser } from '@/lib/types';
 import { SiteFooter } from '@/components/site-footer';
-
-export const dynamic = 'force-dynamic';
+import { SiteHeader } from '@/components/site-header';
+import { useState, useEffect } from 'react';
 
 function EventCard({ event }: { event: Event }) {
   return (
@@ -50,11 +53,71 @@ function EventCard({ event }: { event: Event }) {
   );
 }
 
-export default async function Home() {
-  const events = await getActiveEvents();
+export default function Home() {
+  const firestore = useFirestore();
+  const activeEventsQuery = useMemoFirebase(
+    () => firestore ? query(collection(firestore, 'events'), where('isActive', '==', true)) : null,
+    [firestore]
+  );
+  const { data: events, isLoading, error } = useCollection<Event>(activeEventsQuery);
+  
+  const { user: firebaseUser, isUserLoading } = useUser();
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
+
+  useEffect(() => {
+    const loadAppUser = async () => {
+      if (firebaseUser?.email) {
+        const allUsers = await import('@/data/users.json').then(m => m.default);
+        const foundUser = allUsers.find(u => u.email === firebaseUser.email);
+        setAppUser(foundUser || null);
+      } else {
+        setAppUser(null);
+      }
+    };
+    if (!isUserLoading) {
+        loadAppUser();
+    }
+  }, [firebaseUser, isUserLoading]);
+
+  const renderEvents = () => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="text-center text-red-500 py-16">
+          <h3 className="text-2xl font-headline mb-2">Error loading events</h3>
+          <p>{error.message}</p>
+        </div>
+      );
+    }
+    
+    if (!events || events.length === 0) {
+      return (
+        <div className="text-center text-muted-foreground py-16">
+          <h3 className="text-2xl font-headline mb-2">No Active Events</h3>
+          <p>There are currently no active events. Please check back later!</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {events.map((event) => (
+          <EventCard key={event.id} event={event} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
+      <SiteHeader user={appUser} />
       <main className="flex-1">
         <section
           className="relative flex h-[60vh] flex-col items-center justify-end text-center overflow-hidden bg-cover bg-[center_30%]"
@@ -75,18 +138,7 @@ export default async function Home() {
             <h2 className="text-3xl font-headline font-bold text-center mb-12">
               Active Events
             </h2>
-            {events.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {events.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-16">
-                <h3 className="text-2xl font-headline mb-2">No Active Events</h3>
-                <p>There are currently no active events. Please check back later!</p>
-              </div>
-            )}
+            {renderEvents()}
           </div>
         </section>
       </main>
