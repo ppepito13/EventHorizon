@@ -10,9 +10,9 @@ import { UserActions } from './user-actions';
 import { MobileNav } from './mobile-nav';
 import { NAV_ITEMS, iconMap } from './nav-config';
 import { useUser } from '@/firebase/provider';
-import { getUserById } from '@/lib/data';
 import type { User as AppUser } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function AdminLayout({
   children,
@@ -25,27 +25,25 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isUserLoading) {
-      if (!user) {
-        redirect('/login');
-      } else {
-        // The user object from Firebase doesn't contain our app-specific roles.
-        // We need to fetch the user profile from our database (users.json).
-        // This is a workaround because the UID from Firebase Auth might not match the ID in users.json.
-        // For this prototype, we'll assume the email is the link.
-        const fetchAppUser = async () => {
-            if (user.email) {
-                // This is a mock since we can't directly query by email without a backend.
-                // In a real app, this would be an API call.
-                const allUsers = await import('@/data/users.json').then(m => m.default);
-                const foundUser = allUsers.find(u => u.email === user.email);
-                setAppUser(foundUser || null);
-            }
-            setAppUserLoading(false);
+    const loadAppUser = async () => {
+      if (!isUserLoading) {
+        if (!user) {
+          redirect('/login');
+        } else {
+          // The user object from Firebase doesn't contain our app-specific roles.
+          // We need to fetch the user profile from our database (users.json).
+          // This is a workaround because the UID from Firebase Auth might not match the ID in users.json.
+          // For this prototype, we'll assume the email is the link.
+          if (user.email) {
+              const allUsers = await import('@/data/users.json').then(m => m.default) as AppUser[];
+              const currentAppUser = allUsers.find(u => u.email === user.email);
+              setAppUser(currentAppUser || null);
+          }
+          setIsAppUserLoading(false);
         }
-        fetchAppUser();
       }
-    }
+    };
+    loadAppUser();
   }, [user, isUserLoading]);
 
   if (isUserLoading || isAppUserLoading) {
@@ -91,7 +89,12 @@ export default function AdminLayout({
                     <Link
                       key={href}
                       href={href}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground ${isActive ? 'bg-accent text-accent-foreground' : ''}`}
+                      className={cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-accent hover:text-accent-foreground',
+                        isActive
+                          ? 'bg-accent text-accent-foreground'
+                          : 'text-muted-foreground'
+                      )}
                     >
                       <Icon className="h-4 w-4" />
                       {label}
