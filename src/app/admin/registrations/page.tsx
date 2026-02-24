@@ -1,18 +1,24 @@
 'use client';
 
-import { useUser } from '@/firebase/provider';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { redirect } from 'next/navigation';
 import { RegistrationsClientPage } from './registrations-client-page';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { Event, User } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { collection, query } from 'firebase/firestore';
 
 export default function RegistrationsPage() {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useUser();
   const [appUser, setAppUser] = useState<User | null>(null);
-  const [userEvents, setUserEvents] = useState<Event[]>([]);
   const [demoUsers, setDemoUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAppUserLoading, setIsAppUserLoading] = useState(true);
+  
+  const firestore = useFirestore();
+  
+  // Real-time listener for events from Firestore
+  const eventsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'events')) : null, [firestore]);
+  const { data: allEvents, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
 
   useEffect(() => {
     const loadData = async () => {
@@ -27,22 +33,23 @@ export default function RegistrationsPage() {
 
         const currentAppUser = allUsers.find(u => u.email === firebaseUser.email);
         setAppUser(currentAppUser || null);
-
-        if (currentAppUser) {
-          let events = await import('@/data/events.json').then(m => m.default) as Event[];
-          if (currentAppUser.role === 'Organizer' && !currentAppUser.assignedEvents.includes('All')) {
-              events = events.filter(event => currentAppUser.assignedEvents.includes(event.name));
-          }
-          setUserEvents(events);
-        }
-        
-        setIsLoading(false);
+        setIsAppUserLoading(false);
       }
     };
     loadData();
   }, [firebaseUser, isAuthLoading]);
 
-  if (isLoading || isAuthLoading) {
+  const userEvents = useMemo(() => {
+    if (!allEvents || !appUser) return [];
+    if (appUser.role === 'Administrator' || (appUser.assignedEvents && appUser.assignedEvents.includes('All'))) {
+      return allEvents;
+    }
+    return allEvents.filter(event => appUser.assignedEvents && appUser.assignedEvents.includes(event.name));
+  }, [allEvents, appUser]);
+
+  const isLoading = isAuthLoading || isAppUserLoading || areEventsLoading;
+
+  if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
