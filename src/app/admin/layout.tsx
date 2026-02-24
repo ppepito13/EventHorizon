@@ -48,7 +48,7 @@ export default function AdminLayout({
       } else {
           // CRITICAL: Firebase user exists but is not in our users.json.
           // This is an inconsistent state. Log them out to prevent being stuck.
-          console.error(`User ${user.email || user.uid} not found in app database. Logging out.`);
+          console.warn(`User ${user.email || user.uid} not found in app database. Logging out.`);
           await signOut(auth);
           // The onIdTokenChanged listener in the provider will set the user to null,
           // which will trigger the `!user` redirect on the next render, breaking the loop.
