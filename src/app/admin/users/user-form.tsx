@@ -157,7 +157,7 @@ export function UserForm({ user, events }: UserFormProps) {
             control={form.control}
             name="changePassword"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center gap-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+              <FormItem className="flex flex-row items-center gap-x-3 space-y-0">
                 <FormControl>
                   <Checkbox
                     checked={field.value}
