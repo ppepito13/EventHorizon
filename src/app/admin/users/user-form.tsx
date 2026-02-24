@@ -86,8 +86,18 @@ export function UserForm({ user, events }: UserFormProps) {
       toast({ title: 'Success!', description: `User has been ${user ? 'updated' : 'created'}.` });
       router.push('/admin/users');
       router.refresh();
-    } else if (Object.keys(state.errors).length > 0) {
+    } else if (state.errors && Object.keys(state.errors).length > 0) {
         Object.entries(state.errors).forEach(([field, messages]) => {
+            // If there's a general form error, show it in a toast.
+            if (field === '_form') {
+                toast({
+                    variant: 'destructive',
+                    title: 'An error occurred',
+                    description: messages.join(', '),
+                });
+                return; // Stop processing other errors for this submission
+            }
+            // Otherwise, set the error on the specific form field.
             form.setError(field as keyof UserFormValues, {
                 type: 'server',
                 message: messages.join(', '),

@@ -111,8 +111,23 @@ export async function updateUserAction(id: string, prevState: any, formData: For
 
   try {
     const userToUpdate = await getUserById(id);
-    if (!userToUpdate || !userToUpdate.uid) {
-        throw new Error('User not found or is missing a Firebase UID.');
+    if (!userToUpdate) {
+        throw new Error('User not found in user data file.');
+    }
+
+    let authUid = userToUpdate.uid;
+    let shouldUpdateJsonWithUid = false;
+    
+    // If UID is missing, try to find it in Firebase Auth using the email.
+    if (!authUid) {
+        try {
+            const authUserRecord = await adminAuth.getUserByEmail(userToUpdate.email);
+            authUid = authUserRecord.uid;
+            shouldUpdateJsonWithUid = true; // Mark that we should save this UID back to the JSON.
+        } catch (authError) {
+            console.error(`Auth user not found for email: ${userToUpdate.email}`, authError);
+            throw new Error(`The user exists in the app, but not in the authentication system. Please delete and re-create the user.`);
+        }
     }
     
     // 1. Update user in Firebase Auth
@@ -123,10 +138,14 @@ export async function updateUserAction(id: string, prevState: any, formData: For
     if (changePassword && password) {
         updatePayload.password = password;
     }
-    await adminAuth.updateUser(userToUpdate.uid, updatePayload);
+    await adminAuth.updateUser(authUid, updatePayload);
 
     // 2. Update user in our database (users.json)
-    await updateUser(id, userData);
+    const dataToSave: Partial<User> = { ...userData };
+    if (shouldUpdateJsonWithUid) {
+      dataToSave.uid = authUid;
+    }
+    await updateUser(id, dataToSave);
 
   } catch (error: any) {
      console.error("Firebase user update error:", error);
