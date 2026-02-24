@@ -3,8 +3,8 @@
 import { useUser } from '@/firebase/provider';
 import { redirect } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import type { User as AppUser } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { getAppUserByEmailAction } from '../actions';
 
 export default function UsersLayout({
   children,
@@ -12,28 +12,37 @@ export default function UsersLayout({
   children: React.ReactNode;
 }) {
   const { user, isUserLoading } = useUser();
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!isUserLoading) {
+    const checkPermissions = async () => {
+      if (isUserLoading) {
+        return; // Wait for Firebase auth to resolve
+      }
+
       if (!user) {
         redirect('/login');
-      } else if (user.email) {
-        const loadAppUser = async () => {
-          const allUsers = await import('@/data/users.json').then(m => m.default) as AppUser[];
-          const currentAppUser = allUsers.find(u => u.email === user.email);
-          if (currentAppUser?.role !== 'Administrator') {
-            redirect('/admin');
-          }
+        return;
+      }
+
+      if (user.email) {
+        // Always fetch the user's role from the server to get the latest data
+        const appUser = await getAppUserByEmailAction(user.email);
+        
+        // If user doesn't exist in our DB or is not an Admin, redirect
+        if (!appUser || appUser.role !== 'Administrator') {
+          redirect('/admin');
+        } else {
+          // User is an admin, allow access
           setIsLoading(false);
-        };
-        loadAppUser();
+        }
       } else {
-        // No email, cannot determine role
+        // A user without an email cannot be an admin in our system
         redirect('/admin');
       }
-    }
+    };
+
+    checkPermissions();
   }, [user, isUserLoading]);
 
   if (isUserLoading || isLoading) {

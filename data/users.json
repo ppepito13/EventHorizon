@@ -12,6 +12,48 @@
     "id": "usr_5c891236-f8b3-4ee9-8570-be796b3f6b69",
     "name": "Padme Kenobi",
     "email": "padme.kenobi@example.com",
+    "role": "Administrator",
+    "assignedEvents": [
+      "All"
+    ]
+  },
+  {
+    "id": "usr_820dfb8c-1051-4b71-940b-df66ae3fb77a",
+    "name": "Han Kenobi",
+    "email": "han.kenobi@example.com",
+    "role": "Organizer",
+    "assignedEvents": []
+  },
+  {
+    "id": "usr_53ae2b80-a0df-4c7f-83a4-a1198569c321",
+    "name": "Luke Skywalker",
+    "email": "luke.skywalker@example.com",
+    "role": "Organizer",
+    "assignedEvents": [
+      "AI & Beyond Expo",
+      "Quantum Leap Conference"
+    ]
+  },
+  {
+    "id": "usr_b0bb0578-40bc-4509-8ce1-9eebea4297ca",
+    "name": "Yoda Vader",
+    "email": "yoda.vader@example.com",
+    "role": "Organizer",
+    "assignedEvents": []
+  },
+  {
+    "id": "usr_c899626a-75f2-4888-b138-61e6a78c7a9a",
+    "name": "Han Organa",
+    "email": "han.organa@example.com",
+    "role": "Organizer",
+    "assignedEvents": [
+      "AI & Beyond Expo"
+    ]
+  },
+  {
+    "id": "usr_d44af85b-3b8b-43c6-b5e5-2d119a3107f6",
+    "name": "Luke Jedi",
+    "email": "luke.jedi@example.com",
     "role": "Organizer",
     "assignedEvents": [
       "Quantum Leap Conference"
