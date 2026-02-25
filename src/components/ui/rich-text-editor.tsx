@@ -146,18 +146,30 @@ const Toolbar = () => {
                         size="icon"
                         className="h-8 w-8"
                         onMouseDown={event => {
+                            console.log('[DEBUG] Insert Image button clicked.');
                             event.preventDefault();
+
+                            console.log('[DEBUG] Editor instance:', editor);
+
                             const url = window.prompt('Enter the URL of the image:');
+                            console.log(`[DEBUG] URL from prompt: "${url}"`);
+
                             if (!url) {
+                                console.log('[DEBUG] URL prompt was cancelled or empty.');
                                 return;
                             }
                             try {
                                 new URL(url);
+                                console.log('[DEBUG] URL is valid.');
                             } catch {
+                                console.log('[DEBUG] Invalid URL entered.');
                                 alert('Invalid URL');
                                 return;
                             }
+                            
+                            console.log('[DEBUG] Calling insertImageUtil...');
                             insertImageUtil(editor, url);
+                            console.log('[DEBUG] insertImageUtil call finished.');
                         }}
                     >
                         <ImageIcon />
