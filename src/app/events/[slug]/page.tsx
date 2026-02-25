@@ -10,11 +10,12 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import { Calendar, MapPin, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Loader2, AlertCircle } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase/provider';
 import { collection, query, where } from 'firebase/firestore';
 import type { Event } from '@/lib/types';
 import { useMemo } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function EventPage() {
   const params = useParams<{ slug: string }>();
@@ -40,15 +41,60 @@ export default function EventPage() {
     return (
       <div className="flex h-[60vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="ml-4">Ładowanie danych wydarzenia...</p>
       </div>
     );
   }
 
-  // If loading is finished and there's still no event (or an error occurred), then show 404.
-  // This is the safe way to handle it, after the data fetching is complete.
-  if (!event || error) {
-    notFound();
+  // --- START OF DEBUGGING LOGIC ---
+  // If we reach here, isLoading is false. Now we check why we might not have an event.
+  if (!event) {
+    return (
+        <div className="container py-10">
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-destructive">Błąd Diagnostyczny - 404</CardTitle>
+                    <CardDescription>Strona nie została znaleziona. Poniżej znajdują się szczegóły techniczne, które pomogą zdiagnozować problem.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4 font-mono text-xs">
+                    <p>Próbowano wyświetlić stronę, ale ostatecznie nie znaleziono pasującego wydarzenia. Oto stan aplikacji w momencie podejmowania decyzji:</p>
+                    
+                    <div className="p-3 bg-muted rounded-md">
+                        <strong>Parametry zapytania:</strong>
+                        <pre className="mt-1 whitespace-pre-wrap">{`slug: "${params.slug}"\nisActive: true`}</pre>
+                    </div>
+
+                    <div className="p-3 bg-muted rounded-md">
+                        <strong>Status ładowania (isLoading):</strong>
+                        <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(isLoading, null, 2)}</pre>
+                        <p className="text-muted-foreground text-xs mt-1">Oczekiwana wartość: false. Jeśli jest 'true', dane wciąż się ładują.</p>
+                    </div>
+                    
+                    <div className="p-3 bg-muted rounded-md">
+                        <strong>Obiekt błędu (error):</strong>
+                        <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(error, null, 2)}</pre>
+                        <p className="text-muted-foreground text-xs mt-1">Oczekiwana wartość: null. Jakakolwiek inna wartość wskazuje na problem z uprawnieniami lub połączeniem z bazą danych.</p>
+                    </div>
+
+                    <div className="p-3 bg-muted rounded-md">
+                        <strong>Otrzymane dane (zmienna 'events'):</strong>
+                        <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(events, null, 2)}</pre>
+                        <p className="text-muted-foreground text-xs mt-1">Oczekiwana wartość: tablica z jednym obiektem wydarzenia `[ { ... } ]`. Wartość `[]` (pusta tablica) oznacza, że zapytanie do bazy danych się powiodło, ale nie znaleziono żadnego wydarzenia pasującego do kryteriów (slug + isActive: true).</p>
+                    </div>
+
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        **Wniosek:** Jeśli błąd to `null`, a otrzymane dane to `[]` (pusta tablica), oznacza to, że w bazie danych nie ma wydarzenia o podanym 'slug' LUB to wydarzenie ma status `isActive: false`. Proszę zweryfikować dane w panelu administratora.
+                      </AlertDescription>
+                    </Alert>
+
+                </CardContent>
+            </Card>
+        </div>
+    );
   }
+  // --- END OF DEBUGGING LOGIC ---
   
   const formatEventLocation = (location: Event['location']) => {
     if (!location?.types) return null;
