@@ -132,14 +132,13 @@ service cloud.firestore {
     /**
      * @description Rules for the top-level 'events' collection.
      * @path /events/{eventId}
-     * @allow (get) Any user reading an event document where `isActive` is true.
+     * @allow (read) Any user reading an event document where `isActive` is true, or if they are an authorized organizer/admin.
      * @allow (create) An authenticated user creating a new event, setting themselves as the `ownerId`.
      * @deny (update) A user who is not the owner or a member trying to modify an event.
      * @principle Implements a public-read (if active) and owner-only-write model.
      */
     match /events/{eventId} {
-      allow get: if resource.data.isActive == true || isAdmin() || isEventOrganizer(resource.data);
-      allow list: if true;
+      allow read: if resource.data.isActive == true || (isSignedIn() && (isAdmin() || isEventOrganizer(resource.data)));
       allow create: if isSignedIn() && hasValidEventCreationData();
       allow update: if (isAdmin() || isEventOrganizer(resource.data) || (isSignedIn() && request.auth.token.firebase.sign_in_provider == 'password')) && resource != null;
       allow delete: if (isAdmin() || isEventOrganizer(resource.data) || (isSignedIn() && request.auth.token.firebase.sign_in_provider == 'password')) && resource != null;
