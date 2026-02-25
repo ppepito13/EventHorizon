@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import { createEditor, Descendant, Editor, Transforms } from 'slate';
+import { createEditor, Descendant, Editor, Transforms, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, useSlate, useSlateStatic, useSelected } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
@@ -119,26 +119,36 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 };
 
 const InsertImageButton = () => {
-    const editor = useSlate();
-    const handleMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.preventDefault();
-        const url = window.prompt('Enter the URL of the image:');
-        if (!url) return;
-        
-        try {
-            new URL(url);
-        } catch(e) {
-            alert('Invalid URL');
-            return;
-        }
-
-        insertImageUtil(editor, url);
-    };
+    const editor = useSlateStatic();
 
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onMouseDown={handleMouseDown}>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onMouseDown={event => {
+                        event.preventDefault();
+                        const { selection } = editor;
+                        const url = window.prompt('Enter the URL of the image:');
+                        if (!url) return;
+                        
+                        try {
+                            new URL(url);
+                        } catch (e) {
+                            alert('Invalid URL');
+                            return;
+                        }
+                        
+                        if (selection) {
+                           Transforms.select(editor, selection);
+                        }
+                        
+                        insertImageUtil(editor, url);
+                    }}
+                >
                     <ImageIcon />
                 </Button>
             </TooltipTrigger>
