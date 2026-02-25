@@ -2,6 +2,7 @@
 // based on common patterns from the official Slate documentation.
 
 import { Editor, Transforms, Element as SlateElement } from 'slate';
+import { ImageElement } from './slate-types';
 
 const LIST_TYPES = ['numbered-list', 'bulleted-list'];
 const TEXT_ALIGN_TYPES = ['left', 'center', 'right', 'justify'];
@@ -81,4 +82,13 @@ export const toggleBlock = (editor: Editor, format: string) => {
     const block = { type: format, children: [] } as SlateElement;
     Transforms.wrapNodes(editor, block);
   }
+};
+
+// --- Image Functions ---
+export const insertImage = (editor: Editor, url: string) => {
+    const text = { text: '' };
+    const image: ImageElement = { type: 'image', url, children: [text] };
+    Transforms.insertNodes(editor, image);
+    // Move cursor after the inserted image
+    Transforms.move(editor);
 };

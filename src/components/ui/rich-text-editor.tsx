@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import { createEditor, Descendant } from 'slate';
-import { Slate, Editable, withReact } from 'slate-react';
+import { createEditor, Descendant, Editor, Transforms } from 'slate';
+import { Slate, Editable, withReact, ReactEditor, useSlateStatic, useSlateSelected } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
 import {
@@ -16,14 +15,18 @@ import {
   List,
   ListOrdered,
   Quote,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Button } from './button';
 import { Separator } from './separator';
 import { cn } from '@/lib/utils';
-import { toggleMark, isMarkActive, toggleBlock, isBlockActive } from '@/lib/slate-editor-utils';
-import { CustomElement, CustomText } from '@/lib/slate-types';
+import { toggleMark, isMarkActive, toggleBlock, isBlockActive, insertImage as insertImageUtil } from '@/lib/slate-editor-utils';
+import { CustomElement, CustomText, ImageElement } from '@/lib/slate-types';
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
-
 
 const HOTKEYS: { [key: string]: string } = {
   'mod+b': 'bold',
@@ -39,13 +42,25 @@ const initialValue: Descendant[] = [
   },
 ];
 
+// HOC to handle image-specific logic
+const withImages = (editor: Editor & ReactEditor) => {
+    const { isVoid } = editor;
+
+    editor.isVoid = element => {
+        return element.type === 'image' ? true : isVoid(element);
+    };
+
+    return editor;
+};
+
+
 interface RichTextEditorProps {
   value?: string;
   onChange: (value: string) => void;
 }
 
 export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
-  const editor = useMemo(() => withHistory(withReact(createEditor())), []);
+  const editor = useMemo(() => withHistory(withReact(withImages(createEditor() as Editor & ReactEditor))), []);
   
   const parsedValue = useMemo(() => {
     try {
@@ -86,7 +101,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
               placeholder="Describe the event..."
               spellCheck
               autoFocus={false}
-              className="min-h-[150px] w-full rounded-b-md bg-transparent px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 prose dark:prose-invert"
+              className="min-h-[150px] w-full rounded-b-md bg-transparent px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 prose dark:prose-invert max-w-full"
               onKeyDown={event => {
                 for (const hotkey in HOTKEYS) {
                   if (isHotkey(hotkey, event as any)) {
@@ -105,20 +120,55 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 
 
 const Toolbar = () => {
-  return (
-    <div className="flex items-center gap-1 border-b p-2">
-      <MarkButton format="bold" icon={<Bold />} tooltip="Bold (Ctrl+B)" />
-      <MarkButton format="italic" icon={<Italic />} tooltip="Italic (Ctrl+I)" />
-      <MarkButton format="underline" icon={<Underline />} tooltip="Underline (Ctrl+U)" />
-      <MarkButton format="code" icon={<Code />} tooltip="Code (Ctrl+`)" />
-      <Separator orientation="vertical" className="h-6 mx-1" />
-      <BlockButton format="heading-one" icon={<Heading1 />} tooltip="Heading 1" />
-      <BlockButton format="heading-two" icon={<Heading2 />} tooltip="Heading 2" />
-      <BlockButton format="block-quote" icon={<Quote />} tooltip="Quote" />
-      <BlockButton format="numbered-list" icon={<ListOrdered />} tooltip="Numbered List" />
-      <BlockButton format="bulleted-list" icon={<List />} tooltip="Bulleted List" />
-    </div>
-  );
+    const editor = useSlate();
+    const handleInsertImage = () => {
+        const url = window.prompt('Enter the URL of the image:');
+        if (url && isUrl(url)) {
+            insertImageUtil(editor, url);
+        } else if (url) {
+            alert('Invalid URL');
+        }
+    };
+    
+    const isUrl = (url: string) => {
+        try {
+            new URL(url);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    return (
+        <div className="flex flex-wrap items-center gap-1 border-b p-2">
+            <MarkButton format="bold" icon={<Bold />} tooltip="Bold (Ctrl+B)" />
+            <MarkButton format="italic" icon={<Italic />} tooltip="Italic (Ctrl+I)" />
+            <MarkButton format="underline" icon={<Underline />} tooltip="Underline (Ctrl+U)" />
+            <MarkButton format="code" icon={<Code />} tooltip="Code (Ctrl+`)" />
+            <Separator orientation="vertical" className="h-6 mx-1" />
+            <BlockButton format="heading-one" icon={<Heading1 />} tooltip="Heading 1" />
+            <BlockButton format="heading-two" icon={<Heading2 />} tooltip="Heading 2" />
+            <BlockButton format="block-quote" icon={<Quote />} tooltip="Quote" />
+            <BlockButton format="numbered-list" icon={<ListOrdered />} tooltip="Numbered List" />
+            <BlockButton format="bulleted-list" icon={<List />} tooltip="Bulleted List" />
+            <Separator orientation="vertical" className="h-6 mx-1" />
+            <BlockButton format="left" icon={<AlignLeft />} tooltip="Align Left" />
+            <BlockButton format="center" icon={<AlignCenter />} tooltip="Align Center" />
+            <BlockButton format="right" icon={<AlignRight />} tooltip="Align Right" />
+            <BlockButton format="justify" icon={<AlignJustify />} tooltip="Justify" />
+            <Separator orientation="vertical" className="h-6 mx-1" />
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onMouseDown={handleInsertImage}>
+                        <ImageIcon />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Insert Image</p>
+                </TooltipContent>
+            </Tooltip>
+        </div>
+    );
 };
 
 const MarkButton = ({ format, icon, tooltip }: { format: string; icon: React.ReactNode; tooltip: string }) => {
@@ -155,7 +205,7 @@ const BlockButton = ({ format, icon, tooltip }: { format: string; icon: React.Re
           type="button"
           variant="ghost"
           size="icon"
-          className={cn("h-8 w-8", isBlockActive(editor, format) ? 'is-active bg-secondary' : '')}
+          className={cn("h-8 w-8", isBlockActive(editor, format, ['left', 'center', 'right', 'justify'].includes(format) ? 'align' : 'type') ? 'is-active bg-secondary' : '')}
           onMouseDown={event => {
             event.preventDefault();
             toggleBlock(editor, format);
@@ -172,16 +222,11 @@ const BlockButton = ({ format, icon, tooltip }: { format: string; icon: React.Re
 };
 
 // Custom `useSlate` hook to provide editor instance with correct types
-import { useSlate as useSlateReact } from 'slate-react';
-import { CustomTypes } from 'slate';
-
-export const useSlate = (): CustomTypes['Editor'] => {
-  return useSlateReact() as CustomTypes['Editor'];
-};
-
+import { useSlate } from 'slate-react';
 
 const Element = ({ attributes, children, element }: { attributes: any; children: any; element: CustomElement }) => {
-  const style = { textAlign: (element as any).align };
+  const style = { textAlign: element.align };
+  
   switch (element.type) {
     case 'block-quote':
       return <blockquote style={style} {...attributes}>{children}</blockquote>;
@@ -192,13 +237,38 @@ const Element = ({ attributes, children, element }: { attributes: any; children:
     case 'heading-two':
       return <h2 style={style} {...attributes}>{children}</h2>;
     case 'list-item':
-      return <li style={style} {...attributes}>{children}</li>;
+      return <li {...attributes}>{children}</li>;
     case 'numbered-list':
       return <ol style={style} {...attributes}>{children}</ol>;
+    case 'image':
+      return <ImageElementComponent attributes={attributes} element={element}>{children}</ImageElementComponent>;
     default:
       return <p style={style} {...attributes}>{children}</p>;
   }
 };
+
+const ImageElementComponent = ({ attributes, children, element }: { attributes: any, children: any, element: ImageElement }) => {
+    const selected = useSlateSelected();
+    const focused = useSlateStatic() && ReactEditor.isFocused(useSlateStatic()) && selected;
+    const { url } = element;
+    
+    return (
+        <div {...attributes}>
+            <div contentEditable={false} className="relative my-4">
+                <img
+                    src={url}
+                    alt=""
+                    className={cn(
+                        'block max-w-full max-h-96 shadow-md rounded-md',
+                        focused && 'ring-2 ring-ring ring-offset-2'
+                    )}
+                />
+            </div>
+            {children}
+        </div>
+    );
+};
+
 
 const Leaf = ({ attributes, children, leaf }: { attributes: any; children: any; leaf: CustomText }) => {
   if (leaf.bold) {

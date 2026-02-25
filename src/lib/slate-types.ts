@@ -5,13 +5,23 @@ import { BaseEditor } from 'slate';
 import { ReactEditor } from 'slate-react';
 import { HistoryEditor } from 'slate-history';
 
-export type BlockQuoteElement = { type: 'block-quote'; children: Descendant[] };
-export type BulletedListElement = { type: 'bulleted-list'; children: Descendant[] };
-export type HeadingOneElement = { type: 'heading-one'; children: Descendant[] };
-export type HeadingTwoElement = { type: 'heading-two'; children: Descendant[] };
+type BaseElement = {
+    align?: 'left' | 'center' | 'right' | 'justify';
+};
+
+export type BlockQuoteElement = BaseElement & { type: 'block-quote'; children: Descendant[] };
+export type BulletedListElement = BaseElement & { type: 'bulleted-list'; children: Descendant[] };
+export type HeadingOneElement = BaseElement & { type: 'heading-one'; children: Descendant[] };
+export type HeadingTwoElement = BaseElement & { type: 'heading-two'; children: Descendant[] };
 export type ListItemElement = { type: 'list-item'; children: Descendant[] };
-export type NumberedListElement = { type: 'numbered-list'; children: Descendant[] };
-export type ParagraphElement = { type: 'paragraph'; children: Descendant[] };
+export type NumberedListElement = BaseElement & { type: 'numbered-list'; children: Descendant[] };
+export type ParagraphElement = BaseElement & { type: 'paragraph'; children: Descendant[] };
+
+export type ImageElement = {
+    type: 'image';
+    url: string;
+    children: CustomText[]; // Void elements must have a text child node with empty string
+};
 
 export type CustomElement =
   | BlockQuoteElement
@@ -20,7 +30,8 @@ export type CustomElement =
   | HeadingTwoElement
   | ListItemElement
   | NumberedListElement
-  | ParagraphElement;
+  | ParagraphElement
+  | ImageElement;
 
 export type FormattedText = {
   text: string;
