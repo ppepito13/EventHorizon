@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
@@ -95,13 +96,13 @@ const renderNestedList = (
         j++;
       }
 
-      const liContent = currentItem.children.map((childNode, index) =>
-        renderEl({
-          attributes: { 'data-slate-node': 'value', key: index },
-          children: <Leaf leaf={childNode as CustomText} attributes={{ 'data-slate-leaf': true }}><span data-slate-string="true">{ (childNode as CustomText).text }</span></Leaf>,
-          element: childNode,
-        })
-      );
+      const liContent = currentItem.children.map((childNode, index) => {
+        const textNode = childNode as CustomText;
+        // Here we are manually rendering the leaf. The Leaf component will wrap the text
+        // with formatting like bold, italic, etc., based on the properties of the textNode.
+        // The key is essential for React to track the list items.
+        return <Leaf key={index} leaf={textNode} attributes={{'data-slate-leaf': true}}>{textNode.text}</Leaf>;
+      });
       
 
       const sublist =
@@ -288,7 +289,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   return (
     <div className="rounded-md border border-input">
       <Slate editor={editor} initialValue={parsedValue} onChange={handleValueChange}>
-        <Toolbar rememberedSelection={rememberedSelection} setImageDialog={setImageDialog} />
+        <Toolbar setImageDialog={setImageDialog} />
         <div className="relative">
             <Editable
               renderElement={renderElement}
@@ -324,7 +325,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   );
 };
 
-const Toolbar = ({ rememberedSelection, setImageDialog }: { rememberedSelection: React.MutableRefObject<Range | null>, setImageDialog: any }) => {
+const Toolbar = ({ setImageDialog }: { setImageDialog: any }) => {
     const editor = useSlateStatic();
     
     return (
@@ -357,12 +358,26 @@ const Toolbar = ({ rememberedSelection, setImageDialog }: { rememberedSelection:
                         className="h-8 w-8"
                         onMouseDown={event => {
                             event.preventDefault();
-                            rememberedSelection.current = editor.selection;
-                            setImageDialog({
-                                isOpen: true,
-                                mode: 'insert',
-                                initialValues: { url: '', width: '', height: '' },
-                            });
+                            const { selection } = editor;
+                            if (selection) {
+                                // Save the current selection to restore it after the dialog closes.
+                                // This is crucial because the dialog will cause the editor to lose focus.
+                                const selectionRef = editor.selection;
+
+                                setImageDialog({
+                                    isOpen: true,
+                                    mode: 'insert',
+                                    initialValues: { url: '', width: '', height: '' },
+                                    // A function to restore selection before inserting
+                                    onInsert: (url: string, width?: string, height?: string) => {
+                                        if (selectionRef) {
+                                            Transforms.select(editor, selectionRef);
+                                            ReactEditor.focus(editor);
+                                        }
+                                        insertImageUtil(editor, url, width, height);
+                                    }
+                                });
+                            }
                         }}
                     >
                         <ImageIcon />
@@ -492,7 +507,6 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
     const { url, width, height } = element;
     
     const containerStyle: React.CSSProperties = {
-        ...style,
         paddingLeft: element.indent ? `${element.indent * 1.5}em` : undefined,
         textAlign: element.align || 'left',
         lineHeight: '0',
