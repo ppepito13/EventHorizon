@@ -119,7 +119,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 };
 
 const InsertImageButton = () => {
-    const editor = useSlateStatic();
+    const editor = useSlate();
     const handleMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
         event.preventDefault();
         const url = window.prompt('Enter the URL of the image:');
