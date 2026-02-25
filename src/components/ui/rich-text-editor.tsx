@@ -61,7 +61,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
     return initialValue;
   }, [value]);
   
-  const handleValueChange = (newValue: Descendant[]) => {
+  const handleValueChange = useCallback((newValue: Descendant[]) => {
       const isAstChange = editor.operations.some(
         op => 'set_selection' !== op.type
       );
@@ -69,7 +69,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         const json = JSON.stringify(newValue);
         onChange(json);
       }
-  };
+  }, [editor, onChange]);
 
   const renderElement = useCallback((props: any) => <Element {...props} />, []);
   const renderLeaf = useCallback((props: any) => <Leaf {...props} />, []);
@@ -124,6 +124,7 @@ const MarkButton = ({ format, icon }: { format: string; icon: React.ReactNode })
   const editor = useSlate();
   return (
     <Button
+      type="button"
       variant="ghost"
       size="icon"
       className={cn("h-8 w-8", isMarkActive(editor, format) ? 'is-active bg-secondary' : '')}
@@ -141,6 +142,7 @@ const BlockButton = ({ format, icon }: { format: string; icon: React.ReactNode }
   const editor = useSlate();
   return (
     <Button
+      type="button"
       variant="ghost"
       size="icon"
       className={cn("h-8 w-8", isBlockActive(editor, format) ? 'is-active bg-secondary' : '')}
