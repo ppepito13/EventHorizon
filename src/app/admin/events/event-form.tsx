@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -59,6 +60,11 @@ const eventFormSchema = z.object({
   locationAddress: z.string().optional(),
   description: z.string().min(1, 'Description is required.'),
   rodo: z.string().min(1, 'Privacy Policy is required.'),
+  terms: z.object({
+    enabled: z.boolean().default(false),
+    url: z.string().optional(),
+    linkText: z.string().optional(),
+  }),
   heroImageSrc: z.string().url('Hero image source must be a valid URL.'),
   heroImageHint: z.string().optional(),
   formFields: z.array(formFieldSchema),
@@ -138,6 +144,23 @@ const eventFormSchema = z.object({
       }
     }
   }
+
+  if (data.terms.enabled) {
+    if (!data.terms.url || !z.string().url().safeParse(data.terms.url).success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'A valid URL is required when terms link is enabled.',
+        path: ['terms.url'],
+      });
+    }
+    if (!data.terms.linkText || data.terms.linkText.trim() === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Link text is required when terms link is enabled.',
+        path: ['terms.linkText'],
+      });
+    }
+  }
 });
 
 
@@ -165,6 +188,11 @@ export function EventForm({ event }: EventFormProps) {
       locationAddress: event?.location.address || '',
       description: event?.description || '',
       rodo: event?.rodo || '',
+      terms: {
+        enabled: event?.terms?.enabled || false,
+        url: event?.terms?.url || '',
+        linkText: event?.terms?.linkText || '',
+      },
       heroImageSrc: event?.heroImage.src || '',
       heroImageHint: event?.heroImage.hint || '',
       formFields: event ? (typeof event.formFields === 'string' ? JSON.parse(event.formFields) : event.formFields) : [],
@@ -179,6 +207,7 @@ export function EventForm({ event }: EventFormProps) {
   
   const watchedLocationTypes = form.watch('locationTypes');
   const dateType = form.watch('dateType');
+  const termsEnabled = form.watch('terms.enabled');
 
   const onSubmit = (values: EventFormValues) => {
     startTransition(async () => {
@@ -187,7 +216,7 @@ export function EventForm({ event }: EventFormProps) {
           return;
       }
 
-      const { dateType, startDate, endDate, locationTypes, locationAddress, heroImageSrc, heroImageHint, formFields, ...restOfValues } = values;
+      const { dateType, startDate, endDate, locationTypes, locationAddress, heroImageSrc, heroImageHint, formFields, terms, ...restOfValues } = values;
       
       const dateString = dateType === 'range' && endDate ? `${startDate} - ${endDate}` : startDate;
       
@@ -199,6 +228,7 @@ export function EventForm({ event }: EventFormProps) {
           location: { types: locationTypes, address: locationAddress },
           heroImage: { src: heroImageSrc, hint: heroImageHint || '' },
           formFields: formFields,
+          terms: terms,
           themeColor: event?.themeColor || '#3b82f6',
       };
 
@@ -535,6 +565,67 @@ export function EventForm({ event }: EventFormProps) {
           )}
         />
         
+        <Card>
+            <CardHeader>
+                <CardTitle>Terms & Conditions Link</CardTitle>
+                <CardDescription>Optionally, add a link to a separate terms and conditions page.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <FormField
+                    control={form.control}
+                    name="terms.enabled"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                            <div className="space-y-0.5">
+                                <FormLabel>Enable Terms Link</FormLabel>
+                                <FormDescription>
+                                    Show a link to the terms and conditions on the registration form.
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+                {termsEnabled && (
+                    <>
+                        <FormField
+                            control={form.control}
+                            name="terms.linkText"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Link Text *</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., terms and conditions" {...field} />
+                                </FormControl>
+                                <FormDescription>The clickable text, e.g., "Read more in our &gt;terms and conditions&lt;."</FormDescription>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="terms.url"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Link URL *</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="https://example.com/terms" {...field} />
+                                </FormControl>
+                                <FormDescription>The full URL to your terms and conditions page.</FormDescription>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </>
+                )}
+            </CardContent>
+        </Card>
+
         <FormField
           control={form.control}
           name="isActive"

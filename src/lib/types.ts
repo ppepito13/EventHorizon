@@ -1,3 +1,4 @@
+
 export type FormField = {
   name: string;
   label: string;
@@ -23,6 +24,11 @@ export type Event = {
   };
   formFields: FormField[];
   rodo: string;
+  terms: {
+    enabled: boolean;
+    url: string;
+    linkText: string;
+  };
   isActive: boolean;
   themeColor: string;
   ownerId?: string;

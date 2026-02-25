@@ -346,6 +346,20 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
                 <FormDescription>
                   {event.rodo}
                 </FormDescription>
+                {event.terms?.enabled && event.terms.url && event.terms.linkText && (
+                  <FormDescription className="pt-2">
+                    Read more in our{' '}
+                    <a
+                      href={event.terms.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-primary"
+                    >
+                      {event.terms.linkText}
+                    </a>
+                    .
+                  </FormDescription>
+                )}
                  <FormMessage />
               </div>
             </FormItem>
