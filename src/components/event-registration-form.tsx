@@ -199,6 +199,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
     field: FormFieldType,
     formField: any
   ) => {
+    const cleanedOptions = field.options?.map(opt => opt.trim()).filter(Boolean) || [];
     switch (field.type) {
       case 'checkbox':
         return (
@@ -232,7 +233,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
                     </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                    {field.options?.map(opt => opt.trim()).filter(Boolean).map(option => (
+                    {cleanedOptions.map(option => (
                         <SelectItem key={option} value={option}>{option}</SelectItem>
                     ))}
                 </SelectContent>
@@ -241,7 +242,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
       case 'radio':
         return (
             <RadioGroup onValueChange={formField.onChange} defaultValue={formField.value} className="flex flex-col space-y-1">
-                {field.options?.map(option => (
+                {cleanedOptions.map(option => (
                     <FormItem key={option} className="flex items-center space-x-3 space-y-0">
                         <FormControl>
                             <RadioGroupItem value={option} />
@@ -254,7 +255,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
       case 'multiple-choice':
         return (
              <div className="space-y-2">
-                {field.options?.map(option => (
+                {cleanedOptions.map(option => (
                     <FormField
                         key={option}
                         control={form.control}
@@ -346,20 +347,36 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
                 <FormDescription>
                   {event.rodo}
                 </FormDescription>
-                {event.terms?.enabled && event.terms.url && event.terms.linkText && (
-                  <FormDescription className="pt-2">
-                    Read more in our{' '}
-                    <a
-                      href={event.terms.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline hover:text-primary"
-                    >
-                      {event.terms.linkText}
-                    </a>
-                    .
-                  </FormDescription>
-                )}
+                {(() => {
+                  if (!event.terms?.enabled || !event.terms.text || !event.terms.url) {
+                    return null;
+                  }
+
+                  const { text, url } = event.terms;
+                  const parts = text.split(/[><]/);
+
+                  if (parts.length !== 3) {
+                    // Fallback for incorrect format
+                    return <FormDescription className="pt-2">{text}</FormDescription>;
+                  }
+
+                  const [before, linkText, after] = parts;
+
+                  return (
+                    <FormDescription className="pt-2">
+                      {before}
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-primary"
+                      >
+                        {linkText}
+                      </a>
+                      {after}
+                    </FormDescription>
+                  );
+                })()}
                  <FormMessage />
               </div>
             </FormItem>

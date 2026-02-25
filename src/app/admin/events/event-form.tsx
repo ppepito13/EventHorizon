@@ -63,7 +63,7 @@ const eventFormSchema = z.object({
   terms: z.object({
     enabled: z.boolean().default(false),
     url: z.string().optional(),
-    linkText: z.string().optional(),
+    text: z.string().optional(),
   }),
   heroImageSrc: z.string().url('Hero image source must be a valid URL.'),
   heroImageHint: z.string().optional(),
@@ -153,11 +153,18 @@ const eventFormSchema = z.object({
         path: ['terms.url'],
       });
     }
-    if (!data.terms.linkText || data.terms.linkText.trim() === '') {
+    if (!data.terms.text || data.terms.text.trim() === '') {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Link text is required when terms link is enabled.',
-        path: ['terms.linkText'],
+        message: 'Display text is required when terms link is enabled.',
+        path: ['terms.text'],
+      });
+    }
+    if (data.terms.text && (!data.terms.text.includes('>') || !data.terms.text.includes('<'))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Text must contain the link placeholder using >...< format.',
+        path: ['terms.text'],
       });
     }
   }
@@ -191,7 +198,7 @@ export function EventForm({ event }: EventFormProps) {
       terms: {
         enabled: event?.terms?.enabled || false,
         url: event?.terms?.url || '',
-        linkText: event?.terms?.linkText || '',
+        text: event?.terms?.text || '',
       },
       heroImageSrc: event?.heroImage.src || '',
       heroImageHint: event?.heroImage.hint || '',
@@ -595,14 +602,14 @@ export function EventForm({ event }: EventFormProps) {
                     <>
                         <FormField
                             control={form.control}
-                            name="terms.linkText"
+                            name="terms.text"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Link Text *</FormLabel>
+                                <FormLabel>Display Text *</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="e.g., terms and conditions" {...field} />
+                                    <Input placeholder="Read more in our >terms and conditions<" {...field} />
                                 </FormControl>
-                                <FormDescription>The clickable text, e.g., "Read more in our &gt;terms and conditions&lt;."</FormDescription>
+                                <FormDescription>The full sentence to display. Wrap the part you want to be a link with > and < characters.</FormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )}
@@ -809,8 +816,14 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                             placeholder="Option 1; Option 2; Option 3"
                             value={(form.getValues(`formFields.${index}.options`) || []).join(';')}
                             onChange={(e) => {
-                                const optionsArray = e.target.value.split(';');
+                                const optionsArray = e.target.value.split(';').map(opt => opt.trim());
                                 form.setValue(`formFields.${index}.options`, optionsArray);
+                            }}
+                            onBlur={() => {
+                              const value = form.getValues(`formFields.${index}.options`);
+                              if(value) {
+                                form.setValue(`formFields.${index}.options`, value.filter(opt => opt.trim() !== ''));
+                              }
                             }}
                         />
                     </FormControl>

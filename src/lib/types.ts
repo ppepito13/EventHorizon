@@ -27,7 +27,7 @@ export type Event = {
   terms: {
     enabled: boolean;
     url: string;
-    linkText: string;
+    text: string;
   };
   isActive: boolean;
   themeColor: string;
