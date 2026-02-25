@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
-import { createEditor, Descendant, Editor, Transforms } from 'slate';
+import React, { useCallback, useMemo } from 'react';
+import { createEditor, Descendant } from 'slate';
 import { Slate, Editable, withReact } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
@@ -13,7 +13,6 @@ import {
   Code,
   Heading1,
   Heading2,
-  Pilcrow,
   List,
   ListOrdered,
   Quote,
@@ -23,6 +22,8 @@ import { Separator } from './separator';
 import { cn } from '@/lib/utils';
 import { toggleMark, isMarkActive, toggleBlock, isBlockActive } from '@/lib/slate-editor-utils';
 import { CustomElement, CustomText } from '@/lib/slate-types';
+import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
+
 
 const HOTKEYS: { [key: string]: string } = {
   'mod+b': 'bold',
@@ -69,7 +70,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         const json = JSON.stringify(newValue);
         onChange(json);
       }
-  }, [editor, onChange]);
+  }, [editor.operations, onChange]);
 
   const renderElement = useCallback((props: any) => <Element {...props} />, []);
   const renderLeaf = useCallback((props: any) => <Leaf {...props} />, []);
@@ -106,53 +107,67 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 const Toolbar = () => {
   return (
     <div className="flex items-center gap-1 border-b p-2">
-      <MarkButton format="bold" icon={<Bold />} />
-      <MarkButton format="italic" icon={<Italic />} />
-      <MarkButton format="underline" icon={<Underline />} />
-      <MarkButton format="code" icon={<Code />} />
+      <MarkButton format="bold" icon={<Bold />} tooltip="Bold (Ctrl+B)" />
+      <MarkButton format="italic" icon={<Italic />} tooltip="Italic (Ctrl+I)" />
+      <MarkButton format="underline" icon={<Underline />} tooltip="Underline (Ctrl+U)" />
+      <MarkButton format="code" icon={<Code />} tooltip="Code (Ctrl+`)" />
       <Separator orientation="vertical" className="h-6 mx-1" />
-      <BlockButton format="heading-one" icon={<Heading1 />} />
-      <BlockButton format="heading-two" icon={<Heading2 />} />
-      <BlockButton format="block-quote" icon={<Quote />} />
-      <BlockButton format="numbered-list" icon={<ListOrdered />} />
-      <BlockButton format="bulleted-list" icon={<List />} />
+      <BlockButton format="heading-one" icon={<Heading1 />} tooltip="Heading 1" />
+      <BlockButton format="heading-two" icon={<Heading2 />} tooltip="Heading 2" />
+      <BlockButton format="block-quote" icon={<Quote />} tooltip="Quote" />
+      <BlockButton format="numbered-list" icon={<ListOrdered />} tooltip="Numbered List" />
+      <BlockButton format="bulleted-list" icon={<List />} tooltip="Bulleted List" />
     </div>
   );
 };
 
-const MarkButton = ({ format, icon }: { format: string; icon: React.ReactNode }) => {
+const MarkButton = ({ format, icon, tooltip }: { format: string; icon: React.ReactNode; tooltip: string }) => {
   const editor = useSlate();
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className={cn("h-8 w-8", isMarkActive(editor, format) ? 'is-active bg-secondary' : '')}
-      onMouseDown={event => {
-        event.preventDefault();
-        toggleMark(editor, format);
-      }}
-    >
-      {icon}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn("h-8 w-8", isMarkActive(editor, format) ? 'is-active bg-secondary' : '')}
+          onMouseDown={event => {
+            event.preventDefault();
+            toggleMark(editor, format);
+          }}
+        >
+          {icon}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 };
 
-const BlockButton = ({ format, icon }: { format: string; icon: React.ReactNode }) => {
+const BlockButton = ({ format, icon, tooltip }: { format: string; icon: React.ReactNode; tooltip: string }) => {
   const editor = useSlate();
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className={cn("h-8 w-8", isBlockActive(editor, format) ? 'is-active bg-secondary' : '')}
-      onMouseDown={event => {
-        event.preventDefault();
-        toggleBlock(editor, format);
-      }}
-    >
-      {icon}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn("h-8 w-8", isBlockActive(editor, format) ? 'is-active bg-secondary' : '')}
+          onMouseDown={event => {
+            event.preventDefault();
+            toggleBlock(editor, format);
+          }}
+        >
+          {icon}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 };
 
