@@ -115,7 +115,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const result = await registerForEvent(event.id, values);
+    const result = await registerForEvent(event, values);
     setIsLoading(false);
 
     if (result.success && result.registration) {

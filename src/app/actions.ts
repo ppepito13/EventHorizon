@@ -2,15 +2,14 @@
 'use server';
 
 import { z } from 'zod';
-import { getEventById } from '@/lib/data';
-import type { Registration } from '@/lib/types';
+import type { Event, Registration } from '@/lib/types';
 import { randomUUID } from 'crypto';
 import { sendConfirmationEmail } from '@/lib/email';
 import QRCode from 'qrcode';
 import { adminDb } from '@/lib/firebase-admin';
 
 export async function registerForEvent(
-  eventId: string,
+  event: Event,
   data: { [key: string]: unknown }
 ): Promise<{
   success: boolean;
@@ -21,10 +20,10 @@ export async function registerForEvent(
 }> {
   
   try {
-    // Fetch event data once and use it as the single source of truth.
-    const event = await getEventById(eventId);
+    // The full event object is now passed directly to the action.
+    // No need to fetch it again.
     if (!event) {
-      throw new Error('Event configuration not found.');
+      throw new Error('Event configuration was not provided.');
     }
 
     const schemaFields = event.formFields.reduce(
