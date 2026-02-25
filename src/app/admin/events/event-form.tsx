@@ -609,7 +609,7 @@ export function EventForm({ event }: EventFormProps) {
                                 <FormControl>
                                     <Input placeholder="Read more in our >terms and conditions<" {...field} />
                                 </FormControl>
-                                <FormDescription>The full sentence to display. Wrap the part you want to be a link with > and < characters.</FormDescription>
+                                <FormDescription>The full sentence to display. Wrap the part you want to be a link with {'>'} and {'<'} characters.</FormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )}
