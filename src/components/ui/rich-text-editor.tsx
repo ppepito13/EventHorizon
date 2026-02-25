@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useMemo, useState, useRef } from 'react';
-import { createEditor, Descendant, Editor, Transforms, Range } from 'slate';
+import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
+import { createEditor, Descendant, Editor, Transforms, Range, Path } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, useSlate, useSlateStatic, useSelected } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
@@ -20,6 +20,7 @@ import {
   AlignRight,
   AlignJustify,
   Image as ImageIcon,
+  Pencil,
 } from 'lucide-react';
 import { Button } from './button';
 import { Separator } from './separator';
@@ -57,6 +58,109 @@ const withImages = (editor: Editor & ReactEditor) => {
     return editor;
 };
 
+// Component for the image properties dialog
+function ImagePropertiesDialog({
+  isOpen,
+  onOpenChange,
+  onSubmit,
+  initialValues,
+  mode,
+}: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (values: { url: string; width?: string; height?: string }) => void;
+  initialValues: { url: string; width?: string; height?: string };
+  mode: 'insert' | 'edit';
+}) {
+  const [url, setUrl] = useState('');
+  const [width, setWidth] = useState('');
+  const [height, setHeight] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setUrl(initialValues.url || '');
+      setWidth(initialValues.width || '');
+      setHeight(initialValues.height || '');
+    }
+  }, [isOpen, initialValues]);
+
+  const handleSubmit = () => {
+    if (mode === 'insert') {
+      if (!url) {
+        alert('Please enter an image URL.');
+        return;
+      }
+      try {
+        new URL(url);
+      } catch {
+        alert('Invalid URL');
+        return;
+      }
+    }
+    onSubmit({ url, width, height });
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{mode === 'insert' ? 'Insert Image' : 'Edit Image Properties'}</DialogTitle>
+          <DialogDescription>
+            {mode === 'insert' ? 'Enter the URL and optional dimensions for the image.' : 'Update the dimensions for the image.'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="imageUrl" className="text-right">URL *</Label>
+            <Input
+              id="imageUrl"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="col-span-3"
+              autoFocus
+              placeholder="https://example.com/image.png"
+              disabled={mode === 'edit'}
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="imageWidth" className="text-right">Width</Label>
+            <Input
+              id="imageWidth"
+              value={width}
+              onChange={(e) => setWidth(e.target.value)}
+              className="col-span-3"
+              placeholder="e.g., 400px or 50%"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="imageHeight" className="text-right">Height</Label>
+            <Input
+              id="imageHeight"
+              value={height}
+              onChange={(e) => setHeight(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+              className="col-span-3"
+              placeholder="e.g., 300px or auto"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button type="button" onClick={handleSubmit}>
+            {mode === 'insert' ? 'Insert' : 'Save Changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 interface RichTextEditorProps {
   value?: string;
@@ -65,6 +169,18 @@ interface RichTextEditorProps {
 
 export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   const editor = useMemo(() => withHistory(withReact(withImages(createEditor() as Editor & ReactEditor))), []);
+  const selectionRef = useRef<Range | null>(null);
+
+  const [imageDialog, setImageDialog] = useState<{
+    isOpen: boolean;
+    mode: 'insert' | 'edit';
+    path?: Path;
+    initialValues: { url: string; width?: string; height?: string };
+  }>({
+    isOpen: false,
+    mode: 'insert',
+    initialValues: { url: '', width: '', height: '' },
+  });
   
   const parsedValue = useMemo(() => {
     try {
@@ -91,13 +207,37 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
       }
   }, [editor.operations, onChange]);
 
-  const renderElement = useCallback((props: any) => <Element {...props} />, []);
+  const handleImageSubmit = ({ url, width, height }: { url: string; width: string; height: string }) => {
+    if (imageDialog.mode === 'edit' && imageDialog.path) {
+      Transforms.setNodes(
+        editor,
+        { width, height },
+        { at: imageDialog.path }
+      );
+    } else {
+      if (selectionRef.current) {
+        Transforms.select(editor, selectionRef.current);
+      }
+      insertImageUtil(editor, url, width, height);
+    }
+  };
+
+  const renderElement = useCallback((props: any) => <Element {...props} setImageDialog={setImageDialog} />, []);
   const renderLeaf = useCallback((props: any) => <Leaf {...props} />, []);
 
   return (
     <div className="rounded-md border border-input">
       <Slate editor={editor} initialValue={parsedValue} onChange={handleValueChange}>
-        <Toolbar />
+        <Toolbar
+            onInsertImage={() => {
+                selectionRef.current = editor.selection;
+                setImageDialog({
+                    isOpen: true,
+                    mode: 'insert',
+                    initialValues: { url: '', width: '', height: '' },
+                });
+            }}
+        />
         <div className="relative">
             <Editable
               renderElement={renderElement}
@@ -117,48 +257,23 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
               }}
             />
         </div>
+        <ImagePropertiesDialog
+          isOpen={imageDialog.isOpen}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              setImageDialog(prev => ({ ...prev, isOpen: false }));
+            }
+          }}
+          onSubmit={handleImageSubmit}
+          initialValues={imageDialog.initialValues}
+          mode={imageDialog.mode}
+        />
       </Slate>
     </div>
   );
 };
 
-const Toolbar = () => {
-    const editor = useSlateStatic();
-    const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
-    const [imageUrl, setImageUrl] = useState('');
-    const [imageWidth, setImageWidth] = useState('');
-    const [imageHeight, setImageHeight] = useState('');
-    const selectionRef = useRef<Range | null>(null);
-
-    const handleInsertImage = () => {
-        if (!imageUrl) return;
-
-        try {
-            new URL(imageUrl);
-        } catch {
-            alert('Invalid URL');
-            return;
-        }
-
-        if (selectionRef.current) {
-            Transforms.select(editor, selectionRef.current);
-        }
-        
-        insertImageUtil(editor, imageUrl, imageWidth, imageHeight);
-        setIsImageDialogOpen(false);
-        setImageUrl('');
-        setImageWidth('');
-        setImageHeight('');
-        selectionRef.current = null;
-    };
-
-    const handleOpenImageDialog = (event: React.MouseEvent) => {
-        event.preventDefault();
-        selectionRef.current = editor.selection;
-        setIsImageDialogOpen(true);
-    }
-
-
+const Toolbar = ({ onInsertImage }: { onInsertImage: () => void }) => {
     return (
       <>
         <div className="flex flex-wrap items-center gap-1 border-b p-2">
@@ -185,7 +300,10 @@ const Toolbar = () => {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onMouseDown={handleOpenImageDialog}
+                        onMouseDown={event => {
+                            event.preventDefault();
+                            onInsertImage();
+                        }}
                     >
                         <ImageIcon />
                     </Button>
@@ -195,57 +313,6 @@ const Toolbar = () => {
                 </TooltipContent>
             </Tooltip>
         </div>
-        <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Insert Image</DialogTitle>
-                    <DialogDescription>Enter the URL and optional dimensions for the image.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="imageUrl" className="text-right">URL *</Label>
-                        <Input
-                            id="imageUrl"
-                            value={imageUrl}
-                            onChange={(e) => setImageUrl(e.target.value)}
-                            className="col-span-3"
-                            autoFocus
-                            placeholder="https://example.com/image.png"
-                        />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="imageWidth" className="text-right">Width</Label>
-                        <Input
-                            id="imageWidth"
-                            value={imageWidth}
-                            onChange={(e) => setImageWidth(e.target.value)}
-                            className="col-span-3"
-                            placeholder="e.g., 400px or 50%"
-                        />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="imageHeight" className="text-right">Height</Label>
-                        <Input
-                            id="imageHeight"
-                            value={imageHeight}
-                            onChange={(e) => setImageHeight(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleInsertImage();
-                                }
-                            }}
-                            className="col-span-3"
-                            placeholder="e.g., 300px or auto"
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsImageDialogOpen(false)}>Cancel</Button>
-                    <Button type="button" onClick={handleInsertImage}>Insert</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
       </>
     );
 };
@@ -300,7 +367,7 @@ const BlockButton = ({ format, icon, tooltip }: { format: string; icon: React.Re
   );
 };
 
-const Element = ({ attributes, children, element }: { attributes: any; children: any; element: CustomElement }) => {
+const Element = ({ attributes, children, element, setImageDialog }: { attributes: any; children: any; element: CustomElement; setImageDialog: any }) => {
   const style = { textAlign: element.align };
   
   switch (element.type) {
@@ -317,13 +384,13 @@ const Element = ({ attributes, children, element }: { attributes: any; children:
     case 'numbered-list':
       return <ol style={style} {...attributes}>{children}</ol>;
     case 'image':
-      return <ImageElementComponent attributes={attributes} element={element}>{children}</ImageElementComponent>;
+      return <ImageElementComponent attributes={attributes} element={element} setImageDialog={setImageDialog}>{children}</ImageElementComponent>;
     default:
       return <p style={style} {...attributes}>{children}</p>;
   }
 };
 
-const ImageElementComponent = ({ attributes, children, element }: { attributes: any, children: any, element: ImageElement }) => {
+const ImageElementComponent = ({ attributes, children, element, setImageDialog }: { attributes: any, children: any, element: ImageElement, setImageDialog: any }) => {
     const selected = useSelected();
     const editor = useSlateStatic();
     const isFocused = ReactEditor.isFocused(editor);
@@ -334,9 +401,20 @@ const ImageElementComponent = ({ attributes, children, element }: { attributes: 
         height: height || 'auto',
     };
 
+    const handleEditClick = (event: React.MouseEvent) => {
+        event.preventDefault();
+        const path = ReactEditor.findPath(editor, element);
+        setImageDialog({
+            isOpen: true,
+            mode: 'edit',
+            path: path,
+            initialValues: { url, width, height }
+        });
+    };
+
     return (
         <div {...attributes}>
-            <div contentEditable={false} className="relative my-4">
+            <div contentEditable={false} className="relative my-4 group">
                 <img
                     src={url}
                     alt=""
@@ -346,6 +424,18 @@ const ImageElementComponent = ({ attributes, children, element }: { attributes: 
                         selected && isFocused && 'ring-2 ring-ring ring-offset-2'
                     )}
                 />
+                {selected && isFocused && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <Button
+                            variant="secondary"
+                            size="sm"
+                            onMouseDown={handleEditClick}
+                        >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                        </Button>
+                    </div>
+                )}
             </div>
             {children}
         </div>
