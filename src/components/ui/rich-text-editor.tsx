@@ -130,7 +130,7 @@ const Toolbar = () => {
 
     const handleInsertImage = () => {
         if (!imageUrl) return;
-        
+
         try {
             new URL(imageUrl);
         } catch {
@@ -199,24 +199,28 @@ const Toolbar = () => {
                     <DialogTitle>Insert Image</DialogTitle>
                     <DialogDescription>Enter the URL of the image you want to insert.</DialogDescription>
                 </DialogHeader>
-                <form onSubmit={(e) => { e.preventDefault(); handleInsertImage(); }}>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="imageUrl" className="text-right">URL</Label>
-                            <Input
-                                id="imageUrl"
-                                value={imageUrl}
-                                onChange={(e) => setImageUrl(e.target.value)}
-                                className="col-span-3"
-                                autoFocus
-                            />
-                        </div>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="imageUrl" className="text-right">URL</Label>
+                        <Input
+                            id="imageUrl"
+                            value={imageUrl}
+                            onChange={(e) => setImageUrl(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleInsertImage();
+                                }
+                            }}
+                            className="col-span-3"
+                            autoFocus
+                        />
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsImageDialogOpen(false)}>Cancel</Button>
-                        <Button type="submit">Insert</Button>
-                    </DialogFooter>
-                </form>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsImageDialogOpen(false)}>Cancel</Button>
+                    <Button type="button" onClick={handleInsertImage}>Insert</Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
       </>
