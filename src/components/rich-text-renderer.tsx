@@ -44,21 +44,26 @@ const Node = ({ node }: { node: Descendant }): JSX.Element => {
         case 'block-quote':
             return <blockquote style={style}>{children}</blockquote>;
         case 'numbered-list':
-            return <ol style={style}>{children}</ol>;
+            return <ol style={{ ...style, listStylePosition: 'inside' }}>{children}</ol>;
         case 'bulleted-list':
-            return <ul style={style}>{children}</ul>;
+            return <ul style={{ ...style, listStylePosition: 'inside' }}>{children}</ul>;
         case 'list-item':
             return <li style={style}>{children}</li>;
         case 'image':
+            const imgContainerStyle: React.CSSProperties = {
+                textAlign: element.align,
+                paddingLeft: element.indent ? `${element.indent * 1.5}em` : undefined,
+            };
             const imgStyle = {
+                display: 'inline-block',
                 width: element.width,
                 height: element.height,
                 maxWidth: '100%',
                 maxHeight: '100%',
             };
             return (
-                <div style={style}>
-                    <img src={element.url} alt="" style={imgStyle} className="my-4 rounded-md shadow-md inline-block" />
+                <div style={imgContainerStyle}>
+                    <img src={element.url} alt="" style={imgStyle} className="my-4 rounded-md shadow-md" />
                 </div>
             );
         case 'paragraph':

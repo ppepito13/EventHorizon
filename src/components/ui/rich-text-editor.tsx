@@ -107,7 +107,6 @@ function ImagePropertiesDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
-        <form onSubmit={handleSubmit}>
             <DialogHeader>
             <DialogTitle>{mode === 'insert' ? 'Insert Image' : 'Edit Image Properties'}</DialogTitle>
             <DialogDescription>
@@ -121,6 +120,7 @@ function ImagePropertiesDialog({
                 id="imageUrl"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(e);}}
                 className="col-span-3"
                 autoFocus
                 placeholder="https://example.com/image.png"
@@ -133,6 +133,7 @@ function ImagePropertiesDialog({
                 id="imageWidth"
                 value={width}
                 onChange={(e) => setWidth(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(e);}}
                 className="col-span-3"
                 placeholder="e.g., 400px or 50%"
                 />
@@ -143,6 +144,7 @@ function ImagePropertiesDialog({
                 id="imageHeight"
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(e);}}
                 className="col-span-3"
                 placeholder="e.g., 300px or auto"
                 />
@@ -150,11 +152,10 @@ function ImagePropertiesDialog({
             </div>
             <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button type="submit">
+                <Button type="button" onClick={handleSubmit}>
                     {mode === 'insert' ? 'Insert' : 'Save Changes'}
                 </Button>
             </DialogFooter>
-        </form>
       </DialogContent>
     </Dialog>
   );
@@ -168,8 +169,7 @@ interface RichTextEditorProps {
 
 export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   const editor = useMemo(() => withHistory(withReact(withImages(createEditor() as Editor & ReactEditor))), []);
-  const selectionRef = useRef<Range | null>(null);
-
+  
   const [imageDialog, setImageDialog] = useState<{
     isOpen: boolean;
     mode: 'insert' | 'edit';
@@ -214,29 +214,21 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         { at: imageDialog.path }
       );
     } else {
-      if (selectionRef.current) {
-        Transforms.select(editor, selectionRef.current);
+      // When inserting, restore selection first
+      if (editor.rememberedSelection) {
+        Transforms.select(editor, editor.rememberedSelection);
       }
       insertImageUtil(editor, url, width, height);
     }
   };
 
-  const renderElement = useCallback((props: any) => <Element {...props} setImageDialog={setImageDialog} />, []);
+  const renderElement = useCallback((props: any) => <Element {...props} setImageDialog={setImageDialog} />, [setImageDialog]);
   const renderLeaf = useCallback((props: any) => <Leaf {...props} />, []);
 
   return (
     <div className="rounded-md border border-input">
       <Slate editor={editor} initialValue={parsedValue} onChange={handleValueChange}>
-        <Toolbar
-            onInsertImage={() => {
-                selectionRef.current = editor.selection;
-                setImageDialog({
-                    isOpen: true,
-                    mode: 'insert',
-                    initialValues: { url: '', width: '', height: '' },
-                });
-            }}
-        />
+        <Toolbar/>
         <div className="relative">
             <Editable
               renderElement={renderElement}
@@ -272,9 +264,8 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   );
 };
 
-const Toolbar = ({ onInsertImage }: { onInsertImage: () => void }) => {
-    const editor = useSlateStatic();
-    const selectionRef = useRef<Range | null>(null);
+const Toolbar = () => {
+    const editor = useSlateStatic() as ReactEditor & { rememberedSelection?: Range | null };
 
     return (
         <div className="flex flex-wrap items-center gap-1 border-b p-2">
@@ -306,8 +297,19 @@ const Toolbar = ({ onInsertImage }: { onInsertImage: () => void }) => {
                         className="h-8 w-8"
                         onMouseDown={event => {
                             event.preventDefault();
-                            selectionRef.current = editor.selection;
-                            onInsertImage();
+                            // Remember the selection when the button is pressed.
+                            editor.rememberedSelection = editor.selection;
+                            
+                            // This part is now handled inside the main component
+                            const richTextEditor = editor as unknown as RichTextEditor;
+                            const setState = (richTextEditor as any)._setImageDialogState;
+                            if (setState) {
+                                setState({
+                                    isOpen: true,
+                                    mode: 'insert',
+                                    initialValues: { url: '', width: '', height: '' },
+                                });
+                            }
                         }}
                     >
                         <ImageIcon />
@@ -410,7 +412,7 @@ const Element = ({ attributes, children, element, setImageDialog }: { attributes
     case 'block-quote':
       return <blockquote style={style} {...attributes}>{children}</blockquote>;
     case 'bulleted-list':
-      return <ul style={style} {...attributes}>{children}</ul>;
+      return <ul style={{...style, listStylePosition: 'inside'}} {...attributes}>{children}</ul>;
     case 'heading-one':
       return <h1 style={style} {...attributes}>{children}</h1>;
     case 'heading-two':
@@ -418,7 +420,7 @@ const Element = ({ attributes, children, element, setImageDialog }: { attributes
     case 'list-item':
       return <li style={style} {...attributes}>{children}</li>;
     case 'numbered-list':
-      return <ol style={style} {...attributes}>{children}</ol>;
+      return <ol style={{...style, listStylePosition: 'inside'}} {...attributes}>{children}</ol>;
     case 'image':
       return <ImageElementComponent attributes={attributes} element={element} style={style} setImageDialog={setImageDialog}>{children}</ImageElementComponent>;
     default:
@@ -433,6 +435,7 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
     const { url, width, height } = element;
     
     const imgStyle = {
+        display: 'inline-block',
         width: width || 'auto',
         height: height || 'auto',
         maxWidth: '100%',
@@ -458,13 +461,17 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
     };
 
     return (
-        <div {...attributes} style={style}>
+        <div {...attributes} style={{ ...style, lineHeight: '0' }}>
             <div
                 contentEditable={false}
                 className="relative my-4 group"
                 style={{ display: 'inline-block' }}
-                onClick={handleContainerClick}
             >
+                 <div 
+                    className="absolute inset-0" 
+                    onClick={handleContainerClick} 
+                    style={{ cursor: 'pointer' }}
+                />
                 <img
                     src={url}
                     alt=""
@@ -498,7 +505,7 @@ const Leaf = ({ attributes, children, leaf }: { attributes: any; children: any; 
     children = <strong>{children}</strong>;
   }
   if (leaf.code) {
-    children = <code>{children}</code>;
+    children = <code className="bg-muted px-1.5 py-1 rounded-sm">{children}</code>;
   }
   if (leaf.italic) {
     children = <em>{children}</em>;
