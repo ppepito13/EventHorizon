@@ -716,9 +716,9 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                     <FormControl>
                         <Textarea
                             placeholder="Option 1; Option 2; Option 3"
-                            value={(form.getValues(`formFields.${index}.options`) || []).join('; ')}
+                            value={(form.getValues(`formFields.${index}.options`) || []).join(';')}
                             onChange={(e) => {
-                                const optionsArray = e.target.value.split(';').map(opt => opt.trim()).filter(Boolean);
+                                const optionsArray = e.target.value.split(';');
                                 form.setValue(`formFields.${index}.options`, optionsArray);
                             }}
                         />

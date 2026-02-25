@@ -232,7 +232,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
                     </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                    {field.options?.map(option => (
+                    {field.options?.map(opt => opt.trim()).filter(Boolean).map(option => (
                         <SelectItem key={option} value={option}>{option}</SelectItem>
                     ))}
                 </SelectContent>
