@@ -399,6 +399,8 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
     const imgStyle = {
         width: width || 'auto',
         height: height || 'auto',
+        maxWidth: '100%',
+        maxHeight: '100%',
     };
 
     const handleEditClick = (event: React.MouseEvent) => {
@@ -412,15 +414,31 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
         });
     };
 
+    // Explicitly handle clicks on the image container to ensure selection
+    const handleContainerClick = (event: React.MouseEvent) => {
+        event.preventDefault();
+        const path = ReactEditor.findPath(editor, element);
+        // Select the image node and focus the editor
+        Transforms.select(editor, path);
+        ReactEditor.focus(editor);
+    };
+
     return (
         <div {...attributes} style={style}>
-            <div contentEditable={false} className="relative my-4 group">
+            <div
+                contentEditable={false}
+                className="relative my-4 group"
+                style={{ display: 'inline-block' }}
+                // Add the onClick handler to the wrapper
+                onClick={handleContainerClick}
+            >
                 <img
                     src={url}
                     alt=""
                     style={imgStyle}
                     className={cn(
-                        'inline-block max-w-full shadow-md rounded-md',
+                        // Change to 'block' to make the click target more reliable within the wrapper
+                        'block max-w-full shadow-md rounded-md',
                         selected && isFocused && 'ring-2 ring-ring ring-offset-2'
                     )}
                 />
@@ -429,6 +447,7 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
                          <Button
                             variant="secondary"
                             size="sm"
+                            // Use onMouseDown to prevent losing focus before the dialog opens
                             onMouseDown={handleEditClick}
                         >
                             <Pencil className="mr-2 h-4 w-4" />
