@@ -92,3 +92,46 @@ export const insertImage = (editor: Editor, url: string, width?: string, height?
     // Move cursor after the inserted image
     Transforms.move(editor);
 };
+
+// --- Indent Functions ---
+
+const changeIndent = (editor: Editor, direction: 'increase' | 'decrease') => {
+    const { selection } = editor;
+    if (!selection) return;
+  
+    const nodes = Editor.nodes(editor, {
+      at: selection,
+      match: n =>
+        !Editor.isEditor(n) &&
+        SlateElement.isElement(n) &&
+        ['paragraph', 'heading-one', 'heading-two', 'list-item', 'block-quote', 'image'].includes(n.type),
+    });
+  
+    for (const [node, path] of nodes) {
+      const currentIndent = (node as SlateElement & { indent?: number }).indent || 0;
+      let newIndent: number;
+  
+      if (direction === 'increase') {
+        newIndent = currentIndent + 1;
+      } else {
+        newIndent = Math.max(0, currentIndent - 1);
+      }
+      
+      // Limit max indent to prevent excessive nesting
+      if (newIndent <= 8) {
+          Transforms.setNodes(
+            editor,
+            { indent: newIndent },
+            { at: path }
+          );
+      }
+    }
+  };
+  
+  export const increaseIndent = (editor: Editor) => {
+    changeIndent(editor, 'increase');
+  };
+  
+  export const decreaseIndent = (editor: Editor) => {
+    changeIndent(editor, 'decrease');
+  };

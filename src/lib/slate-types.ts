@@ -7,13 +7,14 @@ import { HistoryEditor } from 'slate-history';
 
 type BaseElement = {
     align?: 'left' | 'center' | 'right' | 'justify';
+    indent?: number;
 };
 
 export type BlockQuoteElement = BaseElement & { type: 'block-quote'; children: Descendant[] };
 export type BulletedListElement = BaseElement & { type: 'bulleted-list'; children: Descendant[] };
 export type HeadingOneElement = BaseElement & { type: 'heading-one'; children: Descendant[] };
 export type HeadingTwoElement = BaseElement & { type: 'heading-two'; children: Descendant[] };
-export type ListItemElement = { type: 'list-item'; children: Descendant[] };
+export type ListItemElement = BaseElement & { type: 'list-item'; children: Descendant[] };
 export type NumberedListElement = BaseElement & { type: 'numbered-list'; children: Descendant[] };
 export type ParagraphElement = BaseElement & { type: 'paragraph'; children: Descendant[] };
 
@@ -22,6 +23,8 @@ export type ImageElement = {
     url: string;
     width?: string;
     height?: string;
+    align?: 'left' | 'center' | 'right' | 'justify';
+    indent?: number;
     children: CustomText[]; // Void elements must have a text child node with empty string
 };
 

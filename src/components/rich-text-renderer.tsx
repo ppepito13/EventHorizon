@@ -31,7 +31,10 @@ const Node = ({ node }: { node: Descendant }): JSX.Element => {
 
     const element = node as CustomElement;
     const children = element.children.map((n, i) => <Node key={i} node={n} />);
-    const style = { textAlign: element.align };
+    const style: React.CSSProperties = { 
+        textAlign: element.align,
+        paddingLeft: element.indent ? `${element.indent * 1.5}em` : undefined
+    };
 
     switch (element.type) {
         case 'heading-one':

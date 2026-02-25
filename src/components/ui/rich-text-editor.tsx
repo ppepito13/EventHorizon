@@ -21,11 +21,13 @@ import {
   AlignJustify,
   Image as ImageIcon,
   Pencil,
+  Indent,
+  Outdent,
 } from 'lucide-react';
 import { Button } from './button';
 import { Separator } from './separator';
 import { cn } from '@/lib/utils';
-import { toggleMark, isMarkActive, toggleBlock, isBlockActive, insertImage as insertImageUtil } from '@/lib/slate-editor-utils';
+import { toggleMark, isMarkActive, toggleBlock, isBlockActive, insertImage as insertImageUtil, increaseIndent, decreaseIndent } from '@/lib/slate-editor-utils';
 import { CustomElement, CustomText, ImageElement } from '@/lib/slate-types';
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './dialog';
@@ -84,7 +86,8 @@ function ImagePropertiesDialog({
     }
   }, [isOpen, initialValues]);
 
-  const handleSubmit = () => {
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (mode === 'insert') {
       if (!url) {
         alert('Please enter an image URL.');
@@ -104,58 +107,54 @@ function ImagePropertiesDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{mode === 'insert' ? 'Insert Image' : 'Edit Image Properties'}</DialogTitle>
-          <DialogDescription>
-            {mode === 'insert' ? 'Enter the URL and optional dimensions for the image.' : 'Update the dimensions for the image.'}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="imageUrl" className="text-right">URL *</Label>
-            <Input
-              id="imageUrl"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="col-span-3"
-              autoFocus
-              placeholder="https://example.com/image.png"
-              disabled={mode === 'edit'}
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="imageWidth" className="text-right">Width</Label>
-            <Input
-              id="imageWidth"
-              value={width}
-              onChange={(e) => setWidth(e.target.value)}
-              className="col-span-3"
-              placeholder="e.g., 400px or 50%"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="imageHeight" className="text-right">Height</Label>
-            <Input
-              id="imageHeight"
-              value={height}
-              onChange={(e) => setHeight(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSubmit();
-                }
-              }}
-              className="col-span-3"
-              placeholder="e.g., 300px or auto"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" onClick={handleSubmit}>
-            {mode === 'insert' ? 'Insert' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
+        <form onSubmit={handleSubmit}>
+            <DialogHeader>
+            <DialogTitle>{mode === 'insert' ? 'Insert Image' : 'Edit Image Properties'}</DialogTitle>
+            <DialogDescription>
+                {mode === 'insert' ? 'Enter the URL and optional dimensions for the image.' : 'Update the dimensions for the image.'}
+            </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="imageUrl" className="text-right">URL *</Label>
+                <Input
+                id="imageUrl"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="col-span-3"
+                autoFocus
+                placeholder="https://example.com/image.png"
+                disabled={mode === 'edit'}
+                />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="imageWidth" className="text-right">Width</Label>
+                <Input
+                id="imageWidth"
+                value={width}
+                onChange={(e) => setWidth(e.target.value)}
+                className="col-span-3"
+                placeholder="e.g., 400px or 50%"
+                />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="imageHeight" className="text-right">Height</Label>
+                <Input
+                id="imageHeight"
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                className="col-span-3"
+                placeholder="e.g., 300px or auto"
+                />
+            </div>
+            </div>
+            <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                <Button type="submit">
+                    {mode === 'insert' ? 'Insert' : 'Save Changes'}
+                </Button>
+            </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -274,8 +273,10 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 };
 
 const Toolbar = ({ onInsertImage }: { onInsertImage: () => void }) => {
+    const editor = useSlateStatic();
+    const selectionRef = useRef<Range | null>(null);
+
     return (
-      <>
         <div className="flex flex-wrap items-center gap-1 border-b p-2">
             <MarkButton format="bold" icon={<Bold />} tooltip="Bold (Ctrl+B)" />
             <MarkButton format="italic" icon={<Italic />} tooltip="Italic (Ctrl+I)" />
@@ -293,6 +294,9 @@ const Toolbar = ({ onInsertImage }: { onInsertImage: () => void }) => {
             <BlockButton format="right" icon={<AlignRight />} tooltip="Align Right" />
             <BlockButton format="justify" icon={<AlignJustify />} tooltip="Justify" />
             <Separator orientation="vertical" className="h-6 mx-1" />
+            <IndentButton direction="decrease" icon={<Outdent />} tooltip="Decrease Indent" />
+            <IndentButton direction="increase" icon={<Indent />} tooltip="Increase Indent" />
+            <Separator orientation="vertical" className="h-6 mx-1" />
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button
@@ -302,6 +306,7 @@ const Toolbar = ({ onInsertImage }: { onInsertImage: () => void }) => {
                         className="h-8 w-8"
                         onMouseDown={event => {
                             event.preventDefault();
+                            selectionRef.current = editor.selection;
                             onInsertImage();
                         }}
                     >
@@ -313,7 +318,6 @@ const Toolbar = ({ onInsertImage }: { onInsertImage: () => void }) => {
                 </TooltipContent>
             </Tooltip>
         </div>
-      </>
     );
 };
 
@@ -367,8 +371,40 @@ const BlockButton = ({ format, icon, tooltip }: { format: string; icon: React.Re
   );
 };
 
+const IndentButton = ({ direction, icon, tooltip }: { direction: 'increase' | 'decrease'; icon: React.ReactNode; tooltip: string }) => {
+    const editor = useSlate();
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onMouseDown={event => {
+              event.preventDefault();
+              if (direction === 'increase') {
+                increaseIndent(editor);
+              } else {
+                decreaseIndent(editor);
+              }
+            }}
+          >
+            {icon}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+};
+
 const Element = ({ attributes, children, element, setImageDialog }: { attributes: any; children: any; element: CustomElement; setImageDialog: any }) => {
-  const style = { textAlign: element.align };
+  const style: React.CSSProperties = { 
+    textAlign: element.align,
+    paddingLeft: element.indent ? `${element.indent * 1.5}em` : undefined,
+  };
   
   switch (element.type) {
     case 'block-quote':
@@ -380,7 +416,7 @@ const Element = ({ attributes, children, element, setImageDialog }: { attributes
     case 'heading-two':
       return <h2 style={style} {...attributes}>{children}</h2>;
     case 'list-item':
-      return <li {...attributes}>{children}</li>;
+      return <li style={style} {...attributes}>{children}</li>;
     case 'numbered-list':
       return <ol style={style} {...attributes}>{children}</ol>;
     case 'image':
@@ -414,11 +450,9 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
         });
     };
 
-    // Explicitly handle clicks on the image container to ensure selection
     const handleContainerClick = (event: React.MouseEvent) => {
         event.preventDefault();
         const path = ReactEditor.findPath(editor, element);
-        // Select the image node and focus the editor
         Transforms.select(editor, path);
         ReactEditor.focus(editor);
     };
@@ -429,7 +463,6 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
                 contentEditable={false}
                 className="relative my-4 group"
                 style={{ display: 'inline-block' }}
-                // Add the onClick handler to the wrapper
                 onClick={handleContainerClick}
             >
                 <img
@@ -437,7 +470,6 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
                     alt=""
                     style={imgStyle}
                     className={cn(
-                        // Change to 'block' to make the click target more reliable within the wrapper
                         'block max-w-full shadow-md rounded-md',
                         selected && isFocused && 'ring-2 ring-ring ring-offset-2'
                     )}
@@ -447,7 +479,6 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
                          <Button
                             variant="secondary"
                             size="sm"
-                            // Use onMouseDown to prevent losing focus before the dialog opens
                             onMouseDown={handleEditClick}
                         >
                             <Pencil className="mr-2 h-4 w-4" />
