@@ -17,6 +17,7 @@ import type { Event, User as AppUser } from '@/lib/types';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { useState, useEffect } from 'react';
+import { getAppUserByEmailAction } from './admin/actions';
 
 function EventCard({ event }: { event: Event }) {
   return (
@@ -67,8 +68,7 @@ export default function Home() {
   useEffect(() => {
     const loadAppUser = async () => {
       if (firebaseUser?.email) {
-        const allUsers = await import('@/data/users.json').then(m => m.default);
-        const foundUser = allUsers.find(u => u.email === firebaseUser.email);
+        const foundUser = await getAppUserByEmailAction(firebaseUser.email);
         setAppUser(foundUser || null);
       } else {
         setAppUser(null);
