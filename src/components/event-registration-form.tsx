@@ -27,6 +27,7 @@ import QRCode from 'qrcode';
 import Image from 'next/image';
 import { useFirestore } from '@/firebase/provider';
 import { doc, writeBatch } from 'firebase/firestore';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Helper to generate Zod schema dynamically
 const generateSchema = (fields: FormFieldType[]) => {
@@ -51,6 +52,7 @@ const generateSchema = (fields: FormFieldType[]) => {
             zodType = z.boolean();
             break;
         case 'radio':
+        case 'dropdown':
             zodType = z.string();
             break;
         case 'multiple-choice':
@@ -87,6 +89,10 @@ const generateSchema = (fields: FormFieldType[]) => {
   return z.object(schemaFields);
 };
 
+interface EventRegistrationFormProps {
+  event: Event;
+}
+
 export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [successfulRegistration, setSuccessfulRegistration] = useState<Registration | null>(null);
@@ -121,6 +127,9 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
     const registrationId = `reg_${crypto.randomUUID()}`;
     
     try {
+        if (!firestore) {
+          throw new Error("Firestore is not initialized.");
+        }
         const batch = writeBatch(firestore);
 
         const qrCodeData = {
@@ -213,6 +222,21 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
             {...formField}
             className="bg-input/70"
           />
+        );
+      case 'dropdown':
+        return (
+            <Select onValueChange={formField.onChange} defaultValue={formField.value}>
+                <FormControl>
+                    <SelectTrigger className="bg-input/70">
+                        <SelectValue placeholder={field.placeholder || "Select an option"} />
+                    </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                    {field.options?.map(option => (
+                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
         );
       case 'radio':
         return (

@@ -30,7 +30,7 @@ interface EventFormProps {
 const formFieldSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   label: z.string().min(1, 'Label is required.'),
-  type: z.enum(['text', 'email', 'tel', 'checkbox', 'textarea', 'radio', 'multiple-choice']),
+  type: z.enum(['text', 'email', 'tel', 'checkbox', 'textarea', 'radio', 'multiple-choice', 'dropdown']),
   placeholder: z.string().optional(),
   required: z.boolean(),
   options: z.array(z.string()).optional(),
@@ -651,7 +651,6 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                                 <Select onValueChange={(value) => {
                                     field.onChange(value);
                                     if (value === 'radio' || value === 'multiple-choice') {
-                                        // Set default options if not present
                                         const currentOptions = form.getValues(`formFields.${index}.options`);
                                         if (!currentOptions || currentOptions.length === 0) {
                                             form.setValue(`formFields.${index}.options`, ['', '']);
@@ -671,6 +670,7 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                                         <SelectItem value="checkbox">Checkbox (agreement)</SelectItem>
                                         <SelectItem value="radio">Single Choice (Radio)</SelectItem>
                                         <SelectItem value="multiple-choice">Multiple Choice (Checkbox)</SelectItem>
+                                        <SelectItem value="dropdown">Dropdown (Single Choice)</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </FormItem>
@@ -705,6 +705,24 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Option
                     </Button>
+                </div>
+            )}
+            {fieldType === 'dropdown' && (
+                <div className="mt-4 space-y-2">
+                    <FormLabel>Dropdown Options</FormLabel>
+                    <FormDescription>
+                        Enter options separated by a semicolon (;).
+                    </FormDescription>
+                    <FormControl>
+                        <Textarea
+                            placeholder="Option 1; Option 2; Option 3"
+                            value={(form.getValues(`formFields.${index}.options`) || []).join('; ')}
+                            onChange={(e) => {
+                                const optionsArray = e.target.value.split(';').map(opt => opt.trim()).filter(Boolean);
+                                form.setValue(`formFields.${index}.options`, optionsArray);
+                            }}
+                        />
+                    </FormControl>
                 </div>
             )}
         </Card>

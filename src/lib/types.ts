@@ -1,7 +1,7 @@
 export type FormField = {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'tel' | 'checkbox' | 'textarea' | 'radio' | 'multiple-choice';
+  type: 'text' | 'email' | 'tel' | 'checkbox' | 'textarea' | 'radio' | 'multiple-choice' | 'dropdown';
   placeholder?: string;
   required: boolean;
   options?: string[];
