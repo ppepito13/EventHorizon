@@ -2,7 +2,7 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { createEditor, Descendant, Editor, Transforms } from 'slate';
-import { Slate, Editable, withReact, ReactEditor, useSlateStatic, useSlateSelected } from 'slate-react';
+import { Slate, Editable, withReact, ReactEditor, useSlate, useSlateStatic, useSelected } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
 import {
@@ -221,9 +221,6 @@ const BlockButton = ({ format, icon, tooltip }: { format: string; icon: React.Re
   );
 };
 
-// Custom `useSlate` hook to provide editor instance with correct types
-import { useSlate } from 'slate-react';
-
 const Element = ({ attributes, children, element }: { attributes: any; children: any; element: CustomElement }) => {
   const style = { textAlign: element.align };
   
@@ -248,8 +245,9 @@ const Element = ({ attributes, children, element }: { attributes: any; children:
 };
 
 const ImageElementComponent = ({ attributes, children, element }: { attributes: any, children: any, element: ImageElement }) => {
-    const selected = useSlateSelected();
-    const focused = useSlateStatic() && ReactEditor.isFocused(useSlateStatic()) && selected;
+    const selected = useSelected();
+    const editor = useSlateStatic();
+    const isFocused = ReactEditor.isFocused(editor);
     const { url } = element;
     
     return (
@@ -260,7 +258,7 @@ const ImageElementComponent = ({ attributes, children, element }: { attributes: 
                     alt=""
                     className={cn(
                         'block max-w-full max-h-96 shadow-md rounded-md',
-                        focused && 'ring-2 ring-ring ring-offset-2'
+                        selected && isFocused && 'ring-2 ring-ring ring-offset-2'
                     )}
                 />
             </div>
