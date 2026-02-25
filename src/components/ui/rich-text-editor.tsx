@@ -118,48 +118,8 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   );
 };
 
-const InsertImageButton = () => {
-    const editor = useSlateStatic();
-
-    return (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onMouseDown={event => {
-                        event.preventDefault();
-                        const { selection } = editor;
-                        const url = window.prompt('Enter the URL of the image:');
-                        if (!url) return;
-                        
-                        try {
-                            new URL(url);
-                        } catch (e) {
-                            alert('Invalid URL');
-                            return;
-                        }
-                        
-                        if (selection) {
-                           Transforms.select(editor, selection);
-                        }
-                        
-                        insertImageUtil(editor, url);
-                    }}
-                >
-                    <ImageIcon />
-                </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-                <p>Insert Image</p>
-            </TooltipContent>
-        </Tooltip>
-    );
-};
-
 const Toolbar = () => {
+    const editor = useSlateStatic();
     return (
         <div className="flex flex-wrap items-center gap-1 border-b p-2">
             <MarkButton format="bold" icon={<Bold />} tooltip="Bold (Ctrl+B)" />
@@ -178,7 +138,35 @@ const Toolbar = () => {
             <BlockButton format="right" icon={<AlignRight />} tooltip="Align Right" />
             <BlockButton format="justify" icon={<AlignJustify />} tooltip="Justify" />
             <Separator orientation="vertical" className="h-6 mx-1" />
-            <InsertImageButton />
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onMouseDown={event => {
+                            event.preventDefault();
+                            const url = window.prompt('Enter the URL of the image:');
+                            if (!url) {
+                                return;
+                            }
+                            try {
+                                new URL(url);
+                            } catch {
+                                alert('Invalid URL');
+                                return;
+                            }
+                            insertImageUtil(editor, url);
+                        }}
+                    >
+                        <ImageIcon />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Insert Image</p>
+                </TooltipContent>
+            </Tooltip>
         </div>
     );
 };
