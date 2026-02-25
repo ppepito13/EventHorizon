@@ -79,7 +79,7 @@ export default function EventPage() {
                     <div className="p-3 bg-muted rounded-md">
                         <strong>Otrzymane dane (zmienna 'events'):</strong>
                         <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(events, null, 2)}</pre>
-                        <p className="text-muted-foreground text-xs mt-1">Oczekiwana wartość: tablica z jednym obiektem wydarzenia `[ { ... } ]`. Wartość `[]` (pusta tablica) oznacza, że zapytanie do bazy danych się powiodło, ale nie znaleziono żadnego wydarzenia pasującego do kryteriów (slug + isActive: true).</p>
+                        <p className="text-muted-foreground text-xs mt-1">Oczekiwana wartość: tablica z jednym obiektem wydarzenia `[ {'{'} ... {'}'} ]`. Wartość `[]` (pusta tablica) oznacza, że zapytanie do bazy danych się powiodło, ale nie znaleziono żadnego wydarzenia pasującego do kryteriów (slug + isActive: true).</p>
                     </div>
 
                     <Alert variant="destructive">
