@@ -36,19 +36,22 @@ service cloud.firestore {
     /**
      * Checks if the current user is a global administrator by verifying
      * the existence of their UID in the /app_admins collection.
+     * This function is now safe for unauthenticated calls.
      */
     function isAdmin() {
-      return exists(/databases/$(database)/documents/app_admins/$(request.auth.uid));
+      return isSignedIn() && exists(/databases/$(database)/documents/app_admins/$(request.auth.uid));
     }
     
     /**
      * Checks if a user is an organizer for an event based on the event's
      * internal 'ownerId' and 'members' map.
      * This function is now defensive and checks for the existence of fields
-     * before accessing them to prevent errors on documents with older schemas.
-     * @param eventData The resource.data or request.resource.data of an event document.
+     * and authentication status before accessing them to prevent errors.
      */
     function isEventOrganizer(eventData) {
+      if (!isSignedIn()) {
+        return false;
+      }
       let isOwner = 'ownerId' in eventData && request.auth.uid == eventData.ownerId;
       let isMember = 'members' in eventData && eventData.members is map && request.auth.uid in eventData.members;
       return isOwner || isMember;
@@ -58,10 +61,12 @@ service cloud.firestore {
     /**
      * Checks if a user is an organizer for an event based on denormalized fields
      * present on a subcollection document (formField or registration).
-     * This function is now defensive and checks for the existence of fields.
-     * @param subcollectionData The resource.data or request.resource.data of a subcollection document.
+     * This function is now defensive and checks authentication status.
      */
     function isDenormalizedEventOrganizer(subcollectionData) {
+      if (!isSignedIn()) {
+        return false;
+      }
       let isOwner = 'eventOwnerId' in subcollectionData && request.auth.uid == subcollectionData.eventOwnerId;
       let isMember = 'eventMembers' in subcollectionData && subcollectionData.eventMembers is map && request.auth.uid in subcollectionData.eventMembers;
       return isOwner || isMember;
