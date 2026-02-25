@@ -21,19 +21,13 @@ export async function registerForEvent(
 }> {
   
   try {
-    const jsonEvent = await getEventById(eventId);
-    if (!jsonEvent) {
+    // Fetch event data once and use it as the single source of truth.
+    const event = await getEventById(eventId);
+    if (!event) {
       throw new Error('Event configuration not found.');
     }
 
-    const eventDocRef = adminDb.doc(`events/${eventId}`);
-    const eventDoc = await eventDocRef.get();
-    if (!eventDoc.exists) {
-        throw new Error('Event not found in database.');
-    }
-    const firestoreEvent = eventDoc.data()!;
-
-    const schemaFields = jsonEvent.formFields.reduce(
+    const schemaFields = event.formFields.reduce(
       (acc, field) => {
         let zodType: z.ZodTypeAny;
 
@@ -105,8 +99,8 @@ export async function registerForEvent(
     const batch = adminDb.batch();
 
     const qrCodeData = {
-        eventId: jsonEvent.id,
-        eventName: jsonEvent.name,
+        eventId: event.id,
+        eventName: event.name,
         formData: validated.data,
         registrationDate: registrationTime.toISOString(),
     };
@@ -114,23 +108,22 @@ export async function registerForEvent(
     batch.set(qrDocRef, qrCodeData);
 
     const newRegistrationData = {
-        eventId: jsonEvent.id,
-        eventName: jsonEvent.name,
+        eventId: event.id,
+        eventName: event.name,
         formData: validated.data,
         qrId: qrId,
         registrationDate: registrationTime.toISOString(),
-        eventOwnerId: firestoreEvent.ownerId,
-        eventMembers: firestoreEvent.members,
+        eventOwnerId: event.ownerId,
+        eventMembers: event.members,
         checkedIn: false,
         checkInTime: null,
     };
     
-    const registrationDocRef = adminDb.doc(`events/${jsonEvent.id}/registrations/${registrationId}`);
+    const registrationDocRef = adminDb.doc(`events/${event.id}/registrations/${registrationId}`);
     batch.set(registrationDocRef, newRegistrationData);
 
     await batch.commit();
     
-    // Send confirmation email and capture status
     const qrCodeDataUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
     const recipientName = (validated.data as any).full_name || 'Uczestniku';
     const recipientEmail = (validated.data as any).email;
@@ -142,8 +135,8 @@ export async function registerForEvent(
         const emailResult = await sendConfirmationEmail({
             to: recipientEmail,
             name: recipientName,
-            eventName: jsonEvent.name,
-            eventDate: jsonEvent.date,
+            eventName: event.name,
+            eventDate: event.date,
             qrCodeDataUrl: qrCodeDataUrl,
         });
         if (emailResult.success) {
