@@ -55,7 +55,7 @@ const Node = ({ node }: { node: Descendant }): JSX.Element => {
             };
             return (
                 <div style={style}>
-                    <img src={element.url} alt="" style={imgStyle} className="my-4 rounded-md shadow-md" />
+                    <img src={element.url} alt="" style={imgStyle} className="my-4 rounded-md shadow-md inline-block" />
                 </div>
             );
         case 'paragraph':

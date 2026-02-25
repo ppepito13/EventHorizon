@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
-import { createEditor, Descendant, Editor, Transforms, Range, Path } from 'slate';
+import { createEditor, Descendant, Editor, Transforms, Range, Path, Element as SlateElement } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, useSlate, useSlateStatic, useSelected } from 'slate-react';
 import { withHistory } from 'slate-history';
 import isHotkey from 'is-hotkey';
@@ -207,7 +207,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
       }
   }, [editor.operations, onChange]);
 
-  const handleImageSubmit = ({ url, width, height }: { url: string; width: string; height: string }) => {
+  const handleImageSubmit = ({ url, width, height }: { url: string; width?: string; height?: string }) => {
     if (imageDialog.mode === 'edit' && imageDialog.path) {
       Transforms.setNodes(
         editor,
@@ -384,19 +384,19 @@ const Element = ({ attributes, children, element, setImageDialog }: { attributes
     case 'numbered-list':
       return <ol style={style} {...attributes}>{children}</ol>;
     case 'image':
-      return <ImageElementComponent attributes={attributes} element={element} setImageDialog={setImageDialog}>{children}</ImageElementComponent>;
+      return <ImageElementComponent attributes={attributes} element={element} style={style} setImageDialog={setImageDialog}>{children}</ImageElementComponent>;
     default:
       return <p style={style} {...attributes}>{children}</p>;
   }
 };
 
-const ImageElementComponent = ({ attributes, children, element, setImageDialog }: { attributes: any, children: any, element: ImageElement, setImageDialog: any }) => {
+const ImageElementComponent = ({ attributes, children, element, style, setImageDialog }: { attributes: any, children: any, element: ImageElement, style: any, setImageDialog: any }) => {
     const selected = useSelected();
     const editor = useSlateStatic();
     const isFocused = ReactEditor.isFocused(editor);
     const { url, width, height } = element;
     
-    const style = {
+    const imgStyle = {
         width: width || 'auto',
         height: height || 'auto',
     };
@@ -413,14 +413,14 @@ const ImageElementComponent = ({ attributes, children, element, setImageDialog }
     };
 
     return (
-        <div {...attributes}>
+        <div {...attributes} style={style}>
             <div contentEditable={false} className="relative my-4 group">
                 <img
                     src={url}
                     alt=""
-                    style={style}
+                    style={imgStyle}
                     className={cn(
-                        'block max-w-full shadow-md rounded-md',
+                        'inline-block max-w-full shadow-md rounded-md',
                         selected && isFocused && 'ring-2 ring-ring ring-offset-2'
                     )}
                 />
