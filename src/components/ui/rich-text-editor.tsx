@@ -61,65 +61,6 @@ const withImages = (editor: Editor & ReactEditor) => {
     return editor;
 };
 
-// Recursive helper to render nested lists correctly from a flat structure
-const renderNestedList = (
-  listItems: CustomDescendant[],
-  ListTag: 'ol' | 'ul',
-  level: number,
-  renderEl: (props: any) => JSX.Element
-): React.ReactNode[] => {
-  const output: React.ReactNode[] = [];
-  let i = 0;
-
-  while (i < listItems.length) {
-    const currentItem = listItems[i] as CustomElement;
-    if (currentItem.type !== 'list-item') {
-      i++;
-      continue;
-    }
-    const currentIndent = currentItem.indent || 0;
-
-    if (currentIndent < level) {
-      break;
-    }
-
-    if (currentIndent === level) {
-      const sublistItems: CustomDescendant[] = [];
-      let j = i + 1;
-      while (j < listItems.length) {
-        const nextItem = listItems[j] as CustomElement;
-        if ((nextItem.indent || 0) > level) {
-          sublistItems.push(nextItem);
-        } else {
-          break;
-        }
-        j++;
-      }
-
-      const liContent = currentItem.children.map((childNode, index) => {
-        const textNode = childNode as CustomText;
-        // Here we are manually rendering the leaf. The Leaf component will wrap the text
-        // with formatting like bold, italic, etc., based on the properties of the textNode.
-        // The key is essential for React to track the list items.
-        return <Leaf key={index} leaf={textNode} attributes={{'data-slate-leaf': true}}>{textNode.text}</Leaf>;
-      });
-      
-
-      const sublist =
-        sublistItems.length > 0
-          ? React.createElement(ListTag, { key: 'sub' }, renderNestedList(sublistItems, ListTag, level + 1, renderEl))
-          : null;
-
-      output.push(React.createElement('li', { key: i, style: {textAlign: currentItem.align} }, liContent, sublist));
-      
-      i = j;
-    } else {
-      i++;
-    }
-  }
-  return output;
-};
-
 
 // Component for the image properties dialog
 function ImagePropertiesDialog({
@@ -230,7 +171,6 @@ interface RichTextEditorProps {
 
 export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   const editor = useMemo(() => withHistory(withReact(withImages(createEditor() as Editor & ReactEditor))), []);
-  const rememberedSelection = useRef<Range | null>(null);
 
   const [imageDialog, setImageDialog] = useState<{
     isOpen: boolean;
@@ -276,10 +216,10 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
         { at: imageDialog.path }
       );
     } else {
-      if (rememberedSelection.current) {
-        Transforms.select(editor, rememberedSelection.current);
+      const { selection } = editor;
+      if (selection) {
+        insertImageUtil(editor, url, width, height);
       }
-      insertImageUtil(editor, url, width, height);
     }
   };
 
@@ -289,7 +229,7 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   return (
     <div className="rounded-md border border-input">
       <Slate editor={editor} initialValue={parsedValue} onChange={handleValueChange}>
-        <Toolbar setImageDialog={setImageDialog} />
+        <Toolbar />
         <div className="relative">
             <Editable
               renderElement={renderElement}
@@ -325,9 +265,74 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   );
 };
 
-const Toolbar = ({ setImageDialog }: { setImageDialog: any }) => {
+const InsertImageButton = () => {
     const editor = useSlateStatic();
+    const [imageDialog, setImageDialog] = useState<{
+        isOpen: boolean;
+        mode: 'insert' | 'edit';
+        path?: Path;
+        initialValues: { url: string; width?: string; height?: string };
+    }>({
+        isOpen: false,
+        mode: 'insert',
+        initialValues: { url: '', width: '', height: '' },
+    });
     
+    // This ref will store the selection when the button is clicked
+    const selectionRef = useRef<Range | null>(null);
+
+    const handleImageSubmit = ({ url, width, height }: { url: string; width?: string; height?: string }) => {
+        // Restore selection before inserting
+        if (selectionRef.current) {
+            Transforms.select(editor, selectionRef.current);
+        }
+        insertImageUtil(editor, url, width, height);
+    };
+
+    return (
+        <>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onMouseDown={event => {
+                            event.preventDefault();
+                            // Save the selection right before opening the dialog
+                            selectionRef.current = editor.selection;
+                            setImageDialog({
+                                isOpen: true,
+                                mode: 'insert',
+                                initialValues: { url: '', width: '', height: '' },
+                            });
+                        }}
+                    >
+                        <ImageIcon />
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Insert Image</p>
+                </TooltipContent>
+            </Tooltip>
+            <ImagePropertiesDialog
+              isOpen={imageDialog.isOpen}
+              onOpenChange={(isOpen) => {
+                if (!isOpen) {
+                  setImageDialog(prev => ({ ...prev, isOpen: false }));
+                }
+              }}
+              onSubmit={handleImageSubmit}
+              initialValues={imageDialog.initialValues}
+              mode={imageDialog.mode}
+            />
+        </>
+    );
+};
+
+
+const Toolbar = () => {
     return (
         <div className="flex flex-wrap items-center gap-1 border-b p-2">
             <MarkButton format="bold" icon={<Bold />} tooltip="Bold (Ctrl+B)" />
@@ -349,44 +354,7 @@ const Toolbar = ({ setImageDialog }: { setImageDialog: any }) => {
             <IndentButton direction="decrease" icon={<Outdent />} tooltip="Decrease Indent" />
             <IndentButton direction="increase" icon={<Indent />} tooltip="Increase Indent" />
             <Separator orientation="vertical" className="h-6 mx-1" />
-            <Tooltip>
-                <TooltipTrigger asChild>
-                     <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onMouseDown={event => {
-                            event.preventDefault();
-                            const { selection } = editor;
-                            if (selection) {
-                                // Save the current selection to restore it after the dialog closes.
-                                // This is crucial because the dialog will cause the editor to lose focus.
-                                const selectionRef = editor.selection;
-
-                                setImageDialog({
-                                    isOpen: true,
-                                    mode: 'insert',
-                                    initialValues: { url: '', width: '', height: '' },
-                                    // A function to restore selection before inserting
-                                    onInsert: (url: string, width?: string, height?: string) => {
-                                        if (selectionRef) {
-                                            Transforms.select(editor, selectionRef);
-                                            ReactEditor.focus(editor);
-                                        }
-                                        insertImageUtil(editor, url, width, height);
-                                    }
-                                });
-                            }
-                        }}
-                    >
-                        <ImageIcon />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>Insert Image</p>
-                </TooltipContent>
-            </Tooltip>
+            <InsertImageButton />
         </div>
     );
 };
@@ -473,26 +441,28 @@ const IndentButton = ({ direction, icon, tooltip }: { direction: 'increase' | 'd
 const Element = ({ attributes, children, element, setImageDialog }: { attributes: any; children: any; element: CustomElement; setImageDialog: any }) => {
   const style: React.CSSProperties = { 
     textAlign: element.align,
-    paddingLeft: element.indent && element.type !== 'list-item' ? `${element.indent * 1.5}em` : undefined
+    paddingLeft: element.indent && element.type !== 'list-item' ? `${element.indent * 1.5}em` : undefined,
+    listStylePosition: 'inside'
   };
   
   switch (element.type) {
     case 'block-quote':
       return <blockquote style={style} {...attributes}>{children}</blockquote>;
     case 'bulleted-list':
+      return <ul style={style} {...attributes}>{children}</ul>;
     case 'numbered-list':
-      const ListTag = element.type === 'numbered-list' ? 'ol' : 'ul';
-      // The renderNestedList function needs access to the main `Element` renderer
-      // to correctly render the content inside each `li`. This is complex to pass down.
-      // A simpler approach is to have the nested renderer be self-contained for the editor.
-      return React.createElement(ListTag, { style: {textAlign: element.align}, ...attributes }, renderNestedList(element.children, ListTag, 0, (props) => <Element {...props} setImageDialog={setImageDialog}/>));
+      return <ol style={style} {...attributes}>{children}</ol>;
     case 'heading-one':
       return <h1 style={style} {...attributes}>{children}</h1>;
     case 'heading-two':
       return <h2 style={style} {...attributes}>{children}</h2>;
     case 'list-item':
-        // Fallback rendering for a list-item that might not be in a list.
-      return <li style={style} {...attributes}>{children}</li>;
+        const liStyle: React.CSSProperties = {
+            paddingLeft: element.indent ? `${element.indent * 1.5}em` : undefined,
+            textAlign: element.align,
+            listStylePosition: 'inside'
+        };
+      return <li style={liStyle} {...attributes}>{children}</li>;
     case 'image':
       return <ImageElementComponent attributes={attributes} element={element} style={style} setImageDialog={setImageDialog}>{children}</ImageElementComponent>;
     default:
@@ -532,24 +502,25 @@ const ImageElementComponent = ({ attributes, children, element, style, setImageD
     };
 
     const handleContainerClick = (event: React.MouseEvent) => {
+        // Stop propagation to prevent Slate from doing its own thing,
+        // which might conflict with our selection logic.
         event.preventDefault();
+        event.stopPropagation();
+        
         const path = ReactEditor.findPath(editor, element);
+        // This programmatically selects the entire image node.
         Transforms.select(editor, path);
+        // This ensures the editor itself has focus, which is needed to show selection.
         ReactEditor.focus(editor);
     };
 
     return (
-        <div {...attributes} style={containerStyle}>
+        <div {...attributes} style={containerStyle} onClick={handleContainerClick}>
             <div
                 contentEditable={false}
                 className="relative my-4 group"
                 style={{ display: 'inline-block' }}
             >
-                 <div 
-                    className="absolute inset-0" 
-                    onClick={handleContainerClick} 
-                    style={{ cursor: 'pointer' }}
-                />
                 <img
                     src={url}
                     alt=""

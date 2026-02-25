@@ -3,73 +3,7 @@
 
 import React from 'react';
 import { Descendant, Text as SlateText } from 'slate';
-import { CustomElement, CustomTypes } from '@/lib/slate-types';
-
-// Recursive helper to render nested lists correctly from a flat structure
-const renderNestedList = (
-  listItems: Descendant[],
-  ListTag: 'ol' | 'ul',
-  level: number
-): React.ReactNode[] => {
-  const output: React.ReactNode[] = [];
-  let i = 0;
-
-  while (i < listItems.length) {
-    const currentItem = listItems[i] as CustomElement;
-    // Skip any non-list-item nodes that might have slipped in.
-    if (currentItem.type !== 'list-item') {
-      i++;
-      continue;
-    }
-    const currentIndent = currentItem.indent || 0;
-
-    // If the current item's indent is less than the current nesting level,
-    // it belongs to a parent list, so we break and return to the parent's loop.
-    if (currentIndent < level) {
-      break;
-    }
-
-    // Process items that are at the current nesting level.
-    if (currentIndent === level) {
-      const sublistItems: Descendant[] = [];
-      let j = i + 1;
-      // Collect all subsequent items that are nested deeper than the current level.
-      while (j < listItems.length) {
-        const nextItem = listItems[j] as CustomElement;
-        if ((nextItem.indent || 0) > level) {
-          sublistItems.push(nextItem);
-        } else {
-          // Stop when we encounter an item that is not a sub-item.
-          break;
-        }
-        j++;
-      }
-
-      // Render the content of the list item itself.
-      const liContent = currentItem.children.map((childNode, index) => (
-        <Node key={index} node={childNode} />
-      ));
-
-      // Recursively render the sublist if there are any sub-items.
-      const sublist =
-        sublistItems.length > 0
-          ? React.createElement(ListTag, { key: 'sub' }, renderNestedList(sublistItems, ListTag, level + 1))
-          : null;
-      
-      // Create the <li> element containing its content and any nested sublist.
-      output.push(React.createElement('li', { key: i, style: {textAlign: currentItem.align} }, liContent, sublist));
-      
-      // Move the main loop index past the items that have been processed in the sublist.
-      i = j;
-    } else {
-      // This case should not be hit with well-formed lists, but as a fallback,
-      // we increment the index to prevent an infinite loop.
-      i++;
-    }
-  }
-  return output;
-};
-
+import { CustomElement } from '@/lib/slate-types';
 
 // Component to render a single Slate node
 const Node = ({ node }: { node: Descendant }): JSX.Element => {
@@ -94,10 +28,10 @@ const Node = ({ node }: { node: Descendant }): JSX.Element => {
     const element = node as CustomElement;
     const children = element.children.map((n, i) => <Node key={i} node={n} />);
 
-    // Apply indentation only to non-list elements, as list nesting is now handled structurally.
     const style: React.CSSProperties = { 
         textAlign: element.align,
-        paddingLeft: element.indent && element.type !== 'list-item' ? `${element.indent * 1.5}em` : undefined
+        paddingLeft: element.indent && element.type !== 'list-item' ? `${element.indent * 1.5}em` : undefined,
+        listStylePosition: 'inside' // Apply to all potential lists
     };
 
     switch (element.type) {
@@ -109,19 +43,19 @@ const Node = ({ node }: { node: Descendant }): JSX.Element => {
             return <blockquote style={style}>{children}</blockquote>;
         
         case 'numbered-list':
+            return <ol style={style}>{children}</ol>;
         case 'bulleted-list':
-            const ListTag = element.type === 'numbered-list' ? 'ol' : 'ul';
-            // The renderNestedList function handles the recursive rendering of list items.
-            return React.createElement(ListTag, { style: {textAlign: element.align} }, renderNestedList(element.children, ListTag, 0));
-        
+            return <ul style={style}>{children}</ul>;
         case 'list-item':
-            // This case should not be directly hit for items within a list, as `renderNestedList`
-            // handles them. This serves as a fallback for a misplaced list-item.
-            return <li style={style}>{children}</li>;
+            const liStyle: React.CSSProperties = {
+                paddingLeft: element.indent ? `${element.indent * 1.5}em` : undefined,
+                textAlign: element.align,
+                listStylePosition: 'inside'
+            };
+            return <li style={liStyle}>{children}</li>;
 
         case 'image':
             const imgContainerStyle: React.CSSProperties = {
-                // Apply indent and alignment to the container div.
                 paddingLeft: element.indent ? `${element.indent * 1.5}em` : undefined,
                 textAlign: element.align || 'left',
             };
@@ -142,6 +76,10 @@ const Node = ({ node }: { node: Descendant }): JSX.Element => {
             return <p style={style}>{children}</p>;
     }
 };
+
+interface RichTextRendererProps {
+    content: string;
+}
 
 export const RichTextRenderer: React.FC<RichTextRendererProps> = ({ content }) => {
     if (!content) {
