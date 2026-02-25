@@ -118,27 +118,38 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
   );
 };
 
-
-const Toolbar = () => {
-    const editor = useSlate();
-    const handleInsertImage = () => {
+const InsertImageButton = () => {
+    const editor = useSlateStatic();
+    const handleMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
         const url = window.prompt('Enter the URL of the image:');
-        if (url && isUrl(url)) {
-            insertImageUtil(editor, url);
-        } else if (url) {
-            alert('Invalid URL');
-        }
-    };
-    
-    const isUrl = (url: string) => {
+        if (!url) return;
+        
         try {
             new URL(url);
-            return true;
-        } catch (e) {
-            return false;
+        } catch(e) {
+            alert('Invalid URL');
+            return;
         }
-    }
 
+        insertImageUtil(editor, url);
+    };
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onMouseDown={handleMouseDown}>
+                    <ImageIcon />
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+                <p>Insert Image</p>
+            </TooltipContent>
+        </Tooltip>
+    );
+};
+
+const Toolbar = () => {
     return (
         <div className="flex flex-wrap items-center gap-1 border-b p-2">
             <MarkButton format="bold" icon={<Bold />} tooltip="Bold (Ctrl+B)" />
@@ -157,16 +168,7 @@ const Toolbar = () => {
             <BlockButton format="right" icon={<AlignRight />} tooltip="Align Right" />
             <BlockButton format="justify" icon={<AlignJustify />} tooltip="Justify" />
             <Separator orientation="vertical" className="h-6 mx-1" />
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onMouseDown={handleInsertImage}>
-                        <ImageIcon />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>Insert Image</p>
-                </TooltipContent>
-            </Tooltip>
+            <InsertImageButton />
         </div>
     );
 };
