@@ -20,15 +20,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useToast } from '@/hooks/use-toast';
 import { registerForEvent } from '@/app/actions';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import QRCode from 'qrcode';
 import Image from 'next/image';
-
-interface EventRegistrationFormProps {
-  event: Event;
-}
+import { useFirestore } from '@/firebase/provider';
+import { doc, writeBatch } from 'firebase/firestore';
 
 // Helper to generate Zod schema dynamically
 const generateSchema = (fields: FormFieldType[]) => {
@@ -94,6 +92,8 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
   const [successfulRegistration, setSuccessfulRegistration] = useState<Registration | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const { toast } = useToast();
+  const firestore = useFirestore();
+
   const formSchema = generateSchema(event.formFields);
   
   const defaultValues = event.formFields.reduce((acc, field) => {
@@ -115,54 +115,74 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const result = await registerForEvent(event, values);
-    setIsLoading(false);
 
-    if (result.success && result.registration) {
-      setSuccessfulRegistration(result.registration);
+    const registrationTime = new Date();
+    const qrId = `qr_${crypto.randomUUID()}`;
+    const registrationId = `reg_${crypto.randomUUID()}`;
+    
+    try {
+        const batch = writeBatch(firestore);
 
-      if (result.emailStatus === 'failed') {
-        toast({
-          title: 'Problem z wysyłką e-maila',
-          description: 'Twoja rejestracja przebiegła pomyślnie, ale nie udało nam się wysłać potwierdzenia. Prosimy, zachowaj widoczny kod QR.',
-          variant: 'default',
-          duration: 10000,
-        });
-      }
+        const qrCodeData = {
+            eventId: event.id,
+            eventName: event.name,
+            formData: values,
+            registrationDate: registrationTime.toISOString(),
+        };
+        const qrDocRef = doc(firestore, 'qrcodes', qrId);
+        batch.set(qrDocRef, qrCodeData);
 
-      if (result.registration.qrId) {
-        QRCode.toDataURL(result.registration.qrId, { errorCorrectionLevel: 'H', width: 256 })
-          .then(url => {
-            setQrCodeDataUrl(url);
-          })
-          .catch(err => {
-            console.error('Failed to generate QR Code:', err);
-            toast({
-              variant: 'destructive',
-              title: 'QR Code Generation Failed',
-              description: 'Could not generate your QR code. Please contact support.',
-            });
-          });
-      }
-    } else {
-        const errors = result.errors;
-        if(errors && typeof errors === 'object' && !Array.isArray(errors)){
-            Object.keys(errors).forEach((field) => {
-                const fieldErrors = errors as { [key: string]: string[] };
-                if (field !== '_form' && fieldErrors[field]) {
-                    form.setError(field as any, {
-                        type: 'server',
-                        message: fieldErrors[field].join(', '),
-                    });
-                }
+        const registrationToSave = {
+            eventId: event.id,
+            eventName: event.name,
+            formData: values,
+            qrId: qrId,
+            registrationDate: registrationTime.toISOString(),
+            eventOwnerId: event.ownerId,
+            eventMembers: event.members,
+            checkedIn: false,
+            checkInTime: null,
+        };
+        const registrationDocRef = doc(firestore, `events/${event.id}/registrations/${registrationId}`);
+        batch.set(registrationDocRef, registrationToSave);
+        
+        await batch.commit();
+        
+        // After successful DB write, generate QR and send email
+        const generatedQrUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
+        
+        const emailPayload = {
+          email: (values as any).email,
+          fullName: (values as any).full_name,
+        };
+
+        const emailResult = await registerForEvent(
+            { name: event.name, date: event.date }, 
+            emailPayload,
+            generatedQrUrl
+        );
+        
+        setIsLoading(false);
+        setSuccessfulRegistration({ id: registrationId, ...registrationToSave });
+        setQrCodeDataUrl(generatedQrUrl);
+
+        if (emailResult.emailStatus === 'failed') {
+             toast({
+                title: 'Problem z wysyłką e-maila',
+                description: 'Twoja rejestracja przebiegła pomyślnie, ale nie udało nam się wysłać potwierdzenia. Prosimy, zachowaj widoczny kod QR.',
+                variant: 'default',
+                duration: 10000,
             });
         }
-
-      toast({
-        variant: 'destructive',
-        title: 'Registration Failed',
-        description: (result.errors as { _form: string[] })?._form?.join(', ') || 'Please check the form for errors and try again.',
-      });
+    } catch (error) {
+        setIsLoading(false);
+        console.error("Registration failed:", error);
+        const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
+        toast({
+            variant: "destructive",
+            title: "Registration Failed",
+            description: message,
+        });
     }
   }
 
