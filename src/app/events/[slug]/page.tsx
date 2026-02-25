@@ -29,35 +29,33 @@ export default function EventPage() {
   const params = useParams<{ slug: string }>();
   const firestore = useFirestore();
 
-  // Fetch all active events to avoid composite index issues.
-  // This query is simple and aligns with security rules.
-  const activeEventsQuery = useMemoFirebase(
+  // Query for the specific, active event by its slug.
+  // This is more efficient and direct than fetching all active events.
+  // NOTE: This may require creating a composite index in Firestore.
+  // The browser console will provide a direct link to create it if needed.
+  const eventQuery = useMemoFirebase(
     () =>
-      firestore
+      firestore && params.slug
         ? query(
             collection(firestore, 'events'),
+            where('slug', '==', params.slug),
             where('isActive', '==', true)
           )
         : null,
-    [firestore]
+    [firestore, params.slug]
   );
   
-  const { data: activeEvents, isLoading, error } = useCollection<Event>(activeEventsQuery);
+  const { data: events, isLoading, error } = useCollection<Event>(eventQuery);
 
-  // Find the specific event from the list on the client-side.
-  const event = useMemo(() => {
-    if (!activeEvents || !params.slug) return null;
-    return activeEvents.find(e => e.slug === params.slug) || null;
-  }, [activeEvents, params.slug]);
-
+  // The event is the first (and only) item in the returned array.
+  const event = useMemo(() => (events && events.length > 0 ? events[0] : null), [events]);
 
   useEffect(() => {
-    // This prevents a race condition where data loads before params are ready.
-    // Only trigger notFound if loading is finished, we have a slug, but no event was found.
-    if (!isLoading && params.slug && !event) {
+    // If loading is finished and we still have no event, it's a 404.
+    if (!isLoading && !event) {
       notFound();
     }
-  }, [isLoading, event, params.slug]);
+  }, [isLoading, event]);
   
   if (isLoading || !event) {
       return (
@@ -71,7 +69,14 @@ export default function EventPage() {
   if (error) {
     return (
         <div className="flex h-screen w-full items-center justify-center text-red-500">
-            <p>Error loading event: {error.message}</p>
+            <div className="text-center max-w-2xl mx-auto p-4">
+              <h3 className="text-2xl font-bold mb-2">Error Loading Event</h3>
+              <p className="mb-4 text-foreground/80">Could not fetch event data. This might be due to a permissions issue or a missing database index.</p>
+              <pre className="mt-2 text-xs bg-muted p-4 rounded-md font-mono whitespace-pre-wrap text-left text-destructive">
+                {error.message}
+              </pre>
+              <p className="text-xs text-muted-foreground mt-4">If the error message mentions a "missing index", please open your browser's developer console. Firebase provides a direct link there to create the required index in one click.</p>
+            </div>
         </div>
     );
   }

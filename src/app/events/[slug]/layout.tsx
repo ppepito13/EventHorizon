@@ -5,6 +5,7 @@ import { SiteHeader } from '@/components/site-header';
 import { useUser } from '@/firebase/provider';
 import { useEffect, useState } from 'react';
 import type { User } from '@/lib/types';
+import { getAppUserByEmailAction } from '@/app/admin/actions';
 
 export default function EventLayout({
   children,
@@ -16,17 +17,18 @@ export default function EventLayout({
 
   useEffect(() => {
     const loadAppUser = async () => {
+      if (isUserLoading) return; // Wait for auth state
+
       if (firebaseUser?.email) {
-        const allUsers = await import('@/data/users.json').then(m => m.default);
-        const foundUser = allUsers.find(u => u.email === firebaseUser.email);
+        // Use the reliable server action instead of importing a static JSON file
+        const foundUser = await getAppUserByEmailAction(firebaseUser.email);
         setAppUser(foundUser || null);
       } else {
         setAppUser(null);
       }
     };
-    if (!isUserLoading) {
-        loadAppUser();
-    }
+    
+    loadAppUser();
   }, [firebaseUser, isUserLoading]);
 
 
