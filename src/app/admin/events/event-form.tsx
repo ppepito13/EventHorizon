@@ -22,6 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DateInput } from '@/components/ui/date-input';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 
 interface EventFormProps {
@@ -194,7 +195,7 @@ export function EventForm({ event }: EventFormProps) {
       allowPastDates: false,
       locationTypes: event?.location.types || [],
       locationAddress: event?.location.address || '',
-      description: event?.description || '',
+      description: event?.description || JSON.stringify([{ type: 'paragraph', children: [{ text: '' }] }]),
       rodoLabel: event?.rodoLabel || 'Agree to terms and conditions',
       rodo: event?.rodo || '',
       terms: {
@@ -300,7 +301,7 @@ export function EventForm({ event }: EventFormProps) {
                 <FormItem>
                 <FormLabel>Description *</FormLabel>
                 <FormControl>
-                    <Textarea placeholder="Describe the event..." className="min-h-[150px]" {...field} />
+                    <RichTextEditor value={field.value} onChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -640,7 +641,7 @@ export function EventForm({ event }: EventFormProps) {
                                 <FormControl>
                                     <Input placeholder="Read more in our >terms and conditions<" {...field} />
                                 </FormControl>
-                                <FormDescription>The full sentence to display. Wrap the part you want to be a link with {'>'} and {'<'} characters.</FormDescription>
+                                <FormDescription>The full sentence to display. Wrap the part you want to be a link with {'<'} and {'>'} characters.</FormDescription>
                                 <FormMessage />
                                 </FormItem>
                             )}

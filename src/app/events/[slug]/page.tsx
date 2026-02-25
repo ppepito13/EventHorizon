@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -16,6 +17,7 @@ import { collection, query, where } from 'firebase/firestore';
 import type { Event } from '@/lib/types';
 import { useMemo } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RichTextRenderer } from '@/components/rich-text-renderer';
 
 export default function EventPage() {
   const params = useParams<{ slug: string }>();
@@ -47,7 +49,6 @@ export default function EventPage() {
   }
 
   // --- START OF DEBUGGING LOGIC ---
-  // If we reach here, isLoading is false. Now we check why we might not have an event.
   if (!event) {
     return (
         <div className="container py-10">
@@ -137,9 +138,7 @@ export default function EventPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="prose dark:prose-invert max-w-none">
-                            <p>{event.description}</p>
-                        </div>
+                        <RichTextRenderer content={event.description} />
                     </CardContent>
                 </Card>
             </div>
