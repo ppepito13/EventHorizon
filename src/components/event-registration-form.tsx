@@ -341,7 +341,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
               </FormControl>
               <div className="space-y-1 leading-none">
                 <FormLabel>
-                  Agree to terms and conditions
+                  {event.rodoLabel || 'Agree to terms and conditions'}
                   <span className="text-destructive"> *</span>
                 </FormLabel>
                 <FormDescription>

@@ -59,6 +59,7 @@ const eventFormSchema = z.object({
   locationTypes: z.array(z.string()).nonempty({ message: 'Please select at least one event format.' }),
   locationAddress: z.string().optional(),
   description: z.string().min(1, 'Description is required.'),
+  rodoLabel: z.string().min(1, "The consent label is required."),
   rodo: z.string().min(1, 'Privacy Policy is required.'),
   terms: z.object({
     enabled: z.boolean().default(false),
@@ -194,6 +195,7 @@ export function EventForm({ event }: EventFormProps) {
       locationTypes: event?.location.types || [],
       locationAddress: event?.location.address || '',
       description: event?.description || '',
+      rodoLabel: event?.rodoLabel || 'Agree to terms and conditions',
       rodo: event?.rodo || '',
       terms: {
         enabled: event?.terms?.enabled || false,
@@ -558,19 +560,48 @@ export function EventForm({ event }: EventFormProps) {
             </CardContent>
         </Card>
 
-         <FormField
-          control={form.control}
-          name="rodo"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Privacy Policy / GDPR *</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Your privacy policy and terms..." className="min-h-[100px]" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <Card>
+            <CardHeader>
+                <CardTitle>Privacy Policy / GDPR Consent</CardTitle>
+                <CardDescription>
+                    Configure the main consent checkbox and the privacy policy text that will be displayed below it.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                 <FormField
+                  control={form.control}
+                  name="rodoLabel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Consent Checkbox Label *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Agree to terms and conditions" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        This text appears next to the mandatory consent checkbox.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="rodo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Privacy Policy / GDPR Text *</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Your privacy policy and terms..." className="min-h-[100px]" {...field} />
+                      </FormControl>
+                       <FormDescription>
+                        This text appears below the consent checkbox.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            </CardContent>
+        </Card>
         
         <Card>
             <CardHeader>

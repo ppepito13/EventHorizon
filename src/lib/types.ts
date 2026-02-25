@@ -24,6 +24,7 @@ export type Event = {
   };
   formFields: FormField[];
   rodo: string;
+  rodoLabel?: string;
   terms: {
     enabled: boolean;
     url: string;
