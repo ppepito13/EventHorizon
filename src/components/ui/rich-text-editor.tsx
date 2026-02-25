@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useRef } from 'react';
 import { createEditor, Descendant, Editor, Transforms, Range } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, useSlate, useSlateStatic, useSelected } from 'slate-react';
 import { withHistory } from 'slate-history';
@@ -27,6 +27,10 @@ import { cn } from '@/lib/utils';
 import { toggleMark, isMarkActive, toggleBlock, isBlockActive, insertImage as insertImageUtil } from '@/lib/slate-editor-utils';
 import { CustomElement, CustomText, ImageElement } from '@/lib/slate-types';
 import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './dialog';
+import { Input } from './input';
+import { Label } from './label';
+
 
 const HOTKEYS: { [key: string]: string } = {
   'mod+b': 'bold',
@@ -120,7 +124,41 @@ export const RichTextEditor = ({ value, onChange }: RichTextEditorProps) => {
 
 const Toolbar = () => {
     const editor = useSlateStatic();
+    const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+    const [imageUrl, setImageUrl] = useState('');
+    const selectionRef = useRef<Range | null>(null);
+
+    const handleInsertImage = () => {
+        if (!imageUrl) return;
+        
+        try {
+            new URL(imageUrl);
+        } catch {
+            alert('Invalid URL');
+            return;
+        }
+
+        // Restore selection before inserting
+        if (selectionRef.current) {
+            Transforms.select(editor, selectionRef.current);
+        }
+        
+        insertImageUtil(editor, imageUrl);
+        setIsImageDialogOpen(false);
+        setImageUrl('');
+        selectionRef.current = null; // Clear ref
+    };
+
+    const handleOpenImageDialog = (event: React.MouseEvent) => {
+        event.preventDefault();
+        // Save selection before opening dialog
+        selectionRef.current = editor.selection;
+        setIsImageDialogOpen(true);
+    }
+
+
     return (
+      <>
         <div className="flex flex-wrap items-center gap-1 border-b p-2">
             <MarkButton format="bold" icon={<Bold />} tooltip="Bold (Ctrl+B)" />
             <MarkButton format="italic" icon={<Italic />} tooltip="Italic (Ctrl+I)" />
@@ -145,32 +183,7 @@ const Toolbar = () => {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onMouseDown={event => {
-                            console.log('[DEBUG] Insert Image button clicked.');
-                            event.preventDefault();
-
-                            console.log('[DEBUG] Editor instance:', editor);
-
-                            const url = window.prompt('Enter the URL of the image:');
-                            console.log(`[DEBUG] URL from prompt: "${url}"`);
-
-                            if (!url) {
-                                console.log('[DEBUG] URL prompt was cancelled or empty.');
-                                return;
-                            }
-                            try {
-                                new URL(url);
-                                console.log('[DEBUG] URL is valid.');
-                            } catch {
-                                console.log('[DEBUG] Invalid URL entered.');
-                                alert('Invalid URL');
-                                return;
-                            }
-                            
-                            console.log('[DEBUG] Calling insertImageUtil...');
-                            insertImageUtil(editor, url);
-                            console.log('[DEBUG] insertImageUtil call finished.');
-                        }}
+                        onMouseDown={handleOpenImageDialog}
                     >
                         <ImageIcon />
                     </Button>
@@ -180,6 +193,33 @@ const Toolbar = () => {
                 </TooltipContent>
             </Tooltip>
         </div>
+        <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Insert Image</DialogTitle>
+                    <DialogDescription>Enter the URL of the image you want to insert.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={(e) => { e.preventDefault(); handleInsertImage(); }}>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="imageUrl" className="text-right">URL</Label>
+                            <Input
+                                id="imageUrl"
+                                value={imageUrl}
+                                onChange={(e) => setImageUrl(e.target.value)}
+                                className="col-span-3"
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsImageDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit">Insert</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+      </>
     );
 };
 
