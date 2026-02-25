@@ -20,6 +20,8 @@ export type ParagraphElement = BaseElement & { type: 'paragraph'; children: Desc
 export type ImageElement = {
     type: 'image';
     url: string;
+    width?: string;
+    height?: string;
     children: CustomText[]; // Void elements must have a text child node with empty string
 };
 

@@ -47,9 +47,15 @@ const Node = ({ node }: { node: Descendant }): JSX.Element => {
         case 'list-item':
             return <li style={style}>{children}</li>;
         case 'image':
+            const imgStyle = {
+                width: element.width,
+                height: element.height,
+                maxWidth: '100%',
+                maxHeight: '100%',
+            };
             return (
                 <div style={style}>
-                    <img src={element.url} alt="" className="max-w-full h-auto my-4 rounded-md shadow-md" />
+                    <img src={element.url} alt="" style={imgStyle} className="my-4 rounded-md shadow-md" />
                 </div>
             );
         case 'paragraph':

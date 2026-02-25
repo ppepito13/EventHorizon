@@ -85,9 +85,9 @@ export const toggleBlock = (editor: Editor, format: string) => {
 };
 
 // --- Image Functions ---
-export const insertImage = (editor: Editor, url: string) => {
+export const insertImage = (editor: Editor, url: string, width?: string, height?: string) => {
     const text = { text: '' };
-    const image: ImageElement = { type: 'image', url, children: [text] };
+    const image: ImageElement = { type: 'image', url, width, height, children: [text] };
     Transforms.insertNodes(editor, image);
     // Move cursor after the inserted image
     Transforms.move(editor);

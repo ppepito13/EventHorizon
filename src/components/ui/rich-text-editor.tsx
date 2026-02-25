@@ -126,6 +126,8 @@ const Toolbar = () => {
     const editor = useSlateStatic();
     const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
     const [imageUrl, setImageUrl] = useState('');
+    const [imageWidth, setImageWidth] = useState('');
+    const [imageHeight, setImageHeight] = useState('');
     const selectionRef = useRef<Range | null>(null);
 
     const handleInsertImage = () => {
@@ -138,20 +140,20 @@ const Toolbar = () => {
             return;
         }
 
-        // Restore selection before inserting
         if (selectionRef.current) {
             Transforms.select(editor, selectionRef.current);
         }
         
-        insertImageUtil(editor, imageUrl);
+        insertImageUtil(editor, imageUrl, imageWidth, imageHeight);
         setIsImageDialogOpen(false);
         setImageUrl('');
-        selectionRef.current = null; // Clear ref
+        setImageWidth('');
+        setImageHeight('');
+        selectionRef.current = null;
     };
 
     const handleOpenImageDialog = (event: React.MouseEvent) => {
         event.preventDefault();
-        // Save selection before opening dialog
         selectionRef.current = editor.selection;
         setIsImageDialogOpen(true);
     }
@@ -197,15 +199,36 @@ const Toolbar = () => {
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Insert Image</DialogTitle>
-                    <DialogDescription>Enter the URL of the image you want to insert.</DialogDescription>
+                    <DialogDescription>Enter the URL and optional dimensions for the image.</DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
+                <div className="space-y-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="imageUrl" className="text-right">URL</Label>
+                        <Label htmlFor="imageUrl" className="text-right">URL *</Label>
                         <Input
                             id="imageUrl"
                             value={imageUrl}
                             onChange={(e) => setImageUrl(e.target.value)}
+                            className="col-span-3"
+                            autoFocus
+                            placeholder="https://example.com/image.png"
+                        />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="imageWidth" className="text-right">Width</Label>
+                        <Input
+                            id="imageWidth"
+                            value={imageWidth}
+                            onChange={(e) => setImageWidth(e.target.value)}
+                            className="col-span-3"
+                            placeholder="e.g., 400px or 50%"
+                        />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="imageHeight" className="text-right">Height</Label>
+                        <Input
+                            id="imageHeight"
+                            value={imageHeight}
+                            onChange={(e) => setImageHeight(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                     e.preventDefault();
@@ -213,7 +236,7 @@ const Toolbar = () => {
                                 }
                             }}
                             className="col-span-3"
-                            autoFocus
+                            placeholder="e.g., 300px or auto"
                         />
                     </div>
                 </div>
@@ -304,16 +327,22 @@ const ImageElementComponent = ({ attributes, children, element }: { attributes: 
     const selected = useSelected();
     const editor = useSlateStatic();
     const isFocused = ReactEditor.isFocused(editor);
-    const { url } = element;
+    const { url, width, height } = element;
     
+    const style = {
+        width: width || 'auto',
+        height: height || 'auto',
+    };
+
     return (
         <div {...attributes}>
             <div contentEditable={false} className="relative my-4">
                 <img
                     src={url}
                     alt=""
+                    style={style}
                     className={cn(
-                        'block max-w-full max-h-96 shadow-md rounded-md',
+                        'block max-w-full shadow-md rounded-md',
                         selected && isFocused && 'ring-2 ring-ring ring-offset-2'
                     )}
                 />
