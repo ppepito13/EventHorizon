@@ -96,7 +96,7 @@ interface EventRegistrationFormProps {
 export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [successfulRegistration, setSuccessfulRegistration] = useState<Registration | null>(null);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   const firestore = useFirestore();
 
@@ -126,6 +126,8 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
     const qrId = `qr_${crypto.randomUUID()}`;
     const registrationId = `reg_${crypto.randomUUID()}`;
     
+    const isOnSite = event.location.types.includes('On-site');
+
     try {
         if (!firestore) {
           throw new Error("Firestore is not initialized.");
@@ -158,8 +160,11 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         
         await batch.commit();
         
-        // Generujemy kod QR (zawsze potrzebny do bazy, ale wysyłany e-mailem tylko dla otwartych wydarzeń)
-        const generatedQrUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
+        // Generujemy kod QR tylko jeśli wydarzenie jest stacjonarne (On-site)
+        let generatedQrUrl: string | undefined = undefined;
+        if (isOnSite) {
+            generatedQrUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
+        }
         
         const emailPayload = {
           email: (values as any).email,
@@ -288,7 +293,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
     }
   };
   
-  if (successfulRegistration && qrCodeDataUrl) {
+  if (successfulRegistration) {
     const isPending = event.requiresApproval && !successfulRegistration.isApproved;
 
     return (
@@ -298,20 +303,23 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         </h3>
         <p className="text-muted-foreground">
           {isPending 
-            ? 'Twoje zgłoszenie oczekuje na zatwierdzenie przez organizatora. Wyślemy Ci wiadomość e-mail z decyzją i kodem QR.'
-            : 'Dziękujemy za rejestrację. Poniżej znajduje się Twój kod QR, wysłaliśmy go również e-mailem.'
+            ? 'Twoje zgłoszenie oczekuje na zatwierdzenie przez organizatora. Wyślemy Ci wiadomość e-mail z decyzją.'
+            : 'Dziękujemy za rejestrację. Szczegóły zostały wysłane na podany adres e-mail.'
           }
         </p>
         
-        {!isPending && (
-            <div className="flex justify-center my-4">
-                <Image src={qrCodeDataUrl} alt="Twój kod QR" width={256} height={256} className="rounded-lg border p-2 bg-white" />
+        {qrCodeDataUrl && !isPending && (
+            <div className="flex flex-col items-center gap-2 my-4">
+                <div className="p-2 bg-white rounded-lg border">
+                    <Image src={qrCodeDataUrl} alt="Twój kod QR" width={256} height={256} />
+                </div>
+                <p className="text-xs text-muted-foreground">Okaż ten kod przy wejściu na wydarzenie.</p>
             </div>
         )}
 
         <Button onClick={() => {
             setSuccessfulRegistration(null);
-            setQrCodeDataUrl('');
+            setQrCodeDataUrl(undefined);
             form.reset();
         }}>
           Zarejestruj kolejną osobę

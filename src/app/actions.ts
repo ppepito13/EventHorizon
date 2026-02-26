@@ -7,7 +7,7 @@ import { sendConfirmationEmail, sendPendingEmail, sendApprovedEmail, sendRejecte
 export async function registerForEvent(
   event: Pick<Event, 'name' | 'date'>,
   registrationData: { email: string, fullName: string },
-  qrCodeDataUrl: string,
+  qrCodeDataUrl: string | undefined,
   requiresApproval: boolean
 ): Promise<{
   success: boolean;
@@ -34,7 +34,7 @@ export async function registerForEvent(
                 eventDate: event.date
             });
         } else {
-            // Dla otwartych wysyłamy od razu potwierdzenie z QR
+            // Dla otwartych wysyłamy od razu potwierdzenie (z QR lub bez)
             emailResult = await sendConfirmationEmail({
                 to: recipientEmail,
                 name: recipientName,
@@ -79,7 +79,7 @@ export async function notifyRegistrationStatusChange(
     try {
         let result;
         if (newStatus === true) {
-            // Zatwierdzono -> wysyłamy e-mail z kodem QR
+            // Zatwierdzono -> wysyłamy e-mail (z kodem QR lub bez)
             result = await sendApprovedEmail({
                 to: userData.email,
                 name: userData.name,

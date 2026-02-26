@@ -65,8 +65,10 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  const isOnSite = event.location.types.includes('On-site');
+
   useEffect(() => {
-    if (detailsViewReg && detailsViewReg.qrId) {
+    if (detailsViewReg && detailsViewReg.qrId && isOnSite) {
       QRCode.toDataURL(detailsViewReg.qrId, { errorCorrectionLevel: 'H', width: 256 })
         .then(url => {
           setDetailsQrCode(url);
@@ -78,7 +80,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
     } else {
       setDetailsQrCode('');
     }
-  }, [detailsViewReg]);
+  }, [detailsViewReg, isOnSite]);
 
   const fullNameField = event.formFields.find(f => f.label.toLowerCase().includes('full name'));
   const emailField = event.formFields.find(f => f.label.toLowerCase().includes('email'));
@@ -134,7 +136,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
           const userName = getFullNameValue(registration.formData);
           
           let qrCodeUrl;
-          if (newStatus && registration.qrId) {
+          if (newStatus && registration.qrId && isOnSite) {
               qrCodeUrl = await QRCode.toDataURL(registration.qrId, { errorCorrectionLevel: 'H', width: 256 });
           }
 
@@ -345,7 +347,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                           <span className="col-span-2">{detailsViewReg.isApproved ? 'Zatwierdzony' : 'Oczekujący'}</span>
                        </div>
                      )}
-                     {detailsQrCode && (detailsViewReg.isApproved || !event.requiresApproval) && (
+                     {detailsQrCode && (detailsViewReg.isApproved || !event.requiresApproval) && isOnSite && (
                         <>
                             <Separator className="my-2" />
                             <div className="py-2 text-center">
