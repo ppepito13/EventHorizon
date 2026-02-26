@@ -1,7 +1,7 @@
 'use client';
 
 import type { User } from '@/lib/types';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Trash2, Edit, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Edit, Loader2, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deleteUserAction } from './actions';
 import { Badge } from '@/components/ui/badge';
@@ -40,11 +40,46 @@ interface UsersTableProps {
   users: User[];
 }
 
+type SortConfig = {
+  key: 'name' | 'role';
+  direction: 'asc' | 'desc' | null;
+};
+
 export function UsersTable({ users }: UsersTableProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
+
+  const sortedUsers = useMemo(() => {
+    if (!sortConfig.direction) return users;
+
+    return [...users].sort((a, b) => {
+      let aVal = (a[sortConfig.key] || '').toLowerCase();
+      let bVal = (b[sortConfig.key] || '').toLowerCase();
+
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [users, sortConfig]);
+
+  const toggleSort = (key: SortConfig['key']) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        if (prev.direction === 'asc') return { key, direction: 'desc' };
+        if (prev.direction === 'desc') return { key, direction: null };
+        return { key, direction: 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const SortIcon = ({ columnKey }: { columnKey: SortConfig['key'] }) => {
+    if (sortConfig.key !== columnKey || !sortConfig.direction) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
+    return sortConfig.direction === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />;
+  };
 
   const openDeleteDialog = (id: string) => {
     setUserToDelete(id);
@@ -75,14 +110,24 @@ export function UsersTable({ users }: UsersTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead>
+                <Button variant="ghost" size="sm" onClick={() => toggleSort('name')} className="-ml-3 h-8">
+                    User
+                    <SortIcon columnKey="name" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" size="sm" onClick={() => toggleSort('role')} className="-ml-3 h-8">
+                    Role
+                    <SortIcon columnKey="role" />
+                </Button>
+              </TableHead>
               <TableHead>Event Access</TableHead>
               <TableHead className="w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map(user => (
+            {sortedUsers.map(user => (
               <TableRow key={user.id}>
                 <TableCell>
                   <div className="font-medium">{user.name}</div>
@@ -125,7 +170,7 @@ export function UsersTable({ users }: UsersTableProps) {
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="start">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"

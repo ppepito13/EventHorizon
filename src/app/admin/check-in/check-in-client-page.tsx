@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, CameraOff, Download, ChevronDown } from 'lucide-react';
+import { Loader2, AlertCircle, CameraOff, Download, ChevronDown, ArrowUpDown, ChevronUp } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,6 +61,11 @@ function convertCheckInToCSV(data: Registration[], headers: {key: string, label:
     return [headerRow, ...rows].join('\n');
 }
 
+type SortConfig = {
+  key: 'attendee' | 'status';
+  direction: 'asc' | 'desc' | null;
+};
+
 export function CheckInClientPage({ events }: { events: Event[] }) {
   const [selectedEventId, setSelectedEventId] = useState<string | undefined>(events[0]?.id);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -83,6 +88,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isToggling, startToggleTransition] = useTransition();
   const [isExporting, startExportTransition] = useTransition();
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'attendee', direction: 'asc' });
 
   useEffect(() => {
     if (isAuthLoading || !firestore || !selectedEventId) {
@@ -184,7 +190,6 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
               return; // Stop scanning after finding a code
             }
           } catch (e) {
-            // getImageData can throw a security error in some cases, e.g., with a tainted canvas
             console.error('Error getting image data from canvas:', e);
           }
         }
@@ -202,8 +207,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
           setHasCameraPermission(true);
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            videoRef.current.play(); // Explicitly play the video
-            // Start scanning loop only when video is playing
+            videoRef.current.play();
             videoRef.current.oncanplay = () => {
               animationFrameId = requestAnimationFrame(tick);
             };
@@ -226,7 +230,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
       }
       if (videoRef.current) {
         videoRef.current.srcObject = null;
-        videoRef.current.oncanplay = null; // Clean up event listener
+        videoRef.current.oncanplay = null;
       }
     };
 
@@ -236,7 +240,6 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
       stopCamera();
     }
     
-    // Cleanup on unmount or when isScanning changes to false
     return () => {
       stopCamera();
     };
@@ -244,7 +247,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
 
   const handleQrCode = (qrId: string) => {
     if (!selectedEventId) return;
-    setIsScanning(false); // Stop scanning process
+    setIsScanning(false);
     startScanTransition(async () => {
         const result = await checkInUserByQrIdClient(selectedEventId, qrId);
         setScanResult(result);
@@ -258,14 +261,48 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   }
 
   // Manual check-in logic
-  const filteredRegistrations = useMemo(() => {
-    return registrations.filter(reg => {
+  const filteredAndSortedRegistrations = useMemo(() => {
+    let result = registrations.filter(reg => {
       const name = (reg.formData as any).full_name || '';
       const email = (reg.formData as any).email || '';
       return name.toLowerCase().includes(searchTerm.toLowerCase()) || 
              email.toLowerCase().includes(searchTerm.toLowerCase());
     });
-  }, [registrations, searchTerm]);
+
+    if (sortConfig.direction) {
+        result = [...result].sort((a, b) => {
+            let aVal: any;
+            let bVal: any;
+            if (sortConfig.key === 'attendee') {
+                aVal = ((a.formData as any).full_name || '').toLowerCase();
+                bVal = ((b.formData as any).full_name || '').toLowerCase();
+            } else {
+                aVal = a.checkedIn ? 1 : 0;
+                bVal = b.checkedIn ? 1 : 0;
+            }
+            if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+    return result;
+  }, [registrations, searchTerm, sortConfig]);
+
+  const toggleSort = (key: SortConfig['key']) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        if (prev.direction === 'asc') return { key, direction: 'desc' };
+        if (prev.direction === 'desc') return { key, direction: null };
+        return { key, direction: 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const SortIcon = ({ columnKey }: { columnKey: SortConfig['key'] }) => {
+    if (sortConfig.key !== columnKey || !sortConfig.direction) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
+    return sortConfig.direction === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />;
+  };
 
   const handleToggleCheckIn = (registration: Registration) => {
       if (!selectedEventId || !firestore) return;
@@ -356,7 +393,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
                     <ChevronDown className="ml-2 h-4 w-4" />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent align="start">
                 <DropdownMenuItem onSelect={() => handleExport('excel')}>For Excel</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
             </DropdownMenuContent>
@@ -439,13 +476,23 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Attendee</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Action</TableHead>
+                                        <TableHead className="text-left">
+                                            <Button variant="ghost" size="sm" onClick={() => toggleSort('attendee')} className="-ml-3 h-8">
+                                                Attendee
+                                                <SortIcon columnKey="attendee" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead className="text-left">
+                                            <Button variant="ghost" size="sm" onClick={() => toggleSort('status')} className="-ml-3 h-8">
+                                                Status
+                                                <SortIcon columnKey="status" />
+                                            </Button>
+                                        </TableHead>
+                                        <TableHead className="text-left">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredRegistrations.length > 0 ? filteredRegistrations.map(reg => (
+                                    {filteredAndSortedRegistrations.length > 0 ? filteredAndSortedRegistrations.map(reg => (
                                         <TableRow key={reg.id}>
                                             <TableCell>
                                                 <div className="font-medium">{(reg.formData as any).full_name || 'N/A'}</div>

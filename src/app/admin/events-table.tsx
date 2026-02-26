@@ -1,7 +1,7 @@
 'use client';
 
 import type { Event, User } from '@/lib/types';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Trash2, Edit, Loader2, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { MoreHorizontal, Trash2, Edit, Loader2, Link as LinkIcon, ExternalLink, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirestore } from '@/firebase/provider';
@@ -51,6 +51,11 @@ function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address
     return locationString;
 }
 
+type SortConfig = {
+  key: keyof Event | 'locationFormatted';
+  direction: 'asc' | 'desc' | null;
+};
+
 export function EventsTable({ events, userRole }: EventsTableProps) {
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -58,6 +63,52 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
   const [activeToggles, setActiveToggles] = useState<Record<string, boolean>>({});
   const [isAlertOpen, setAlertOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
+
+  const sortedEvents = useMemo(() => {
+    if (!sortConfig.direction) return events;
+
+    const parseDate = (d: string) => {
+        if (!d) return 0;
+        const firstDate = d.split(' - ')[0];
+        const parts = firstDate.split('/');
+        if (parts.length !== 3) return 0;
+        return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).getTime();
+    };
+
+    return [...events].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      if (sortConfig.key === 'locationFormatted') {
+          aVal = formatLocation(a.location).toLowerCase();
+          bVal = formatLocation(b.location).toLowerCase();
+      } else if (sortConfig.key === 'date') {
+          aVal = parseDate(a.date);
+          bVal = parseDate(b.date);
+      } else {
+          aVal = (a[sortConfig.key as keyof Event] as any);
+          bVal = (b[sortConfig.key as keyof Event] as any);
+          if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+          if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      }
+
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [events, sortConfig]);
+
+  const toggleSort = (key: SortConfig['key']) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        if (prev.direction === 'asc') return { key, direction: 'desc' };
+        if (prev.direction === 'desc') return { key, direction: null };
+        return { key, direction: 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
 
   const handleSetActive = (id: string, makeActive: boolean) => {
     setActiveToggles(prev => ({ ...prev, [id]: true }));
@@ -94,9 +145,6 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
             const eventId = eventToDelete;
             const batch = writeBatch(firestore);
             
-            // Delete subcollections is not trivial on the client.
-            // A more robust solution would be a Firebase Function.
-            // For this app, we assume we can list and delete.
             const registrationsRef = collection(firestore, 'events', eventId, 'registrations');
             const registrationsSnap = await getDocs(registrationsRef);
             registrationsSnap.forEach(doc => batch.delete(doc.ref));
@@ -105,7 +153,6 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
             const formFieldsSnap = await getDocs(formFieldsRef);
             formFieldsSnap.forEach(doc => batch.delete(doc.ref));
 
-            // Delete main doc
             const eventRef = doc(firestore, 'events', eventId);
             batch.delete(eventRef);
 
@@ -134,6 +181,10 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
     });
   };
 
+  const SortIcon = ({ columnKey }: { columnKey: SortConfig['key'] }) => {
+    if (sortConfig.key !== columnKey || !sortConfig.direction) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
+    return sortConfig.direction === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />;
+  };
 
   return (
     <>
@@ -141,16 +192,36 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px]">Active</TableHead>
-              <TableHead>Event Name</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Location</TableHead>
+              <TableHead className="w-[100px]">
+                <Button variant="ghost" size="sm" onClick={() => toggleSort('isActive')} className="-ml-3 h-8">
+                    Active
+                    <SortIcon columnKey="isActive" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" size="sm" onClick={() => toggleSort('name')} className="-ml-3 h-8">
+                    Event Name
+                    <SortIcon columnKey="name" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" size="sm" onClick={() => toggleSort('date')} className="-ml-3 h-8">
+                    Date
+                    <SortIcon columnKey="date" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" size="sm" onClick={() => toggleSort('locationFormatted')} className="-ml-3 h-8">
+                    Location
+                    <SortIcon columnKey="locationFormatted" />
+                </Button>
+              </TableHead>
               <TableHead className="w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {events.length > 0 ? (
-              events.map(event => (
+            {sortedEvents.length > 0 ? (
+              sortedEvents.map(event => (
                 <TableRow key={event.id}>
                   <TableCell>
                     <div className="flex items-center">
@@ -201,7 +272,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="start">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem asChild>
                             <a href={`/events/${event.slug}`} target="_blank" rel="noopener noreferrer" className='cursor-pointer'>

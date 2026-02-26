@@ -1,8 +1,7 @@
-
 'use client';
 
 import type { Event, Registration, User } from '@/lib/types';
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import QRCode from 'qrcode';
@@ -39,7 +38,10 @@ import {
   CheckCircle2, 
   Clock,
   UserCheck,
-  UserX
+  UserX,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
@@ -58,10 +60,16 @@ interface RegistrationsTableProps {
   isLoading: boolean;
 }
 
+type SortConfig = {
+  key: 'registrationDate' | 'fullName' | 'email' | 'isApproved';
+  direction: 'asc' | 'desc' | null;
+};
+
 export function RegistrationsTable({ event, registrations, userRole, onDelete, isLoading }: RegistrationsTableProps) {
   const [detailsViewReg, setDetailsViewReg] = useState<Registration | null>(null);
   const [detailsQrCode, setDetailsQrCode] = useState<string>('');
   const [isUpdating, startUpdateTransition] = useTransition();
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'registrationDate', direction: 'desc' });
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -97,6 +105,54 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
       return formData[emailField.name];
     }
     return formData['email'];
+  };
+
+  const sortedRegistrations = useMemo(() => {
+    if (!sortConfig.direction) return registrations;
+
+    return [...registrations].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (sortConfig.key) {
+        case 'registrationDate':
+          aVal = new Date(a.registrationDate).getTime();
+          bVal = new Date(b.registrationDate).getTime();
+          break;
+        case 'fullName':
+          aVal = (getFullNameValue(a.formData) || '').toLowerCase();
+          bVal = (getFullNameValue(b.formData) || '').toLowerCase();
+          break;
+        case 'email':
+          aVal = (getEmailValue(a.formData) || '').toLowerCase();
+          bVal = (getEmailValue(b.formData) || '').toLowerCase();
+          break;
+        case 'isApproved':
+          aVal = a.isApproved ? 1 : 0;
+          bVal = b.isApproved ? 1 : 0;
+          break;
+      }
+
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [registrations, sortConfig]);
+
+  const toggleSort = (key: SortConfig['key']) => {
+    setSortConfig(prev => {
+      if (prev.key === key) {
+        if (prev.direction === 'asc') return { key, direction: 'desc' };
+        if (prev.direction === 'desc') return { key, direction: null };
+        return { key, direction: 'asc' };
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const SortIcon = ({ columnKey }: { columnKey: SortConfig['key'] }) => {
+    if (sortConfig.key !== columnKey || !sortConfig.direction) return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
+    return sortConfig.direction === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />;
   };
 
   const getDisplayValue = (value: any) => {
@@ -140,7 +196,6 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
               qrCodeUrl = await QRCode.toDataURL(registration.qrId, { errorCorrectionLevel: 'H', width: 256 });
           }
 
-          // Wysyłamy e-mail powiadamiający o zmianie statusu
           if (userEmail) {
               await notifyRegistrationStatusChange(
                   { name: event.name, date: event.date },
@@ -187,15 +242,37 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-left">Registration Date</TableHead>
-              <TableHead className="text-left">Full Name</TableHead>
-              <TableHead className="text-left">Email Address</TableHead>
-              {event.requiresApproval && <TableHead className="text-left">Approved</TableHead>}
+              <TableHead className="text-left">
+                <Button variant="ghost" size="sm" onClick={() => toggleSort('registrationDate')} className="-ml-3 h-8">
+                    Registration Date
+                    <SortIcon columnKey="registrationDate" />
+                </Button>
+              </TableHead>
+              <TableHead className="text-left">
+                <Button variant="ghost" size="sm" onClick={() => toggleSort('fullName')} className="-ml-3 h-8">
+                    Full Name
+                    <SortIcon columnKey="fullName" />
+                </Button>
+              </TableHead>
+              <TableHead className="text-left">
+                <Button variant="ghost" size="sm" onClick={() => toggleSort('email')} className="-ml-3 h-8">
+                    Email Address
+                    <SortIcon columnKey="email" />
+                </Button>
+              </TableHead>
+              {event.requiresApproval && (
+                <TableHead className="text-left">
+                    <Button variant="ghost" size="sm" onClick={() => toggleSort('isApproved')} className="-ml-3 h-8">
+                        Approved
+                        <SortIcon columnKey="isApproved" />
+                    </Button>
+                </TableHead>
+              )}
               <TableHead className="w-[150px] text-left">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {registrations.map(reg => (
+            {sortedRegistrations.map(reg => (
               <TableRow key={reg.id}>
                 <TableCell className="text-left">{formatDate(reg.registrationDate)}</TableCell>
                 <TableCell className="text-left">{getDisplayValue(getFullNameValue(reg.formData))}</TableCell>
