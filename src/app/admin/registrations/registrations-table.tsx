@@ -1,7 +1,7 @@
 'use client';
 
 import type { Event, Registration, User } from '@/lib/types';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import QRCode from 'qrcode';
@@ -19,6 +19,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -28,10 +29,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MoreHorizontal, Trash2, Eye, Pencil, Loader2, CheckCircle2, Clock } from 'lucide-react';
+import { 
+  MoreHorizontal, 
+  Trash2, 
+  Eye, 
+  Pencil, 
+  Loader2, 
+  CheckCircle2, 
+  Clock,
+  UserCheck,
+  UserX
+} from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
+import { useFirestore } from '@/firebase/provider';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 
 interface RegistrationsTableProps {
@@ -45,6 +59,9 @@ interface RegistrationsTableProps {
 export function RegistrationsTable({ event, registrations, userRole, onDelete, isLoading }: RegistrationsTableProps) {
   const [detailsViewReg, setDetailsViewReg] = useState<Registration | null>(null);
   const [detailsQrCode, setDetailsQrCode] = useState<string>('');
+  const [isUpdating, startUpdateTransition] = useTransition();
+  const firestore = useFirestore();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (detailsViewReg && detailsViewReg.qrId) {
@@ -100,6 +117,30 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
       }
       return dateString;
     }
+  };
+
+  const handleToggleApproval = (registration: Registration) => {
+    if (!firestore) return;
+    
+    startUpdateTransition(() => {
+      const newStatus = !registration.isApproved;
+      const regRef = doc(firestore, 'events', event.id, 'registrations', registration.id);
+      
+      updateDoc(regRef, { isApproved: newStatus })
+        .then(() => {
+          toast({
+            title: 'Success',
+            description: `Registration status updated to ${newStatus ? 'Approved' : 'Pending'}.`,
+          });
+        })
+        .catch((error) => {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: error.message || 'Failed to update approval status.',
+          });
+        });
+    });
   };
   
   if (isLoading) {
@@ -195,13 +236,34 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isUpdating}>
                           <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
+                          {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        
+                        {event.requiresApproval && (
+                          <DropdownMenuItem
+                            onClick={() => handleToggleApproval(reg)}
+                            className={reg.isApproved ? "text-amber-600 focus:text-amber-600" : "text-green-600 focus:text-green-600"}
+                          >
+                            {reg.isApproved ? (
+                              <>
+                                <UserX className="mr-2 h-4 w-4" />
+                                Revoke Approval
+                              </>
+                            ) : (
+                              <>
+                                <UserCheck className="mr-2 h-4 w-4" />
+                                Approve Registration
+                              </>
+                            )}
+                          </DropdownMenuItem>
+                        )}
+
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => onDelete(event.id, reg.id)}
