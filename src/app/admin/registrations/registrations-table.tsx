@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Event, Registration, User } from '@/lib/types';
@@ -42,8 +43,6 @@ import {
   ChevronUp,
   ChevronDown,
   ArrowUpDown,
-  Search,
-  X
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
@@ -52,8 +51,6 @@ import { useFirestore } from '@/firebase/provider';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { notifyRegistrationStatusChange } from '@/app/actions';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 interface RegistrationsTableProps {
@@ -75,11 +72,6 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
   const [isUpdating, startUpdateTransition] = useTransition();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'registrationDate', direction: 'desc' });
   
-  // Filtering state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all');
-  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'present' | 'absent'>('all');
-
   const firestore = useFirestore();
   const { toast } = useToast();
 
@@ -117,28 +109,10 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
     return formData['email'];
   };
 
-  const filteredAndSortedRegistrations = useMemo(() => {
-    // 1. Filter
-    let result = registrations.filter(reg => {
-        const name = (getFullNameValue(reg.formData) || '').toLowerCase();
-        const email = (getEmailValue(reg.formData) || '').toLowerCase();
-        const matchesSearch = name.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
-        
-        const matchesApproval = approvalFilter === 'all'
-            ? true
-            : approvalFilter === 'approved' ? reg.isApproved : !reg.isApproved;
-            
-        const matchesAttendance = attendanceFilter === 'all'
-            ? true
-            : attendanceFilter === 'present' ? reg.checkedIn : !reg.checkedIn;
+  const sortedRegistrations = useMemo(() => {
+    if (!sortConfig.direction) return registrations;
 
-        return matchesSearch && matchesApproval && matchesAttendance;
-    });
-
-    // 2. Sort
-    if (!sortConfig.direction) return result;
-
-    return result.sort((a, b) => {
+    return [...registrations].sort((a, b) => {
       let aVal: any;
       let bVal: any;
 
@@ -165,7 +139,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [registrations, sortConfig, searchTerm, approvalFilter, attendanceFilter]);
+  }, [registrations, sortConfig]);
 
   const toggleSort = (key: SortConfig['key']) => {
     setSortConfig(prev => {
@@ -176,12 +150,6 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
       }
       return { key, direction: 'asc' };
     });
-  };
-
-  const clearFilters = () => {
-      setSearchTerm('');
-      setApprovalFilter('all');
-      setAttendanceFilter('all');
   };
 
   const SortIcon = ({ columnKey }: { columnKey: SortConfig['key'] }) => {
@@ -262,57 +230,8 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
       );
   }
 
-  const isFiltered = searchTerm !== '' || approvalFilter !== 'all' || attendanceFilter !== 'all';
-
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/30 p-4 rounded-lg">
-          <div className="flex flex-wrap flex-1 items-center gap-2 w-full">
-              <div className="relative flex-1 min-w-[200px] max-w-sm">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                      placeholder="Search attendees..."
-                      className="pl-8 bg-background"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-              </div>
-              {event.requiresApproval && (
-                  <Select value={approvalFilter} onValueChange={(val: any) => setApprovalFilter(val)}>
-                      <SelectTrigger className="w-[160px] bg-background">
-                          <SelectValue placeholder="Approval" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          <SelectItem value="all">All Approval</SelectItem>
-                          <SelectItem value="approved">Approved</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                      </SelectContent>
-                  </Select>
-              )}
-              {isOnSite && (
-                  <Select value={attendanceFilter} onValueChange={(val: any) => setAttendanceFilter(val)}>
-                      <SelectTrigger className="w-[160px] bg-background">
-                          <SelectValue placeholder="Attendance" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          <SelectItem value="all">All Attendance</SelectItem>
-                          <SelectItem value="present">Present Only</SelectItem>
-                          <SelectItem value="absent">Absent Only</SelectItem>
-                      </SelectContent>
-                  </Select>
-              )}
-              {isFiltered && (
-                  <Button variant="ghost" onClick={clearFilters} className="h-10 px-2 sm:px-4">
-                      <X className="mr-2 h-4 w-4" />
-                      Clear
-                  </Button>
-              )}
-          </div>
-          <div className="text-sm text-muted-foreground whitespace-nowrap">
-              Found {filteredAndSortedRegistrations.length} registrations
-          </div>
-      </div>
-
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -347,8 +266,8 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedRegistrations.length > 0 ? (
-              filteredAndSortedRegistrations.map(reg => (
+            {sortedRegistrations.length > 0 ? (
+              sortedRegistrations.map(reg => (
                 <TableRow key={reg.id}>
                   <TableCell className="text-left">{formatDate(reg.registrationDate)}</TableCell>
                   <TableCell className="text-left">{getDisplayValue(getFullNameValue(reg.formData))}</TableCell>
@@ -454,7 +373,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
             ) : (
                 <TableRow>
                     <TableCell colSpan={event.requiresApproval ? 5 : 4} className="h-24 text-center text-muted-foreground">
-                        {isFiltered ? "No registrations match your filters." : "Brak rejestracji dla tego wydarzenia."}
+                        Brak rejestracji spełniających kryteria.
                     </TableCell>
                 </TableRow>
             )}

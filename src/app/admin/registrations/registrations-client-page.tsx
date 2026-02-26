@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { RegistrationsTable } from './registrations-table';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2, ChevronDown, AlertCircle, Trash2, Mail } from 'lucide-react';
+import { Download, Loader2, ChevronDown, AlertCircle, Trash2, Mail, Search, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -151,6 +151,11 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const [isLoadingFirestore, setIsLoadingFirestore] = useState(true);
   const [firestoreError, setFirestoreError] = useState<FirestoreError | null>(null);
 
+  // Filtering state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all');
+  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'present' | 'absent'>('all');
+
   const [deleteDialogState, setDeleteDialogState] = useState<{
     isOpen: boolean;
     eventId: string | null;
@@ -214,6 +219,44 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   }, [firestore, selectedEventId, isMounted, user, isAuthLoading]);
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
+
+  // Derived filtered registrations
+  const filteredRegistrations = useMemo(() => {
+    if (!selectedEvent) return [];
+
+    const fullNameField = selectedEvent.formFields.find(f => f.label.toLowerCase().includes('full name'));
+    const emailField = selectedEvent.formFields.find(f => f.label.toLowerCase().includes('email'));
+    
+    const getFullNameValue = (formData: { [key: string]: any }) => {
+        if (fullNameField && formData[fullNameField.name]) {
+            return formData[fullNameField.name];
+        }
+        return formData['fullName'] || formData['full_name'];
+    };
+
+    const getEmailValue = (formData: { [key: string]: any }) => {
+        if (emailField && formData[emailField.name]) {
+            return formData[emailField.name];
+        }
+        return formData['email'];
+    };
+
+    return registrations.filter(reg => {
+        const name = (getFullNameValue(reg.formData) || '').toLowerCase();
+        const email = (getEmailValue(reg.formData) || '').toLowerCase();
+        const matchesSearch = name.includes(searchTerm.toLowerCase()) || email.includes(searchTerm.toLowerCase());
+        
+        const matchesApproval = approvalFilter === 'all'
+            ? true
+            : approvalFilter === 'approved' ? reg.isApproved : !reg.isApproved;
+            
+        const matchesAttendance = attendanceFilter === 'all'
+            ? true
+            : attendanceFilter === 'present' ? reg.checkedIn : !reg.checkedIn;
+
+        return matchesSearch && matchesApproval && matchesAttendance;
+    });
+  }, [registrations, selectedEvent, searchTerm, approvalFilter, attendanceFilter]);
 
   const handleDeleteRequest = (eventId: string, registrationId: string) => {
     setDeleteDialogState({ isOpen: true, eventId, regId: registrationId });
@@ -360,14 +403,14 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         return;
     }
     startExportTransition(async () => {
-        if (registrations.length === 0) {
+        if (filteredRegistrations.length === 0) {
             toast({ variant: 'destructive', title: 'Export Failed', description: 'No registrations to export.' });
             return;
         }
 
         try {
             const headers = selectedEvent.formFields.map(field => ({ key: field.name, label: field.label }));
-            let csvData = convertToCSV(registrations, headers);
+            let csvData = convertToCSV(filteredRegistrations, headers);
 
             if (format === 'excel') {
                 csvData = `sep=|\n${csvData}`;
@@ -387,6 +430,12 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             toast({ variant: 'destructive', title: 'Export Failed', description: error.message || 'Unknown error during export.' });
         }
     });
+  };
+
+  const clearFilters = () => {
+      setSearchTerm('');
+      setApprovalFilter('all');
+      setAttendanceFilter('all');
   };
 
   const isLoading = !isMounted || isLoadingFirestore || isAuthLoading;
@@ -426,7 +475,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     
     return (
       <RegistrationsTable
-        registrations={registrations}
+        registrations={filteredRegistrations}
         event={selectedEvent!}
         userRole={userRole}
         onDelete={handleDeleteRequest}
@@ -434,6 +483,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       />
     );
   }
+
+  const isFiltered = searchTerm !== '' || approvalFilter !== 'all' || attendanceFilter !== 'all';
+  const isOnSite = selectedEvent?.location.types.includes('On-site');
 
   return (
     <>
@@ -512,6 +564,55 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                 </>
             )}
           </div>
+
+          {selectedEventId && registrations.length > 0 && (
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/30 p-4 rounded-lg mt-4">
+                <div className="flex flex-wrap flex-1 items-center gap-2 w-full">
+                    <div className="relative flex-1 min-w-[200px] max-w-sm">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search attendees..."
+                            className="pl-8 bg-background"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    {selectedEvent?.requiresApproval && (
+                        <Select value={approvalFilter} onValueChange={(val: any) => setApprovalFilter(val)}>
+                            <SelectTrigger className="w-[160px] bg-background">
+                                <SelectValue placeholder="Approval" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Approval</SelectItem>
+                                <SelectItem value="approved">Approved</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    )}
+                    {isOnSite && (
+                        <Select value={attendanceFilter} onValueChange={(val: any) => setAttendanceFilter(val)}>
+                            <SelectTrigger className="w-[160px] bg-background">
+                                <SelectValue placeholder="Attendance" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Attendance</SelectItem>
+                                <SelectItem value="present">Present Only</SelectItem>
+                                <SelectItem value="absent">Absent Only</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    )}
+                    {isFiltered && (
+                        <Button variant="ghost" onClick={clearFilters} className="h-10 px-2 sm:px-4">
+                            <X className="mr-2 h-4 w-4" />
+                            Clear
+                        </Button>
+                    )}
+                </div>
+                <div className="text-sm text-muted-foreground whitespace-nowrap">
+                    Found {filteredRegistrations.length} registrations
+                </div>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {renderContent()}
@@ -604,6 +705,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                 <DialogDescription>
                     Compose a message to all attendees registered for "{selectedEvent?.name}".
                 </DialogDescription>
+                <p className="text-sm font-semibold text-primary">
+                    Wiadomość zostanie wysłana do {filteredRegistrations.length} uczestników.
+                </p>
             </DialogHeader>
             <div className="space-y-4 py-4">
                 <div className="space-y-2">
@@ -635,7 +739,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                 <Button onClick={() => {
                     toast({
                         title: "Email Sent (Mock)",
-                        description: `Your message "${emailSubject}" would be sent to ${registrations.length} recipients.`,
+                        description: `Your message "${emailSubject}" would be sent to ${filteredRegistrations.length} recipients.`,
                     });
                     setIsEmailDialogOpen(false);
                 }}>
