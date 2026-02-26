@@ -29,7 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MoreHorizontal, Trash2, Eye, Pencil, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Eye, Pencil, Loader2, CheckCircle2, Clock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import { format, parseISO } from 'date-fns';
@@ -129,6 +129,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
               <TableHead>Registration Date</TableHead>
               <TableHead>Full Name</TableHead>
               <TableHead>Email Address</TableHead>
+              <TableHead className="text-center">Approved</TableHead>
               <TableHead className="text-right w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -138,6 +139,29 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                 <TableCell>{formatDate(reg.registrationDate)}</TableCell>
                 <TableCell>{getDisplayValue(getFullNameValue(reg.formData))}</TableCell>
                 <TableCell>{getDisplayValue(getEmailValue(reg.formData))}</TableCell>
+                <TableCell className="text-center">
+                  <div className="flex justify-center">
+                    {reg.isApproved ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Approved</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Clock className="h-5 w-5 text-amber-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Pending Approval</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <Tooltip>
@@ -229,9 +253,13 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                              </div>
                         )
                     })}
-                     <div className="grid grid-cols-3 gap-4 py-2">
+                     <div className="grid grid-cols-3 gap-4 py-2 border-b">
                         <span className="font-semibold text-muted-foreground">Agreed to Terms</span>
                         <span className="col-span-2">{getDisplayValue(detailsViewReg.formData.rodo)}</span>
+                     </div>
+                     <div className="grid grid-cols-3 gap-4 py-2">
+                        <span className="font-semibold text-muted-foreground">Approval Status</span>
+                        <span className="col-span-2">{detailsViewReg.isApproved ? 'Approved' : 'Pending Approval'}</span>
                      </div>
                      {detailsQrCode && (
                         <>

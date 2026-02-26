@@ -55,4 +55,5 @@ export type Registration = {
   formData: { [key: string]: any };
   checkedIn?: boolean;
   checkInTime?: string | null;
+  isApproved: boolean;
 };

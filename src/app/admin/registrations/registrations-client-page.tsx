@@ -290,6 +290,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                 eventMembers: selectedEvent.members,
                 checkedIn: false,
                 checkInTime: null,
+                isApproved: !selectedEvent.requiresApproval,
             };
             const registrationDocRef = doc(firestore, 'events', selectedEventId, 'registrations', registrationId);
             batch.set(registrationDocRef, newRegistrationData);

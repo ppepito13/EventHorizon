@@ -151,6 +151,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
             eventMembers: event.members,
             checkedIn: false,
             checkInTime: null,
+            isApproved: !event.requiresApproval,
         };
         const registrationDocRef = doc(firestore, `events/${event.id}/registrations/${registrationId}`);
         batch.set(registrationDocRef, registrationToSave);

@@ -198,13 +198,18 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the attendee checked in."
+        },
+        "isApproved": {
+          "type": "boolean",
+          "description": "Indicates if the registration has been approved by an organizer."
         }
       },
       "required": [
         "id",
         "eventId",
         "registrationDate",
-        "formData"
+        "formData",
+        "isApproved"
       ]
     }
   },
