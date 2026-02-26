@@ -259,9 +259,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             ? true
             : attendanceFilter === 'present' ? reg.checkedIn : !reg.checkedIn;
 
-        return matchesSearch && matchesApproval && attendanceFilter === 'all' 
-            ? matchesSearch && matchesApproval 
-            : matchesSearch && matchesApproval && matchesAttendance;
+        return matchesSearch && matchesApproval && (attendanceFilter === 'all' || matchesAttendance);
     });
   }, [registrations, selectedEvent, searchTerm, approvalFilter, attendanceFilter]);
 
@@ -789,7 +787,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                     Compose a message to all attendees registered for "{selectedEvent?.name}".
                 </DialogDescription>
                 <p className="text-sm font-semibold text-primary">
-                    Wiadomość zostanie wysłana do {filteredRegistrations.length} uczestników.
+                    Message will be sent to <strong className="font-bold">{filteredRegistrations.length}</strong> participants.
                 </p>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -832,17 +830,17 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
       <AlertDialog open={isEmailConfirmOpen} onOpenChange={setIsEmailConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Potwierdzenie wysyłki</AlertDialogTitle>
+            <AlertDialogTitle>Send Confirmation</AlertDialogTitle>
             <AlertDialogDescription>
-              Czy na pewno chcesz wysłać tę wiadomość do **{filteredRegistrations.length}** uczestników? Tej operacji nie można cofnąć.
+              Are you sure you want to send this message to <strong className="font-bold">{filteredRegistrations.length}</strong> participants? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
                 toast({
-                    title: "Wiadomość wysłana (Mock)",
-                    description: `Twoja wiadomość "${emailSubject}" została wysłana do ${filteredRegistrations.length} odbiorców.`,
+                    title: "Message sent (Mock)",
+                    description: `Your message "${emailSubject}" has been sent to ${filteredRegistrations.length} recipients.`,
                 });
                 setIsEmailConfirmOpen(false);
                 setIsEmailDialogOpen(false);
@@ -850,7 +848,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                 setEmailSubject('');
                 setEmailBody(JSON.stringify([{ type: 'paragraph', children: [{ text: '' }] }]));
             }}>
-              Potwierdź i wyślij
+              Confirm & Send
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
