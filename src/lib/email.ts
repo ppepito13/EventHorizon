@@ -6,7 +6,7 @@ interface EmailPayload {
     name: string;
     eventName: string;
     eventDate: string;
-    qrCodeDataUrl: string;
+    qrCodeDataUrl?: string;
 }
 
 // Instantiate Resend. The API key is read from environment variables.
@@ -16,22 +16,19 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // Users should set RESEND_FROM_EMAIL to their own verified email address.
 const fromAddress = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
+/**
+ * Wysyła potwierdzenie dla wydarzeń otwartych (od razu z kodem QR).
+ */
 export async function sendConfirmationEmail(payload: EmailPayload): Promise<{ success: boolean, error?: string }> {
     const { to, name, eventName, eventDate, qrCodeDataUrl } = payload;
     
-    if (!process.env.RESEND_API_KEY) {
-        console.warn(`
-            WARN: RESEND_API_KEY is not set in the .env file.
-            Email sending is disabled. The registration process will continue without sending an email.
-        `);
-        return { success: false, error: 'Email service is not configured.' };
-    }
+    if (!process.env.RESEND_API_KEY) return { success: false, error: 'Email service is not configured.' };
 
     try {
-        const { data, error } = await resend.emails.send({
+        const { error } = await resend.emails.send({
             from: `"${eventName} Team" <${fromAddress}>`,
-            to: [to], // Resend API expects an array of strings
-            subject: `Potwierdzenie rejestracji na wydarzenie: ${eventName}`,
+            to: [to],
+            subject: `Potwierdzenie rejestracji: ${eventName}`,
             html: `
                 <div style="font-family: sans-serif; line-height: 1.6;">
                     <h2>Witaj ${name},</h2>
@@ -45,18 +42,100 @@ export async function sendConfirmationEmail(payload: EmailPayload): Promise<{ su
                 </div>
             `,
         });
+        return error ? { success: false, error: error.message } : { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
 
-        if (error) {
-            console.error('Resend API returned an error:', error);
-            return { success: false, error: error.message };
-        } else {
-            console.log('Confirmation email sent successfully via Resend:', data);
-            return { success: true };
-        }
+/**
+ * Wysyła powiadomienie o zapisaniu wniosku (dla wydarzeń z zatwierdzeniem).
+ */
+export async function sendPendingEmail(payload: EmailPayload): Promise<{ success: boolean, error?: string }> {
+    const { to, name, eventName } = payload;
+    
+    if (!process.env.RESEND_API_KEY) return { success: false, error: 'Email service is not configured.' };
 
-    } catch (e) {
-        const error = e as Error;
-        console.error('Failed to execute sendConfirmationEmail:', error.message);
-        return { success: false, error: error.message };
+    try {
+        const { error } = await resend.emails.send({
+            from: `"${eventName} Team" <${fromAddress}>`,
+            to: [to],
+            subject: `Otrzymaliśmy Twoje zgłoszenie: ${eventName}`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.6;">
+                    <h2>Witaj ${name},</h2>
+                    <p>Dziękujemy za zainteresowanie wydarzeniem <strong>${eventName}</strong>.</p>
+                    <p>Twoje zgłoszenie zostało zapisane w naszym systemie i obecnie <strong>oczekuje na akceptację organizatora</strong>.</p>
+                    <p>Poinformujemy Cię w kolejnej wiadomości o zmianie statusu Twojej rejestracji. Prosimy o cierpliwość.</p>
+                    <p>Pozdrawiamy,</p>
+                    <p><em>Zespół organizacyjny ${eventName}</em></p>
+                </div>
+            `,
+        });
+        return error ? { success: false, error: error.message } : { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * Wysyła informację o zaakceptowaniu rejestracji (z kodem QR).
+ */
+export async function sendApprovedEmail(payload: EmailPayload): Promise<{ success: boolean, error?: string }> {
+    const { to, name, eventName, eventDate, qrCodeDataUrl } = payload;
+    
+    if (!process.env.RESEND_API_KEY) return { success: false, error: 'Email service is not configured.' };
+
+    try {
+        const { error } = await resend.emails.send({
+            from: `"${eventName} Team" <${fromAddress}>`,
+            to: [to],
+            subject: `Twoje zgłoszenie zostało zatwierdzone: ${eventName}`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.6;">
+                    <h2>Dobra wiadomość, ${name}!</h2>
+                    <p>Twoja rejestracja na wydarzenie <strong>${eventName}</strong> (${eventDate}) została właśnie <strong>zatwierdzona</strong> przez organizatora.</p>
+                    <p>Poniżej przesyłamy Twój unikalny kod QR, który będzie potrzebny do wejścia na wydarzenie:</p>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <img src="${qrCodeDataUrl}" alt="Twój kod QR" style="border: 1px solid #ddd; padding: 10px; background: white;"/>
+                    </div>
+                    <p>Cieszymy się na spotkanie z Tobą!</p>
+                    <p><em>Zespół organizacyjny ${eventName}</em></p>
+                </div>
+            `,
+        });
+        return error ? { success: false, error: error.message } : { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * Wysyła informację o odrzuceniu zgłoszenia.
+ */
+export async function sendRejectedEmail(payload: EmailPayload): Promise<{ success: boolean, error?: string }> {
+    const { to, name, eventName } = payload;
+    
+    if (!process.env.RESEND_API_KEY) return { success: false, error: 'Email service is not configured.' };
+
+    try {
+        const { error } = await resend.emails.send({
+            from: `"${eventName} Team" <${fromAddress}>`,
+            to: [to],
+            subject: `Informacja o statusie zgłoszenia: ${eventName}`,
+            html: `
+                <div style="font-family: sans-serif; line-height: 1.6;">
+                    <h2>Witaj ${name},</h2>
+                    <p>Dziękujemy za zainteresowanie wydarzeniem <strong>${eventName}</strong>.</p>
+                    <p>Pragniemy poinformować, że po analizie zgłoszeń, Twoja rejestracja <strong>nie została zaakceptowana</strong> przez organizatorów.</p>
+                    <p>Mamy nadzieję, że zobaczymy się przy okazji kolejnych wydarzeń.</p>
+                    <p>Pozdrawiamy,</p>
+                    <p><em>Zespół organizacyjny ${eventName}</em></p>
+                </div>
+            `,
+        });
+        return error ? { success: false, error: error.message } : { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
     }
 }

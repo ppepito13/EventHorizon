@@ -2,16 +2,13 @@
 'use server';
 
 import type { Event } from '@/lib/types';
-import { sendConfirmationEmail } from '@/lib/email';
-import { adminDb } from '@/lib/firebase-admin';
+import { sendConfirmationEmail, sendPendingEmail, sendApprovedEmail, sendRejectedEmail } from '@/lib/email';
 
-// This action is now only responsible for sending an email.
-// The database operations have been moved to the client-side form
-// to avoid Admin SDK authentication issues in the serverless environment for public actions.
 export async function registerForEvent(
   event: Pick<Event, 'name' | 'date'>,
   registrationData: { email: string, fullName: string },
-  qrCodeDataUrl: string
+  qrCodeDataUrl: string,
+  requiresApproval: boolean
 ): Promise<{
   success: boolean;
   emailStatus?: 'sent' | 'failed' | 'skipped';
@@ -26,13 +23,26 @@ export async function registerForEvent(
     let emailError: string | undefined = undefined;
 
     if (recipientEmail) {
-        const emailResult = await sendConfirmationEmail({
-            to: recipientEmail,
-            name: recipientName,
-            eventName: event.name,
-            eventDate: event.date,
-            qrCodeDataUrl: qrCodeDataUrl,
-        });
+        let emailResult;
+        
+        if (requiresApproval) {
+            // Dla wydarzeń z zatwierdzeniem wysyłamy tylko info o "oczekiwaniu"
+            emailResult = await sendPendingEmail({
+                to: recipientEmail,
+                name: recipientName,
+                eventName: event.name,
+                eventDate: event.date
+            });
+        } else {
+            // Dla otwartych wysyłamy od razu potwierdzenie z QR
+            emailResult = await sendConfirmationEmail({
+                to: recipientEmail,
+                name: recipientName,
+                eventName: event.name,
+                eventDate: event.date,
+                qrCodeDataUrl: qrCodeDataUrl,
+            });
+        }
 
         if (emailResult.success) {
             emailStatus = 'sent';
@@ -41,7 +51,6 @@ export async function registerForEvent(
             emailError = emailResult.error;
         }
     } else {
-         console.warn("No email address found in registration data, skipping email confirmation.");
          emailStatus = 'skipped';
     }
 
@@ -56,4 +65,40 @@ export async function registerForEvent(
       emailError: message
     };
   }
+}
+
+/**
+ * Akcja wywoływana przy manualnej zmianie statusu przez admina.
+ */
+export async function notifyRegistrationStatusChange(
+    event: Pick<Event, 'name' | 'date'>,
+    userData: { email: string, name: string },
+    newStatus: boolean,
+    qrCodeDataUrl?: string
+) {
+    try {
+        let result;
+        if (newStatus === true) {
+            // Zatwierdzono -> wysyłamy e-mail z kodem QR
+            result = await sendApprovedEmail({
+                to: userData.email,
+                name: userData.name,
+                eventName: event.name,
+                eventDate: event.date,
+                qrCodeDataUrl
+            });
+        } else {
+            // Odrzucono/Cofnięto -> wysyłamy informację o braku akceptacji
+            result = await sendRejectedEmail({
+                to: userData.email,
+                name: userData.name,
+                eventName: event.name,
+                eventDate: event.date
+            });
+        }
+        return result;
+    } catch (error) {
+        console.error("Status notification failed:", error);
+        return { success: false, error: 'Failed to send notification email.' };
+    }
 }

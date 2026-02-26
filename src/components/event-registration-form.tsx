@@ -158,7 +158,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         
         await batch.commit();
         
-        // After successful DB write, generate QR and send email
+        // Generujemy kod QR (zawsze potrzebny do bazy, ale wysyłany e-mailem tylko dla otwartych wydarzeń)
         const generatedQrUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
         
         const emailPayload = {
@@ -169,7 +169,8 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         const emailResult = await registerForEvent(
             { name: event.name, date: event.date }, 
             emailPayload,
-            generatedQrUrl
+            generatedQrUrl,
+            event.requiresApproval
         );
         
         setIsLoading(false);
@@ -179,7 +180,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         if (emailResult.emailStatus === 'failed') {
              toast({
                 title: 'Problem z wysyłką e-maila',
-                description: 'Twoja rejestracja przebiegła pomyślnie, ale nie udało nam się wysłać potwierdzenia. Prosimy, zachowaj widoczny kod QR.',
+                description: 'Twoja rejestracja przebiegła pomyślnie, ale nie udało nam się wysłać potwierdzenia. Prosimy o kontakt.',
                 variant: 'default',
                 duration: 10000,
             });
@@ -288,21 +289,32 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
   };
   
   if (successfulRegistration && qrCodeDataUrl) {
+    const isPending = event.requiresApproval && !successfulRegistration.isApproved;
+
     return (
       <div className="text-center space-y-4">
-        <h3 className="text-xl font-bold font-headline">Registration Successful!</h3>
+        <h3 className="text-xl font-bold font-headline">
+            {isPending ? 'Wniosek złożony!' : 'Rejestracja pomyślna!'}
+        </h3>
         <p className="text-muted-foreground">
-          Thank you for registering. Please save this unique QR code for check-in.
+          {isPending 
+            ? 'Twoje zgłoszenie oczekuje na zatwierdzenie przez organizatora. Wyślemy Ci wiadomość e-mail z decyzją i kodem QR.'
+            : 'Dziękujemy za rejestrację. Poniżej znajduje się Twój kod QR, wysłaliśmy go również e-mailem.'
+          }
         </p>
-        <div className="flex justify-center my-4">
-            <Image src={qrCodeDataUrl} alt="Your QR Code" width={256} height={256} className="rounded-lg border p-2 bg-white" />
-        </div>
+        
+        {!isPending && (
+            <div className="flex justify-center my-4">
+                <Image src={qrCodeDataUrl} alt="Twój kod QR" width={256} height={256} className="rounded-lg border p-2 bg-white" />
+            </div>
+        )}
+
         <Button onClick={() => {
             setSuccessfulRegistration(null);
             setQrCodeDataUrl('');
             form.reset();
         }}>
-          Register another person
+          Zarejestruj kolejną osobę
         </Button>
       </div>
     );
@@ -342,7 +354,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
               </FormControl>
               <div className="space-y-1 leading-none">
                 <FormLabel>
-                  {event.rodoLabel || 'Agree to terms and conditions'}
+                  {event.rodoLabel || 'Zgoda na przetwarzanie danych'}
                   <span className="text-destructive"> *</span>
                 </FormLabel>
                 <FormDescription>
@@ -357,7 +369,6 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
                   const parts = text.split(/[><]/);
 
                   if (parts.length !== 3) {
-                    // Fallback for incorrect format
                     return <FormDescription className="pt-2">{text}</FormDescription>;
                   }
 
@@ -385,12 +396,12 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         />
         
         <p className="text-xs text-muted-foreground">
-            * Indicates a required field.
+            * Pole wymagane.
         </p>
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isLoading ? 'Processing...' : 'Register for Free'}
+          {isLoading ? 'Przetwarzanie...' : 'Zarejestruj się'}
         </Button>
       </form>
     </Form>
