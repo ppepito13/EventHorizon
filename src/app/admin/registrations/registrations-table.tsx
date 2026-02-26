@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Event, Registration, User } from '@/lib/types';
@@ -201,21 +200,21 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
           if (userEmail) {
               await notifyRegistrationStatusChange(
                   { name: event.name, date: event.date },
-                  { email: userEmail, name: userName || 'Uczestniku' },
+                  { email: userEmail, name: userName || 'Participant' },
                   newStatus,
                   qrCodeUrl
               );
           }
 
           toast({
-            title: 'Sukces',
-            description: `Status zaktualizowany. Powiadomienie e-mail zostało wysłane.`,
+            title: 'Success',
+            description: `Status updated. Email notification has been sent.`,
           });
       } catch (error: any) {
           toast({
             variant: 'destructive',
-            title: 'Błąd',
-            description: error.message || 'Nie udało się zaktualizować statusu.',
+            title: 'Error',
+            description: error.message || 'Could not update status.',
           });
       }
     });
@@ -225,7 +224,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
       return (
           <div className="text-center py-12 text-muted-foreground">
               <Loader2 className="mx-auto h-8 w-8 animate-spin" />
-              <p>Wczytywanie rejestracji...</p>
+              <p>Loading registrations...</p>
           </div>
       );
   }
@@ -281,7 +280,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                               <CheckCircle2 className="h-5 w-5 text-green-500" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Zatwierdzony</p>
+                              <p>Approved</p>
                             </TooltipContent>
                           </Tooltip>
                         ) : (
@@ -290,7 +289,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                               <Clock className="h-5 w-5 text-amber-500" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Oczekuje na decyzję</p>
+                              <p>Pending Decision</p>
                             </TooltipContent>
                           </Tooltip>
                         )}
@@ -303,11 +302,11 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                         <TooltipTrigger asChild>
                           <Button variant="outline" size="icon" onClick={() => setDetailsViewReg(reg)}>
                             <Eye className="h-4 w-4" />
-                            <span className="sr-only">Podgląd</span>
+                            <span className="sr-only">View</span>
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Szczegóły</p>
+                          <p>Details</p>
                         </TooltipContent>
                       </Tooltip>
                       
@@ -317,12 +316,12 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                               <Button variant="outline" size="icon" asChild>
                                   <Link href={`/admin/registrations/${event.id}/${reg.id}/edit`}>
                                       <Pencil className="h-4 w-4" />
-                                      <span className="sr-only">Edytuj</span>
+                                      <span className="sr-only">Edit</span>
                                   </Link>
                               </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                              <p>Edycja danych</p>
+                              <p>Edit Data</p>
                           </TooltipContent>
                           </Tooltip>
                       )}
@@ -330,12 +329,12 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0" disabled={isUpdating}>
-                            <span className="sr-only">Opcje</span>
+                            <span className="sr-only">Options</span>
                             {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                          <DropdownMenuLabel>Akcje</DropdownMenuLabel>
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           
                           {event.requiresApproval && (
                             <DropdownMenuItem
@@ -345,12 +344,12 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                               {reg.isApproved ? (
                                 <>
                                   <UserX className="mr-2 h-4 w-4" />
-                                  Cofnij zatwierdzenie
+                                  Revoke Approval
                                 </>
                               ) : (
                                 <>
                                   <UserCheck className="mr-2 h-4 w-4" />
-                                  Zatwierdź zgłoszenie
+                                  Approve Registration
                                 </>
                               )}
                             </DropdownMenuItem>
@@ -362,7 +361,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                             onClick={() => onDelete(event.id, reg.id)}
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Usuń rejestrację
+                            Delete Registration
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -373,7 +372,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
             ) : (
                 <TableRow>
                     <TableCell colSpan={event.requiresApproval ? 5 : 4} className="h-24 text-center text-muted-foreground">
-                        Brak rejestracji spełniających kryteria.
+                        No registrations matching the criteria.
                     </TableCell>
                 </TableRow>
             )}
@@ -384,19 +383,19 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
       <Dialog open={!!detailsViewReg} onOpenChange={(open) => !open && setDetailsViewReg(null)}>
         <DialogContent className="max-w-lg">
             <DialogHeader>
-                <DialogTitle>Szczegóły rejestracji</DialogTitle>
+                <DialogTitle>Registration Details</DialogTitle>
                 <DialogDescription>
-                    Dane dla wydarzenia: "{event.name}".
+                    Data for event: "{event.name}".
                 </DialogDescription>
             </DialogHeader>
             {detailsViewReg && (
                 <div className="mt-4 space-y-2 text-sm max-h-[60vh] overflow-y-auto pr-4">
                      <div className="grid grid-cols-3 gap-4 py-2 border-b">
-                        <span className="font-semibold text-muted-foreground">ID Rejestracji</span>
+                        <span className="font-semibold text-muted-foreground">Registration ID</span>
                         <span className="col-span-2 font-mono text-xs">{detailsViewReg.id}</span>
                     </div>
                      <div className="grid grid-cols-3 gap-4 py-2 border-b">
-                        <span className="font-semibold text-muted-foreground">Data rejestracji</span>
+                        <span className="font-semibold text-muted-foreground">Registration Date</span>
                         <span className="col-span-2">{formatDate(detailsViewReg.registrationDate)}</span>
                     </div>
                     {event.formFields.map(field => {
@@ -417,20 +416,20 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                         )
                     })}
                      <div className="grid grid-cols-3 gap-4 py-2 border-b">
-                        <span className="font-semibold text-muted-foreground">Zgody (RODO)</span>
+                        <span className="font-semibold text-muted-foreground">Consent (GDPR)</span>
                         <span className="col-span-2">{getDisplayValue(detailsViewReg.formData.rodo)}</span>
                      </div>
                      {event.requiresApproval && (
                        <div className="grid grid-cols-3 gap-4 py-2">
-                          <span className="font-semibold text-muted-foreground">Status akceptacji</span>
-                          <span className="col-span-2">{detailsViewReg.isApproved ? 'Zatwierdzony' : 'Oczekujący'}</span>
+                          <span className="font-semibold text-muted-foreground">Approval Status</span>
+                          <span className="col-span-2">{detailsViewReg.isApproved ? 'Approved' : 'Pending'}</span>
                        </div>
                      )}
                      {detailsQrCode && (detailsViewReg.isApproved || !event.requiresApproval) && isOnSite && (
                         <>
                             <Separator className="my-2" />
                             <div className="py-2 text-center">
-                                <h4 className="font-semibold text-muted-foreground mb-3">Kod QR uczestnika</h4>
+                                <h4 className="font-semibold text-muted-foreground mb-3">Participant QR Code</h4>
                                 <div className="flex justify-center">
                                     <Image src={detailsQrCode} alt="Registration QR Code" width={192} height={192} className="rounded-lg border p-1 bg-white" />
                                 </div>

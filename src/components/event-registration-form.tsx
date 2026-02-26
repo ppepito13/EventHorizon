@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Event, FormField as FormFieldType, Registration } from '@/lib/types';
@@ -160,7 +159,6 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         
         await batch.commit();
         
-        // Generujemy kod QR tylko jeśli wydarzenie jest stacjonarne (On-site)
         let generatedQrUrl: string | undefined = undefined;
         if (isOnSite) {
             generatedQrUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
@@ -184,8 +182,8 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
 
         if (emailResult.emailStatus === 'failed') {
              toast({
-                title: 'Problem z wysyłką e-maila',
-                description: 'Twoja rejestracja przebiegła pomyślnie, ale nie udało nam się wysłać potwierdzenia. Prosimy o kontakt.',
+                title: 'Email Sending Issue',
+                description: 'Your registration was successful, but we could not send the confirmation email. Please contact us.',
                 variant: 'default',
                 duration: 10000,
             });
@@ -299,21 +297,21 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
     return (
       <div className="text-center space-y-4">
         <h3 className="text-xl font-bold font-headline">
-            {isPending ? 'Wniosek złożony!' : 'Rejestracja pomyślna!'}
+            {isPending ? 'Application Submitted!' : 'Registration Successful!'}
         </h3>
         <p className="text-muted-foreground">
           {isPending 
-            ? 'Twoje zgłoszenie oczekuje na zatwierdzenie przez organizatora. Wyślemy Ci wiadomość e-mail z decyzją.'
-            : 'Dziękujemy za rejestrację. Szczegóły zostały wysłane na podany adres e-mail.'
+            ? 'Your application is pending approval by the organizer. we will send you an email once a decision has been made.'
+            : 'Thank you for registering. Details have been sent to your email address.'
           }
         </p>
         
         {qrCodeDataUrl && !isPending && (
             <div className="flex flex-col items-center gap-2 my-4">
                 <div className="p-2 bg-white rounded-lg border">
-                    <Image src={qrCodeDataUrl} alt="Twój kod QR" width={256} height={256} />
+                    <Image src={qrCodeDataUrl} alt="Your QR Code" width={256} height={256} />
                 </div>
-                <p className="text-xs text-muted-foreground">Okaż ten kod przy wejściu na wydarzenie.</p>
+                <p className="text-xs text-muted-foreground">Show this code at the event entrance.</p>
             </div>
         )}
 
@@ -322,7 +320,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
             setQrCodeDataUrl(undefined);
             form.reset();
         }}>
-          Zarejestruj kolejną osobę
+          Register Another Person
         </Button>
       </div>
     );
@@ -362,7 +360,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
               </FormControl>
               <div className="space-y-1 leading-none">
                 <FormLabel>
-                  {event.rodoLabel || 'Zgoda na przetwarzanie danych'}
+                  {event.rodoLabel || 'Data Processing Consent'}
                   <span className="text-destructive"> *</span>
                 </FormLabel>
                 <FormDescription>
@@ -404,12 +402,12 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         />
         
         <p className="text-xs text-muted-foreground">
-            * Pole wymagane.
+            * Required field.
         </p>
 
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isLoading ? 'Przetwarzanie...' : 'Zarejestruj się'}
+          {isLoading ? 'Processing...' : 'Register'}
         </Button>
       </form>
     </Form>

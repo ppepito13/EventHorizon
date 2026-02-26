@@ -1,4 +1,3 @@
-
 import { Resend } from 'resend';
 
 interface EmailPayload {
@@ -17,7 +16,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const fromAddress = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
 /**
- * Wysyła potwierdzenie dla wydarzeń otwartych (z opcjonalnym kodem QR).
+ * Sends confirmation for open events (with optional QR code).
  */
 export async function sendConfirmationEmail(payload: EmailPayload): Promise<{ success: boolean, error?: string }> {
     const { to, name, eventName, eventDate, qrCodeDataUrl } = payload;
@@ -25,24 +24,24 @@ export async function sendConfirmationEmail(payload: EmailPayload): Promise<{ su
     if (!process.env.RESEND_API_KEY) return { success: false, error: 'Email service is not configured.' };
 
     const qrSection = qrCodeDataUrl ? `
-        <p>Poniżej znajduje się Twój unikalny kod QR. Prosimy o jego okazanie podczas wejścia na teren wydarzenia.</p>
+        <p>Below is your unique QR code. Please show it at the event entrance.</p>
         <div style="text-align: center; margin: 20px 0;">
-            <img src="${qrCodeDataUrl}" alt="Twój kod QR" style="border: 1px solid #ddd; padding: 10px; background: white; width: 200px; height: 200px;"/>
+            <img src="${qrCodeDataUrl}" alt="Your QR Code" style="border: 1px solid #ddd; padding: 10px; background: white; width: 200px; height: 200px;"/>
         </div>
-    ` : '<p>Wydarzenie odbędzie się w formie online. Szczegóły dotyczące dołączenia prześlemy w osobnej wiadomości.</p>';
+    ` : '<p>The event will take place online. Joining details will be sent in a separate message.</p>';
 
     try {
         const { error } = await resend.emails.send({
             from: `"${eventName} Team" <${fromAddress}>`,
             to: [to],
-            subject: `Potwierdzenie rejestracji: ${eventName}`,
+            subject: `Registration Confirmation: ${eventName}`,
             html: `
                 <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-                    <h2>Witaj ${name},</h2>
-                    <p>Dziękujemy za Twoją rejestrację na wydarzenie <strong>${eventName}</strong>, które odbędzie się ${eventDate}.</p>
+                    <h2>Hello ${name},</h2>
+                    <p>Thank you for registering for <strong>${eventName}</strong>, taking place on ${eventDate}.</p>
                     ${qrSection}
-                    <p>Do zobaczenia!</p>
-                    <p><em>Zespół organizacyjny ${eventName}</em></p>
+                    <p>See you there!</p>
+                    <p><em>${eventName} Organizing Team</em></p>
                 </div>
             `,
         });
@@ -53,7 +52,7 @@ export async function sendConfirmationEmail(payload: EmailPayload): Promise<{ su
 }
 
 /**
- * Wysyła powiadomienie o zapisaniu wniosku (dla wydarzeń z zatwierdzeniem).
+ * Sends notification about application submission (for events requiring approval).
  */
 export async function sendPendingEmail(payload: EmailPayload): Promise<{ success: boolean, error?: string }> {
     const { to, name, eventName } = payload;
@@ -64,15 +63,15 @@ export async function sendPendingEmail(payload: EmailPayload): Promise<{ success
         const { error } = await resend.emails.send({
             from: `"${eventName} Team" <${fromAddress}>`,
             to: [to],
-            subject: `Otrzymaliśmy Twoje zgłoszenie: ${eventName}`,
+            subject: `We received your application: ${eventName}`,
             html: `
                 <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-                    <h2>Witaj ${name},</h2>
-                    <p>Dziękujemy za zainteresowanie wydarzeniem <strong>${eventName}</strong>.</p>
-                    <p>Twoje zgłoszenie zostało zapisane w naszym systemie i obecnie <strong>oczekuje na akceptację organizatora</strong>.</p>
-                    <p>Poinformujemy Cię w kolejnej wiadomości o zmianie statusu Twojej rejestracji. Prosimy o cierpliwość.</p>
-                    <p>Pozdrawiamy,</p>
-                    <p><em>Zespół organizacyjny ${eventName}</em></p>
+                    <h2>Hello ${name},</h2>
+                    <p>Thank you for your interest in <strong>${eventName}</strong>.</p>
+                    <p>Your application has been received and is currently <strong>awaiting organizer approval</strong>.</p>
+                    <p>We will notify you in a separate email regarding your registration status. Thank you for your patience.</p>
+                    <p>Best regards,</p>
+                    <p><em>${eventName} Organizing Team</em></p>
                 </div>
             `,
         });
@@ -83,7 +82,7 @@ export async function sendPendingEmail(payload: EmailPayload): Promise<{ success
 }
 
 /**
- * Wysyła informację o zaakceptowaniu rejestracji (z opcjonalnym kodem QR).
+ * Sends notification about approved registration (with optional QR code).
  */
 export async function sendApprovedEmail(payload: EmailPayload): Promise<{ success: boolean, error?: string }> {
     const { to, name, eventName, eventDate, qrCodeDataUrl } = payload;
@@ -91,24 +90,24 @@ export async function sendApprovedEmail(payload: EmailPayload): Promise<{ succes
     if (!process.env.RESEND_API_KEY) return { success: false, error: 'Email service is not configured.' };
 
     const qrSection = qrCodeDataUrl ? `
-        <p>Poniżej przesyłamy Twój unikalny kod QR, który będzie potrzebny do wejścia na wydarzenie:</p>
+        <p>Below is your unique QR code, which you will need to enter the event:</p>
         <div style="text-align: center; margin: 20px 0;">
-            <img src="${qrCodeDataUrl}" alt="Twój kod QR" style="border: 1px solid #ddd; padding: 10px; background: white; width: 200px; height: 200px;"/>
+            <img src="${qrCodeDataUrl}" alt="Your QR Code" style="border: 1px solid #ddd; padding: 10px; background: white; width: 200px; height: 200px;"/>
         </div>
-    ` : '<p>Wydarzenie odbędzie się online. Wkrótce otrzymasz instrukcje dotyczące sposobu logowania.</p>';
+    ` : '<p>The event will be held online. You will soon receive instructions on how to log in.</p>';
 
     try {
         const { error } = await resend.emails.send({
             from: `"${eventName} Team" <${fromAddress}>`,
             to: [to],
-            subject: `Twoje zgłoszenie zostało zatwierdzone: ${eventName}`,
+            subject: `Your application has been approved: ${eventName}`,
             html: `
                 <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-                    <h2>Dobra wiadomość, ${name}!</h2>
-                    <p>Twoja rejestracja na wydarzenie <strong>${eventName}</strong> (${eventDate}) została właśnie <strong>zatwierdzona</strong> przez organizatora.</p>
+                    <h2>Great news, ${name}!</h2>
+                    <p>Your registration for <strong>${eventName}</strong> (${eventDate}) has been <strong>approved</strong> by the organizer.</p>
                     ${qrSection}
-                    <p>Cieszymy się na spotkanie z Tobą!</p>
-                    <p><em>Zespół organizacyjny ${eventName}</em></p>
+                    <p>We look forward to seeing you!</p>
+                    <p><em>${eventName} Organizing Team</em></p>
                 </div>
             `,
         });
@@ -119,7 +118,7 @@ export async function sendApprovedEmail(payload: EmailPayload): Promise<{ succes
 }
 
 /**
- * Wysyła informację o odrzuceniu zgłoszenia.
+ * Sends notification about rejected registration.
  */
 export async function sendRejectedEmail(payload: EmailPayload): Promise<{ success: boolean, error?: string }> {
     const { to, name, eventName } = payload;
@@ -130,15 +129,15 @@ export async function sendRejectedEmail(payload: EmailPayload): Promise<{ succes
         const { error } = await resend.emails.send({
             from: `"${eventName} Team" <${fromAddress}>`,
             to: [to],
-            subject: `Informacja o statusie zgłoszenia: ${eventName}`,
+            subject: `Application Status Update: ${eventName}`,
             html: `
                 <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-                    <h2>Witaj ${name},</h2>
-                    <p>Dziękujemy za zainteresowanie wydarzeniem <strong>${eventName}</strong>.</p>
-                    <p>Pragniemy poinformować, że po analizie zgłoszeń, Twoja rejestracja <strong>nie została zaakceptowana</strong> przez organizatorów.</p>
-                    <p>Mamy nadzieję, że zobaczymy się przy okazji kolejnych wydarzeń.</p>
-                    <p>Pozdrawiamy,</p>
-                    <p><em>Zespół organizacyjny ${eventName}</em></p>
+                    <h2>Hello ${name},</h2>
+                    <p>Thank you for your interest in <strong>${eventName}</strong>.</p>
+                    <p>We regret to inform you that after reviewing the applications, your registration <strong>was not approved</strong> by the organizers.</p>
+                    <p>We hope to see you at future events.</p>
+                    <p>Best regards,</p>
+                    <p><em>${eventName} Organizing Team</em></p>
                 </div>
             `,
         });

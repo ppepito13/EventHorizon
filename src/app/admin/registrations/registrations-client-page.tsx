@@ -52,7 +52,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { RichTextRenderer } from '@/components/rich-text-renderer';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 
@@ -61,7 +60,6 @@ interface RegistrationsClientPageProps {
   userRole: User['role'];
 }
 
-// Helper functions previously in actions.ts
 function convertToCSV(data: Registration[], headers: {key: string, label: string}[]) {
     const headerRow = ['Registration Date', 'QR ID', ...headers.map(h => h.label)].join('|');
     const rows = data.map(reg => {
