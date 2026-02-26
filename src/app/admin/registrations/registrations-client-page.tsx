@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { RegistrationsTable } from './registrations-table';
 import { Button } from '@/components/ui/button';
-import { Download, Loader2, ChevronDown, AlertCircle, Trash2 } from 'lucide-react';
+import { Download, Loader2, ChevronDown, AlertCircle, Trash2, Mail } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,6 +53,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 
 interface RegistrationsClientPageProps {
@@ -159,6 +160,11 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const [isPurgeAlertOpen, setPurgeAlertOpen] = useState(false);
   const [isGenerateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [generationCount, setGenerationCount] = useState(5);
+
+  // Email state
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState(JSON.stringify([{ type: 'paragraph', children: [{ text: '' }] }]));
 
 
   const firestore = useFirestore();
@@ -476,23 +482,33 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                         ))}
                     </SelectContent>
                     </Select>
-                    <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
-                            {isExporting ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                            <Download className="mr-2 h-4 w-4" />
-                            )}
-                            Export
-                            <ChevronDown className="ml-2 h-4 w-4" />
+                    <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" disabled={isExporting || !selectedEventId || !registrations || registrations.length === 0}>
+                                {isExporting ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                <Download className="mr-2 h-4 w-4" />
+                                )}
+                                Export
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuItem onSelect={() => handleExport('excel')}>For Excel</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button 
+                            variant="outline" 
+                            disabled={!selectedEventId || !registrations || registrations.length === 0}
+                            onClick={() => setIsEmailDialogOpen(true)}
+                        >
+                            <Mail className="mr-2 h-4 w-4" />
+                            Send Email
                         </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onSelect={() => handleExport('excel')}>For Excel</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleExport('plain')}>Plain CSV</DropdownMenuItem>
-                    </DropdownMenuContent>
-                    </DropdownMenu>
+                    </div>
                 </>
             )}
           </div>
@@ -578,6 +594,54 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                     </Button>
                 </DialogFooter>
             </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+        <DialogContent className="max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Send Email to Registrants</DialogTitle>
+                <DialogDescription>
+                    Compose a message to all attendees registered for "{selectedEvent?.name}".
+                </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="email-subject">Message Title</Label>
+                    <Input 
+                        id="email-subject" 
+                        placeholder="e.g. Important update regarding the event" 
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>Message Body</Label>
+                    <div className="border rounded-md overflow-hidden bg-background">
+                        <div className="resize-y overflow-auto min-h-[300px] max-h-[600px]">
+                            <RichTextEditor 
+                                value={emailBody} 
+                                onChange={setEmailBody} 
+                            />
+                        </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        You can resize the editor by dragging the bottom-right corner.
+                    </p>
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>Cancel</Button>
+                <Button onClick={() => {
+                    toast({
+                        title: "Email Sent (Mock)",
+                        description: `Your message "${emailSubject}" would be sent to ${registrations.length} recipients.`,
+                    });
+                    setIsEmailDialogOpen(false);
+                }}>
+                    Send Message
+                </Button>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
