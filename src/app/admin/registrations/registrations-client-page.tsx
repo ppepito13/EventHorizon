@@ -52,6 +52,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { RichTextRenderer } from '@/components/rich-text-renderer';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 
 
@@ -171,6 +172,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   // Email state
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [isEmailConfirmOpen, setIsEmailConfirmOpen] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState(JSON.stringify([{ type: 'paragraph', children: [{ text: '' }] }]));
 
@@ -257,7 +259,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             ? true
             : attendanceFilter === 'present' ? reg.checkedIn : !reg.checkedIn;
 
-        return matchesSearch && matchesApproval && matchesAttendance;
+        return matchesSearch && matchesApproval && attendanceFilter === 'all' 
+            ? matchesSearch && matchesApproval 
+            : matchesSearch && matchesApproval && matchesAttendance;
     });
   }, [registrations, selectedEvent, searchTerm, approvalFilter, attendanceFilter]);
 
@@ -815,18 +819,42 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             </div>
             <DialogFooter>
                 <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>Cancel</Button>
-                <Button onClick={() => {
-                    toast({
-                        title: "Email Sent (Mock)",
-                        description: `Your message "${emailSubject}" would be sent to ${filteredRegistrations.length} recipients.`,
-                    });
-                    setIsEmailDialogOpen(false);
-                }}>
+                <Button 
+                    onClick={() => setIsEmailConfirmOpen(true)}
+                    disabled={!emailSubject.trim() || filteredRegistrations.length === 0}
+                >
                     Send Message
                 </Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isEmailConfirmOpen} onOpenChange={setIsEmailConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Potwierdzenie wysyłki</AlertDialogTitle>
+            <AlertDialogDescription>
+              Czy na pewno chcesz wysłać tę wiadomość do **{filteredRegistrations.length}** uczestników? Tej operacji nie można cofnąć.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Anuluj</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+                toast({
+                    title: "Wiadomość wysłana (Mock)",
+                    description: `Twoja wiadomość "${emailSubject}" została wysłana do ${filteredRegistrations.length} odbiorców.`,
+                });
+                setIsEmailConfirmOpen(false);
+                setIsEmailDialogOpen(false);
+                // Clear form
+                setEmailSubject('');
+                setEmailBody(JSON.stringify([{ type: 'paragraph', children: [{ text: '' }] }]));
+            }}>
+              Potwierdź i wyślij
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
