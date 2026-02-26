@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, CameraOff, Download, ChevronDown, ArrowUpDown, ChevronUp } from 'lucide-react';
+import { Loader2, AlertCircle, CameraOff, Download, ChevronDown, ArrowUpDown, ChevronUp, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,6 +89,10 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   const [isToggling, startToggleTransition] = useTransition();
   const [isExporting, startExportTransition] = useTransition();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'attendee', direction: 'asc' });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number | 'all'>(10);
 
   useEffect(() => {
     if (isAuthLoading || !firestore || !selectedEventId) {
@@ -288,6 +292,16 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
     return result;
   }, [registrations, searchTerm, sortConfig]);
 
+  // Reset pagination on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, pageSize, selectedEventId]);
+
+  const totalPages = pageSize === 'all' ? 1 : Math.ceil(filteredAndSortedRegistrations.length / (pageSize as number));
+  const paginatedRegistrations = pageSize === 'all'
+    ? filteredAndSortedRegistrations
+    : filteredAndSortedRegistrations.slice((currentPage - 1) * (pageSize as number), currentPage * (pageSize as number));
+
   const toggleSort = (key: SortConfig['key']) => {
     setSortConfig(prev => {
       if (prev.key === key) {
@@ -466,67 +480,131 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
                       />
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                     {isLoading || isAuthLoading ? (
                         <div className="flex justify-center items-center py-8"><Loader2 className="h-8 w-8 animate-spin"/></div>
                     ) : error ? (
                         <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>
                     ) : (
-                        <div className="rounded-md border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="text-left">
-                                            <Button variant="ghost" size="sm" onClick={() => toggleSort('attendee')} className="-ml-3 h-8">
-                                                Attendee
-                                                <SortIcon columnKey="attendee" />
-                                            </Button>
-                                        </TableHead>
-                                        <TableHead className="text-left">
-                                            <Button variant="ghost" size="sm" onClick={() => toggleSort('status')} className="-ml-3 h-8">
-                                                Status
-                                                <SortIcon columnKey="status" />
-                                            </Button>
-                                        </TableHead>
-                                        <TableHead className="text-left">Action</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredAndSortedRegistrations.length > 0 ? filteredAndSortedRegistrations.map(reg => (
-                                        <TableRow key={reg.id}>
-                                            <TableCell>
-                                                <div className="font-medium">{(reg.formData as any).full_name || 'N/A'}</div>
-                                                <div className="text-sm text-muted-foreground">{(reg.formData as any).email || 'N/A'}</div>
-                                            </TableCell>
-                                            <TableCell>
-                                                {reg.checkedIn ? (
-                                                    <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                                                        Checked-In
-                                                        {reg.checkInTime && <span className="hidden sm:inline ml-1.5 text-xs">({format(new Date(reg.checkInTime), 'HH:mm')})</span>}
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="secondary">Not Present</Badge>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Button 
-                                                    variant={reg.checkedIn ? 'outline' : 'default'} 
-                                                    size="sm"
-                                                    onClick={() => handleToggleCheckIn(reg)}
-                                                    disabled={isToggling}
-                                                >
-                                                    {isToggling ? <Loader2 className="h-4 w-4 animate-spin"/> : (reg.checkedIn ? 'Undo Check-in' : 'Check-in')}
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    )) : (
+                        <>
+                            <div className="rounded-md border">
+                                <Table>
+                                    <TableHeader>
                                         <TableRow>
-                                            <TableCell colSpan={3} className="text-center text-muted-foreground">No matching registrations found.</TableCell>
+                                            <TableHead className="text-left">
+                                                <Button variant="ghost" size="sm" onClick={() => toggleSort('attendee')} className="-ml-3 h-8">
+                                                    Attendee
+                                                    <SortIcon columnKey="attendee" />
+                                                </Button>
+                                            </TableHead>
+                                            <TableHead className="text-left">
+                                                <Button variant="ghost" size="sm" onClick={() => toggleSort('status')} className="-ml-3 h-8">
+                                                    Status
+                                                    <SortIcon columnKey="status" />
+                                                </Button>
+                                            </TableHead>
+                                            <TableHead className="text-left">Action</TableHead>
                                         </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {paginatedRegistrations.length > 0 ? paginatedRegistrations.map(reg => (
+                                            <TableRow key={reg.id}>
+                                                <TableCell>
+                                                    <div className="font-medium">{(reg.formData as any).full_name || 'N/A'}</div>
+                                                    <div className="text-sm text-muted-foreground">{(reg.formData as any).email || 'N/A'}</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {reg.checkedIn ? (
+                                                        <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                                                            Checked-In
+                                                            {reg.checkInTime && <span className="hidden sm:inline ml-1.5 text-xs">({format(new Date(reg.checkInTime), 'HH:mm')})</span>}
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge variant="secondary">Not Present</Badge>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button 
+                                                        variant={reg.checkedIn ? 'outline' : 'default'} 
+                                                        size="sm"
+                                                        onClick={() => handleToggleCheckIn(reg)}
+                                                        disabled={isToggling}
+                                                    >
+                                                        {isToggling ? <Loader2 className="h-4 w-4 animate-spin"/> : (reg.checkedIn ? 'Undo Check-in' : 'Check-in')}
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="text-center text-muted-foreground">No matching registrations found.</TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            {paginatedRegistrations.length > 0 && (
+                                <div className="flex items-center justify-between px-2 pt-4">
+                                <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium">Rows per page</p>
+                                    <Select
+                                    value={pageSize.toString()}
+                                    onValueChange={(value) => setPageSize(value === 'all' ? 'all' : Number(value))}
+                                    >
+                                    <SelectTrigger className="h-8 w-[70px]">
+                                        <SelectValue placeholder={pageSize.toString()} />
+                                    </SelectTrigger>
+                                    <SelectContent side="top">
+                                        {[10, 25, 50, "all"].map((size) => (
+                                        <SelectItem key={size} value={size.toString()}>
+                                            {size}
+                                        </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="flex items-center space-x-6 lg:space-x-8">
+                                    <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+                                    Page {currentPage} of {totalPages || 1}
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                    <Button
+                                        variant="outline"
+                                        className="hidden h-8 w-8 p-0 lg:flex"
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronsLeft className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages || totalPages === 0}
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="hidden h-8 w-8 p-0 lg:flex"
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={currentPage === totalPages || totalPages === 0}
+                                    >
+                                        <ChevronsRight className="h-4 w-4" />
+                                    </Button>
+                                    </div>
+                                </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </CardContent>
               </Card>

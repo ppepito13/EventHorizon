@@ -1,7 +1,7 @@
 'use client';
 
 import type { User } from '@/lib/types';
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -38,7 +38,11 @@ import {
   ChevronDown, 
   ArrowUpDown,
   Search,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deleteUserAction } from './actions';
@@ -68,6 +72,10 @@ export function UsersTable({ users }: UsersTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Administrator' | 'Organizer'>('all');
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number | 'all'>(10);
+
   const filteredAndSortedUsers = useMemo(() => {
     // 1. Filter
     let result = users.filter(user => {
@@ -89,6 +97,16 @@ export function UsersTable({ users }: UsersTableProps) {
       return 0;
     });
   }, [users, sortConfig, searchTerm, roleFilter]);
+
+  // Reset pagination on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter, pageSize]);
+
+  const totalPages = pageSize === 'all' ? 1 : Math.ceil(filteredAndSortedUsers.length / (pageSize as number));
+  const paginatedUsers = pageSize === 'all'
+    ? filteredAndSortedUsers
+    : filteredAndSortedUsers.slice((currentPage - 1) * (pageSize as number), currentPage * (pageSize as number));
 
   const toggleSort = (key: SortConfig['key']) => {
     setSortConfig(prev => {
@@ -192,8 +210,8 @@ export function UsersTable({ users }: UsersTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedUsers.length > 0 ? (
-              filteredAndSortedUsers.map(user => (
+            {paginatedUsers.length > 0 ? (
+              paginatedUsers.map(user => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="font-medium">{user.name}</div>
@@ -261,6 +279,67 @@ export function UsersTable({ users }: UsersTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">Rows per page</p>
+          <Select
+            value={pageSize.toString()}
+            onValueChange={(value) => setPageSize(value === 'all' ? 'all' : Number(value))}
+          >
+            <SelectTrigger className="h-8 w-[70px]">
+              <SelectValue placeholder={pageSize.toString()} />
+            </SelectTrigger>
+            <SelectContent side="top">
+              {[10, 25, 50, "all"].map((size) => (
+                <SelectItem key={size} value={size.toString()}>
+                  {size}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center space-x-6 lg:space-x-8">
+          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+            Page {currentPage} of {totalPages || 1}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -1,7 +1,7 @@
 'use client';
 
 import type { Event, User } from '@/lib/types';
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Table,
@@ -42,7 +42,11 @@ import {
   ChevronDown, 
   ArrowUpDown,
   Search,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -82,6 +86,10 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
   // Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number | 'all'>(10);
 
   const filteredAndSortedEvents = useMemo(() => {
     // 1. Filter
@@ -126,6 +134,16 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
       return 0;
     });
   }, [events, sortConfig, searchTerm, statusFilter]);
+
+  // Reset to first page when search, filters, or page size change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, pageSize]);
+
+  const totalPages = pageSize === 'all' ? 1 : Math.ceil(filteredAndSortedEvents.length / (pageSize as number));
+  const paginatedEvents = pageSize === 'all' 
+    ? filteredAndSortedEvents 
+    : filteredAndSortedEvents.slice((currentPage - 1) * (pageSize as number), currentPage * (pageSize as number));
 
   const toggleSort = (key: SortConfig['key']) => {
     setSortConfig(prev => {
@@ -288,8 +306,8 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedEvents.length > 0 ? (
-              filteredAndSortedEvents.map(event => (
+            {paginatedEvents.length > 0 ? (
+              paginatedEvents.map(event => (
                 <TableRow key={event.id}>
                   <TableCell>
                     <div className="flex items-center">
@@ -376,6 +394,71 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
           </TableBody>
         </Table>
       </div>
+
+      <div className="flex items-center justify-between px-2">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">Rows per page</p>
+          <Select
+            value={pageSize.toString()}
+            onValueChange={(value) => setPageSize(value === 'all' ? 'all' : Number(value))}
+          >
+            <SelectTrigger className="h-8 w-[70px]">
+              <SelectValue placeholder={pageSize.toString()} />
+            </SelectTrigger>
+            <SelectContent side="top">
+              {[10, 25, 50, "all"].map((size) => (
+                <SelectItem key={size} value={size.toString()}>
+                  {size}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center space-x-6 lg:space-x-8">
+          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+            Page {currentPage} of {totalPages || 1}
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+            >
+              <span className="sr-only">Go to first page</span>
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+            >
+              <span className="sr-only">Go to previous page</span>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-8 p-0"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              <span className="sr-only">Go to next page</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages || totalPages === 0}
+            >
+              <span className="sr-only">Go to last page</span>
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <AlertDialog open={isAlertOpen} onOpenChange={setAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
