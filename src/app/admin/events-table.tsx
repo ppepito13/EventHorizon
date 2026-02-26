@@ -31,11 +31,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Trash2, Edit, Loader2, Link as LinkIcon, ExternalLink, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { 
+  MoreHorizontal, 
+  Trash2, 
+  Edit, 
+  Loader2, 
+  Link as LinkIcon, 
+  ExternalLink, 
+  ChevronUp, 
+  ChevronDown, 
+  ArrowUpDown,
+  Search,
+  X
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirestore } from '@/firebase/provider';
 import { doc, updateDoc, writeBatch, collection, getDocs } from 'firebase/firestore';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface EventsTableProps {
   events: Event[];
@@ -65,8 +79,22 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
 
-  const sortedEvents = useMemo(() => {
-    if (!sortConfig.direction) return events;
+  // Filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  const filteredAndSortedEvents = useMemo(() => {
+    // 1. Filter
+    let result = events.filter(event => {
+        const matchesSearch = event.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'all' 
+            ? true 
+            : statusFilter === 'active' ? event.isActive : !event.isActive;
+        return matchesSearch && matchesStatus;
+    });
+
+    // 2. Sort
+    if (!sortConfig.direction) return result;
 
     const parseDate = (d: string) => {
         if (!d) return 0;
@@ -76,7 +104,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
         return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).getTime();
     };
 
-    return [...events].sort((a, b) => {
+    return result.sort((a, b) => {
       let aVal: any;
       let bVal: any;
 
@@ -97,7 +125,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [events, sortConfig]);
+  }, [events, sortConfig, searchTerm, statusFilter]);
 
   const toggleSort = (key: SortConfig['key']) => {
     setSortConfig(prev => {
@@ -108,6 +136,11 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
       }
       return { key, direction: 'asc' };
     });
+  };
+
+  const clearFilters = () => {
+      setSearchTerm('');
+      setStatusFilter('all');
   };
 
   const handleSetActive = (id: string, makeActive: boolean) => {
@@ -186,8 +219,43 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
     return sortConfig.direction === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />;
   };
 
+  const isFiltered = searchTerm !== '' || statusFilter !== 'all';
+
   return (
-    <>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/30 p-4 rounded-lg">
+          <div className="flex flex-1 items-center gap-2 w-full">
+              <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                      placeholder="Search events..."
+                      className="pl-8 bg-background"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+              </div>
+              <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
+                  <SelectTrigger className="w-[150px] bg-background">
+                      <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="active">Active Only</SelectItem>
+                      <SelectItem value="inactive">Inactive Only</SelectItem>
+                  </SelectContent>
+              </Select>
+              {isFiltered && (
+                  <Button variant="ghost" onClick={clearFilters} className="h-10">
+                      <X className="mr-2 h-4 w-4" />
+                      Clear
+                  </Button>
+              )}
+          </div>
+          <div className="text-sm text-muted-foreground whitespace-nowrap">
+              Found {filteredAndSortedEvents.length} events
+          </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -220,8 +288,8 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedEvents.length > 0 ? (
-              sortedEvents.map(event => (
+            {filteredAndSortedEvents.length > 0 ? (
+              filteredAndSortedEvents.map(event => (
                 <TableRow key={event.id}>
                   <TableCell>
                     <div className="flex items-center">
@@ -301,7 +369,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
             ) : (
                 <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
-                        No events found. Start by creating a new event.
+                        {isFiltered ? "No events match your search criteria." : "No events found. Start by creating a new event."}
                     </TableCell>
                 </TableRow>
             )}
@@ -325,6 +393,6 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }

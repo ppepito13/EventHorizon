@@ -29,11 +29,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Trash2, Edit, Loader2, ChevronUp, ChevronDown, ArrowUpDown } from 'lucide-react';
+import { 
+  MoreHorizontal, 
+  Trash2, 
+  Edit, 
+  Loader2, 
+  ChevronUp, 
+  ChevronDown, 
+  ArrowUpDown,
+  Search,
+  X
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { deleteUserAction } from './actions';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 interface UsersTableProps {
@@ -52,10 +64,23 @@ export function UsersTable({ users }: UsersTableProps) {
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
 
-  const sortedUsers = useMemo(() => {
-    if (!sortConfig.direction) return users;
+  // Filtering state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'Administrator' | 'Organizer'>('all');
 
-    return [...users].sort((a, b) => {
+  const filteredAndSortedUsers = useMemo(() => {
+    // 1. Filter
+    let result = users.filter(user => {
+        const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             user.email.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesRole = roleFilter === 'all' ? true : user.role === roleFilter;
+        return matchesSearch && matchesRole;
+    });
+
+    // 2. Sort
+    if (!sortConfig.direction) return result;
+
+    return result.sort((a, b) => {
       let aVal = (a[sortConfig.key] || '').toLowerCase();
       let bVal = (b[sortConfig.key] || '').toLowerCase();
 
@@ -63,7 +88,7 @@ export function UsersTable({ users }: UsersTableProps) {
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [users, sortConfig]);
+  }, [users, sortConfig, searchTerm, roleFilter]);
 
   const toggleSort = (key: SortConfig['key']) => {
     setSortConfig(prev => {
@@ -74,6 +99,11 @@ export function UsersTable({ users }: UsersTableProps) {
       }
       return { key, direction: 'asc' };
     });
+  };
+
+  const clearFilters = () => {
+      setSearchTerm('');
+      setRoleFilter('all');
   };
 
   const SortIcon = ({ columnKey }: { columnKey: SortConfig['key'] }) => {
@@ -104,8 +134,43 @@ export function UsersTable({ users }: UsersTableProps) {
     });
   };
 
+  const isFiltered = searchTerm !== '' || roleFilter !== 'all';
+
   return (
-    <>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/30 p-4 rounded-lg">
+          <div className="flex flex-1 items-center gap-2 w-full">
+              <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                      placeholder="Search users..."
+                      className="pl-8 bg-background"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+              </div>
+              <Select value={roleFilter} onValueChange={(val: any) => setRoleFilter(val)}>
+                  <SelectTrigger className="w-[150px] bg-background">
+                      <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="Administrator">Administrator</SelectItem>
+                      <SelectItem value="Organizer">Organizer</SelectItem>
+                  </SelectContent>
+              </Select>
+              {isFiltered && (
+                  <Button variant="ghost" onClick={clearFilters} className="h-10">
+                      <X className="mr-2 h-4 w-4" />
+                      Clear
+                  </Button>
+              )}
+          </div>
+          <div className="text-sm text-muted-foreground whitespace-nowrap">
+              Found {filteredAndSortedUsers.length} users
+          </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -127,64 +192,72 @@ export function UsersTable({ users }: UsersTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedUsers.map(user => (
-              <TableRow key={user.id}>
-                <TableCell>
-                  <div className="font-medium">{user.name}</div>
-                  <div className="text-sm text-muted-foreground">{user.email}</div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={user.role === 'Administrator' ? 'default' : 'secondary'}>
-                    {user.role}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {user.assignedEvents.map(event => (
-                      <Badge key={event} variant="outline" className="font-normal">
-                        {event}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button variant="outline" size="icon" asChild>
-                            <Link href={`/admin/users/${user.id}/edit`}>
-                                <Edit className="h-4 w-4" />
-                                <span className="sr-only">Edit User</span>
-                            </Link>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Edit User</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => openDeleteDialog(user.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filteredAndSortedUsers.length > 0 ? (
+              filteredAndSortedUsers.map(user => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="font-medium">{user.name}</div>
+                    <div className="text-sm text-muted-foreground">{user.email}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={user.role === 'Administrator' ? 'default' : 'secondary'}>
+                      {user.role}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {user.assignedEvents.map(event => (
+                        <Badge key={event} variant="outline" className="font-normal">
+                          {event}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="icon" asChild>
+                              <Link href={`/admin/users/${user.id}/edit`}>
+                                  <Edit className="h-4 w-4" />
+                                  <span className="sr-only">Edit User</span>
+                              </Link>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Edit User</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => openDeleteDialog(user.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+                <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                        {isFiltered ? "No users match your filters." : "No users found."}
+                    </TableCell>
+                </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
@@ -205,6 +278,6 @@ export function UsersTable({ users }: UsersTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }
