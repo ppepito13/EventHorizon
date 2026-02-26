@@ -71,6 +71,7 @@ const eventFormSchema = z.object({
   heroImageHint: z.string().optional(),
   formFields: z.array(formFieldSchema),
   isActive: z.boolean(),
+  requiresApproval: z.boolean().default(false),
 }).superRefine((data, ctx) => {
   // If location is On-site, address is required
   if (data.locationTypes.includes('On-site') && (!data.locationAddress || data.locationAddress.trim() === '')) {
@@ -207,6 +208,7 @@ export function EventForm({ event }: EventFormProps) {
       heroImageHint: event?.heroImage.hint || '',
       formFields: event ? (typeof event.formFields === 'string' ? JSON.parse(event.formFields) : event.formFields) : [],
       isActive: event?.isActive || false,
+      requiresApproval: event?.requiresApproval || false,
     },
   });
 
@@ -685,6 +687,35 @@ export function EventForm({ event }: EventFormProps) {
             </FormItem>
           )}
         />
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Registration Confirmation</CardTitle>
+                <CardDescription>Configure if participants need approval to join the event.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <FormField
+                  control={form.control}
+                  name="requiresApproval"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Require Organizer Confirmation</FormLabel>
+                        <FormDescription>
+                          If enabled, registrations will be pending until an organizer approves them manually.
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+            </CardContent>
+        </Card>
 
 
         <div className="flex justify-end gap-2">

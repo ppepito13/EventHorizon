@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Event": {
@@ -25,7 +26,7 @@
         },
         "endDate": {
           "type": "string",
-          "description": "The date and time when the event concludes.",
+          "description": "The date and time when the concludes.",
           "format": "date-time"
         },
         "location": {
@@ -65,6 +66,10 @@
           "type": "boolean",
           "description": "A flag indicating whether the event page is currently active and visible to the public for registration."
         },
+        "requiresApproval": {
+          "type": "boolean",
+          "description": "A flag indicating if registrations for this event require manual approval by an organizer."
+        },
         "registrationDeadline": {
           "type": "string",
           "description": "The date and time by which attendees must complete their registration for the event.",
@@ -94,6 +99,7 @@
         "bodyFont",
         "rodoInformation",
         "isActive",
+        "requiresApproval",
         "registrationDeadline",
         "organizerContactEmail"
       ]

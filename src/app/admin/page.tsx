@@ -71,9 +71,11 @@ function generateFakeEvent(index: number, existingCount: number, user: User): Ev
         formFields: formFields,
         rodo: 'You agree to our test terms and conditions by registering.',
         isActive: Math.random() > 0.5,
+        requiresApproval: false,
         themeColor: theme.color,
         ownerId: user.uid,
-        members: { [user.uid!]: 'owner' }
+        members: { [user.uid!]: 'owner' },
+        terms: { enabled: false, url: '', text: '' }
     };
     return newEvent;
 }

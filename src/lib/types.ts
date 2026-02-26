@@ -31,6 +31,7 @@ export type Event = {
     text: string;
   };
   isActive: boolean;
+  requiresApproval: boolean;
   themeColor: string;
   ownerId?: string;
   members?: { [key: string]: string };
