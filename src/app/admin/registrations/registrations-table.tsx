@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Event, Registration, User } from '@/lib/types';
@@ -129,7 +128,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
               <TableHead>Registration Date</TableHead>
               <TableHead>Full Name</TableHead>
               <TableHead>Email Address</TableHead>
-              <TableHead className="text-center">Approved</TableHead>
+              {event.requiresApproval && <TableHead className="text-center">Approved</TableHead>}
               <TableHead className="text-right w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -139,29 +138,31 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                 <TableCell>{formatDate(reg.registrationDate)}</TableCell>
                 <TableCell>{getDisplayValue(getFullNameValue(reg.formData))}</TableCell>
                 <TableCell>{getDisplayValue(getEmailValue(reg.formData))}</TableCell>
-                <TableCell className="text-center">
-                  <div className="flex justify-center">
-                    {reg.isApproved ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Approved</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Clock className="h-5 w-5 text-amber-500" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Pending Approval</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                </TableCell>
+                {event.requiresApproval && (
+                  <TableCell className="text-center">
+                    <div className="flex justify-center">
+                      {reg.isApproved ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Approved</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Clock className="h-5 w-5 text-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Pending Approval</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </TableCell>
+                )}
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <Tooltip>
@@ -257,10 +258,12 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                         <span className="font-semibold text-muted-foreground">Agreed to Terms</span>
                         <span className="col-span-2">{getDisplayValue(detailsViewReg.formData.rodo)}</span>
                      </div>
-                     <div className="grid grid-cols-3 gap-4 py-2">
-                        <span className="font-semibold text-muted-foreground">Approval Status</span>
-                        <span className="col-span-2">{detailsViewReg.isApproved ? 'Approved' : 'Pending Approval'}</span>
-                     </div>
+                     {event.requiresApproval && (
+                       <div className="grid grid-cols-3 gap-4 py-2">
+                          <span className="font-semibold text-muted-foreground">Approval Status</span>
+                          <span className="col-span-2">{detailsViewReg.isApproved ? 'Approved' : 'Pending Approval'}</span>
+                       </div>
+                     )}
                      {detailsQrCode && (
                         <>
                             <Separator className="my-2" />
