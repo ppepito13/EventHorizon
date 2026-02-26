@@ -170,7 +170,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
               <TableHead>Full Name</TableHead>
               <TableHead>Email Address</TableHead>
               {event.requiresApproval && <TableHead className="text-center">Approved</TableHead>}
-              <TableHead className="text-right w-[150px]">Actions</TableHead>
+              <TableHead className="w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -205,7 +205,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
                   </TableCell>
                 )}
                 <TableCell>
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="outline" size="icon" onClick={() => setDetailsViewReg(reg)}>

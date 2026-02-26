@@ -78,7 +78,7 @@ export function UsersTable({ users }: UsersTableProps) {
               <TableHead>User</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Event Access</TableHead>
-              <TableHead className="text-right w-[150px]">Actions</TableHead>
+              <TableHead className="w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -103,7 +103,7 @@ export function UsersTable({ users }: UsersTableProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="outline" size="icon" asChild>

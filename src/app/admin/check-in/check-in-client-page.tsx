@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useTransition } from 'react';
@@ -442,7 +441,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
                                     <TableRow>
                                         <TableHead>Attendee</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Action</TableHead>
+                                        <TableHead>Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -462,7 +461,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
                                                     <Badge variant="secondary">Not Present</Badge>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell>
                                                 <Button 
                                                     variant={reg.checkedIn ? 'outline' : 'default'} 
                                                     size="sm"
