@@ -1,5 +1,15 @@
 'use client';
 
+/**
+ * @fileOverview Main controller for the Registrations management module.
+ * Handles real-time data fetching, administrative filters (approval/attendance),
+ * and utility functions like CSV export and bulk test data generation.
+ * 
+ * Business Logic:
+ * - Listens to registrations for a specific event selected via dropdown.
+ * - Supports both virtual and on-site event contexts.
+ */
+
 import { useState, useMemo, useEffect, useTransition } from 'react';
 import type { Event, Registration, User, FormField as FormFieldType } from '@/lib/types';
 import { collection, query, onSnapshot, FirestoreError, writeBatch, getDocs, doc } from 'firebase/firestore';
@@ -60,6 +70,12 @@ interface RegistrationsClientPageProps {
   userRole: User['role'];
 }
 
+/**
+ * Transforms flat registration objects into a pipe-delimited CSV string.
+ * Uses pipe (|) to avoid issues with commas present in user-submitted text.
+ * 
+ * TODO: Move this utility to @/lib/export-utils.ts
+ */
 function convertToCSV(data: Registration[], headers: {key: string, label: string}[]) {
     const headerRow = ['Registration Date', 'QR ID', ...headers.map(h => h.label)].join('|');
     const rows = data.map(reg => {
@@ -85,6 +101,11 @@ function convertToCSV(data: Registration[], headers: {key: string, label: string
 
 const FAKE_NAMES = ['Amelia', 'Benjamin', 'Chloe', 'Daniel', 'Evelyn', 'Finn', 'Grace', 'Henry', 'Isabella', 'Jack'];
 
+/**
+ * Mock data generator for stress-testing the registration tables.
+ * 
+ * TODO: This is strictly for MVP prototyping. Remove or move to a dev-only utility.
+ */
 function generateFakeData(fields: FormFieldType[], index: number) {  
   const name = `${FAKE_NAMES[index % FAKE_NAMES.length]} Testperson${index}`;
   const email = `${name.toLowerCase().replace(/\s/g, '.')}@example.com`;
@@ -149,7 +170,8 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const [isLoadingFirestore, setIsLoadingFirestore] = useState(true);
   const [firestoreError, setFirestoreError] = useState<FirestoreError | null>(null);
 
-  // Filtering state
+  // Filtering state - Client-side only for MVP speed. 
+  // TODO: Implement server-side filtering for events with > 1000 registrations.
   const [searchTerm, setSearchTerm] = useState('');
   const [approvalFilter, setApprovalFilter] = useState<'all' | 'approved' | 'pending'>('all');
   const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'present' | 'absent'>('all');
@@ -168,7 +190,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
   const [isGenerateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [generationCount, setGenerationCount] = useState(5);
 
-  // Email state
+  // Communication engine state
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [isEmailConfirmOpen, setIsEmailConfirmOpen] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
@@ -185,7 +207,10 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     }
   }, [events, selectedEventId]);
 
-  // Safety Effect for unresponsiveness: Ensures pointer-events are restored if dialogs get stuck
+  /**
+   * Safety Hook: Fixes a known bug where rapid dialog transitions can leave 
+   * the body state stuck with 'pointer-events: none', making the app nieresponsive.
+   */
   useEffect(() => {
     if (!isEmailDialogOpen && !isEmailConfirmOpen) {
       const timer = setTimeout(() => {
@@ -198,6 +223,11 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     }
   }, [isEmailDialogOpen, isEmailConfirmOpen]);
 
+  /**
+   * Real-time Data Sync:
+   * Subscribes to the registrations subcollection of the currently selected event.
+   * This ensures that check-in statuses are instantly reflected across all organizer devices.
+   */
   useEffect(() => {
     if (isAuthLoading || !firestore || !selectedEventId) {
         if (isMounted) {
@@ -220,6 +250,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     const unsubscribe = onSnapshot(q, 
         (querySnapshot) => {
             const regs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Registration));
+            // Descending order by date is preferred for administrative logs.
             setRegistrations(regs.sort((a, b) => new Date(b.registrationDate).getTime() - new Date(a.registrationDate).getTime()));
             setIsLoadingFirestore(false);
             setFirestoreError(null);
@@ -236,10 +267,14 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
   const selectedEvent = useMemo(() => events.find(e => e.id === selectedEventId), [events, selectedEventId]);
 
-  // Derived filtered registrations
+  /**
+   * Search and Filter Aggregator:
+   * Performs client-side intersection of search terms and status flags.
+   */
   const filteredRegistrations = useMemo(() => {
     if (!selectedEvent) return [];
 
+    // Heuristic: Identify primary identity fields based on labels to enable search.
     const fullNameField = selectedEvent.formFields.find(f => f.label.toLowerCase().includes('full name'));
     const emailField = selectedEvent.formFields.find(f => f.label.toLowerCase().includes('email'));
     
@@ -274,7 +309,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   }, [registrations, selectedEvent, searchTerm, approvalFilter, attendanceFilter]);
 
-  // Handle pagination reset
+  // Reset pagination window whenever the underlying filter criteria change.
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, approvalFilter, attendanceFilter, pageSize, selectedEventId]);
@@ -288,6 +323,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     setDeleteDialogState({ isOpen: true, eventId, regId: registrationId });
   };
 
+  /**
+   * cascading deletion of a registration and its public QR reference.
+   */
   const handleDeleteConfirm = () => {
     if (!deleteDialogState.eventId || !deleteDialogState.regId || !firestore) return;
     const { eventId, regId } = deleteDialogState;
@@ -302,6 +340,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
 
             batch.delete(registrationDocRef);
 
+            // Important: also remove the scanner lookup reference to prevent "ghost" check-ins.
             if (qrId) {
                 const qrDocRef = doc(firestore, 'qrcodes', qrId);
                 batch.delete(qrDocRef);
@@ -325,6 +364,11 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
   
+  /**
+   * Bulk Registration Generator:
+   * populates the selected event with N test users. 
+   * Useful for load testing the tables and UI layout.
+   */
   const handleGenerateData = (count: number) => {
     if (!selectedEventId || !selectedEvent || !firestore) {
       toast({ variant: 'destructive', title: 'Error', description: 'Please select an event first.' });
@@ -379,6 +423,9 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     });
   };
 
+  /**
+   * Wipe all registrations for the active event.
+   */
   const handlePurgeData = () => {
     if (!selectedEventId || !firestore) {
         toast({ variant: 'destructive', title: 'Error', description: 'Please select an event first.' });
@@ -405,6 +452,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
                 }
             });
 
+            // Clean up orphan QR codes from the global collection.
             for (const qrId of qrIdsToDelete) {
                 const qrDocRef = doc(firestore, 'qrcodes', qrId);
                 batch.delete(qrDocRef);
@@ -438,6 +486,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             const headers = selectedEvent.formFields.map(field => ({ key: field.name, label: field.label }));
             let csvData = convertToCSV(filteredRegistrations, headers);
 
+            // Excel Trick: adding the sep= header forces Excel to use the correct delimiter without regional settings issues.
             if (format === 'excel') {
                 csvData = `sep=|\n${csvData}`;
             }
@@ -755,7 +804,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         <DialogContent 
             className="max-w-2xl"
             onInteractOutside={(e) => {
-                // Prevent closure of main dialog when the alert dialog is active
+                // UX Guard: prevent closure of the main composer if the final confirmation overlay is visible.
                 if (isEmailConfirmOpen) {
                     e.preventDefault();
                 }
@@ -818,13 +867,14 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
+                // TODO: Replace with a real Server Action integrating with Resend or a Cloud Function for mass mailing.
                 toast({
                     title: "Message sent (Mock)",
                     description: `Your message "${emailSubject}" has been sent to ${filteredRegistrations.length} recipients.`,
                 });
                 setIsEmailConfirmOpen(false);
                 setIsEmailDialogOpen(false);
-                // Clear form
+                // Reset internal state to avoid cross-contamination if the user opens the dialog again.
                 setEmailSubject('');
                 setEmailBody(JSON.stringify([{ type: 'paragraph', children: [{ text: '' }] }]));
             }}>

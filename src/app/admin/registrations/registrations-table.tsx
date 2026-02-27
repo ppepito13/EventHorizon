@@ -1,5 +1,15 @@
 'use client';
 
+/**
+ * @fileOverview Interactive table for registration management.
+ * 
+ * Features:
+ * - Real-time approval status toggling with email notification triggers.
+ * - Dynamic column generation based on event form configuration.
+ * - Visual QR code preview for on-site verification.
+ * - Multi-criteria sorting.
+ */
+
 import type { Event, Registration, User } from '@/lib/types';
 import { useState, useEffect, useTransition, useMemo } from 'react';
 import Link from 'next/link';
@@ -76,6 +86,10 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
 
   const isOnSite = event.location.types.includes('On-site');
 
+  /**
+   * Generates a High-Density QR code for the details dialog.
+   * Only relevant for physical events where participants must show a ticket.
+   */
   useEffect(() => {
     if (detailsViewReg && detailsViewReg.qrId && isOnSite) {
       QRCode.toDataURL(detailsViewReg.qrId, { errorCorrectionLevel: 'H', width: 256 })
@@ -83,7 +97,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
           setDetailsQrCode(url);
         })
         .catch(err => {
-          console.error(err);
+          console.error("QR Code generation error:", err);
           setDetailsQrCode('');
         });
     } else {
@@ -91,6 +105,8 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
     }
   }, [detailsViewReg, isOnSite]);
 
+  // Dynamic Metadata Helpers:
+  // These look for fields that likely represent the participant's primary identity.
   const fullNameField = event.formFields.find(f => f.label.toLowerCase().includes('full name'));
   const emailField = event.formFields.find(f => f.label.toLowerCase().includes('email'));
   
@@ -108,6 +124,10 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
     return formData['email'];
   };
 
+  /**
+   * Central Sorting Logic for the table.
+   * Handles both strings and nested registration date timestamps.
+   */
   const sortedRegistrations = useMemo(() => {
     if (!sortConfig.direction) return registrations;
 
@@ -156,6 +176,9 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
     return sortConfig.direction === 'asc' ? <ChevronUp className="ml-2 h-4 w-4" /> : <ChevronDown className="ml-2 h-4 w-4" />;
   };
 
+  /**
+   * Fallback renderer for arbitrary form values.
+   */
   const getDisplayValue = (value: any) => {
     if (value === null || value === undefined || value === '') return <span className="text-muted-foreground/70">N/A</span>;
     if (Array.isArray(value)) {
@@ -179,6 +202,11 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
     }
   };
 
+  /**
+   * Status Transition Handler:
+   * Flips the 'isApproved' flag and triggers an automated notification email.
+   * If the event is on-site and approved, the email includes the QR access code.
+   */
   const handleToggleApproval = (registration: Registration) => {
     if (!firestore) return;
     
@@ -198,6 +226,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
           }
 
           if (userEmail) {
+              // Non-blocking trigger: we don't want to wait for the email delivery to finish the DB update.
               await notifyRegistrationStatusChange(
                   { name: event.name, date: event.date },
                   { email: userEmail, name: userName || 'Participant' },

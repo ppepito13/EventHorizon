@@ -1,5 +1,15 @@
 'use client';
 
+/**
+ * @fileOverview Real-time On-site Check-in System.
+ * This module provides two ways to confirm participant arrival:
+ * 1. QR Code Scanner: High-performance client-side image processing.
+ * 2. Manual List: Searchable table with instant status toggling.
+ * 
+ * Performance Note: Camera frames are analyzed via requestAnimationFrame 
+ * to ensure smooth UI transitions during scanning.
+ */
+
 import { useState, useMemo, useEffect, useRef, useTransition } from 'react';
 import type { Event, Registration } from '@/lib/types';
 import { useFirestore, useUser } from '@/firebase/provider';
@@ -26,6 +36,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
 
+/**
+ * Specialized CSV generator for check-in status reports.
+ * Includes attendance timestamps.
+ */
 function convertCheckInToCSV(data: Registration[], headers: {key: string, label: string}[]) {
     const headerRow = [
         'Registration Date',
@@ -76,7 +90,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   const { toast } = useToast();
   const { user, isUserLoading: isAuthLoading } = useUser();
 
-  // QR Scanner State
+  // QR Scanner State - uses refs for direct DOM/MediaStream access to bypass React's render cycle for performance.
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
@@ -94,6 +108,10 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<number | 'all'>(10);
 
+  /**
+   * Real-time listener for the attendee list.
+   * Crucial for multi-gate scenarios where multiple organizers are checking in people simultaneously.
+   */
   useEffect(() => {
     if (isAuthLoading || !firestore || !selectedEventId) {
       setIsLoading(true);
@@ -128,6 +146,12 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
     return () => unsubscribe();
   }, [firestore, selectedEventId, user, isAuthLoading]);
   
+  /**
+   * QR Validation Engine:
+   * 1. Looks up the registration document using the denormalized qrId index.
+   * 2. Validates if the user hasn't already checked in (double-entry prevention).
+   * 3. Updates the timestamp and status atomically.
+   */
   const checkInUserByQrIdClient = async (eventId: string, qrId: string) => {
     if (!firestore) return { success: false, message: 'Firestore not available' };
     try {
@@ -169,11 +193,18 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
     }
   };
 
-  // QR Scanner Logic
+  /**
+   * MediaStream Lifecycle Handler:
+   * Manages camera permissions and frame-by-frame analysis loop.
+   */
   useEffect(() => {
     let stream: MediaStream | null = null;
     let animationFrameId: number;
 
+    /**
+     * Scanner Loop:
+     * Samples the video feed, draws it to a hidden canvas, and runs jsQR on the pixels.
+     */
     const tick = () => {
       if (videoRef.current?.readyState === videoRef.current?.HAVE_ENOUGH_DATA && canvasRef.current) {
         const video = videoRef.current;
@@ -191,7 +222,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
             });
             if (code && !isProcessingScan) {
               handleQrCode(code.data);
-              return; // Stop scanning after finding a code
+              return; // Halt scanning once a code is identified.
             }
           } catch (e) {
             console.error('Error getting image data from canvas:', e);
@@ -207,6 +238,7 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
       setScanResult(null);
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
+          // Prefer back-facing camera for on-site scanning tablets/phones.
           stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
           setHasCameraPermission(true);
           if (videoRef.current) {
@@ -264,7 +296,6 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
     });
   }
 
-  // Manual check-in logic
   const filteredAndSortedRegistrations = useMemo(() => {
     let result = registrations.filter(reg => {
       const name = (reg.formData as any).full_name || '';
@@ -292,7 +323,6 @@ export function CheckInClientPage({ events }: { events: Event[] }) {
     return result;
   }, [registrations, searchTerm, sortConfig]);
 
-  // Reset pagination on filter change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, pageSize, selectedEventId]);
