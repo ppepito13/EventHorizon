@@ -185,6 +185,19 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
     }
   }, [events, selectedEventId]);
 
+  // Safety Effect for unresponsiveness: Ensures pointer-events are restored if dialogs get stuck
+  useEffect(() => {
+    if (!isEmailDialogOpen && !isEmailConfirmOpen) {
+      const timer = setTimeout(() => {
+        if (document.body.style.pointerEvents === 'none') {
+          console.warn("Force restoring pointer events after dialog closure.");
+          document.body.style.pointerEvents = 'auto';
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [isEmailDialogOpen, isEmailConfirmOpen]);
+
   useEffect(() => {
     if (isAuthLoading || !firestore || !selectedEventId) {
         if (isMounted) {
@@ -695,6 +708,19 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
               </div>
             </div>
           )}
+
+          {/* Debug Info Context */}
+          <div className="mt-8 p-3 bg-muted/50 rounded-lg border border-dashed text-[10px] font-mono space-y-1">
+              <p className="font-bold text-muted-foreground uppercase tracking-wider mb-1">Debug Context</p>
+              <div className="grid grid-cols-2 gap-2 max-w-xs">
+                  <span>Editor Dialog:</span>
+                  <span className={isEmailDialogOpen ? "text-green-600 font-bold" : "text-red-600"}>{isEmailDialogOpen ? 'OPEN' : 'CLOSED'}</span>
+                  <span>Confirm Popup:</span>
+                  <span className={isEmailConfirmOpen ? "text-green-600 font-bold" : "text-red-600"}>{isEmailConfirmOpen ? 'OPEN' : 'CLOSED'}</span>
+                  <span>Total Recipients:</span>
+                  <span>{filteredRegistrations.length}</span>
+              </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -738,47 +764,16 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={isGenerateDialogOpen} onOpenChange={setGenerateDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Generate Test Data</DialogTitle>
-                <DialogDescription>
-                    How many test registrations would you like to create for "{selectedEvent?.name}"?
-                </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={(e) => {
-                e.preventDefault();
-                handleGenerateData(generationCount);
-            }}>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="generation-count" className="text-right">
-                            Amount
-                        </Label>
-                        <Input
-                            id="generation-count"
-                            type="number"
-                            value={generationCount}
-                            onChange={(e) => setGenerationCount(Number(e.target.value))}
-                            className="col-span-3"
-                            min="1"
-                            max="100"
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setGenerateDialogOpen(false)}>Cancel</Button>
-                    <Button type="submit" disabled={isGenerating}>
-                        {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Generate
-                    </Button>
-                </DialogFooter>
-            </form>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent 
+            className="max-w-2xl"
+            onInteractOutside={(e) => {
+                // Prevent closure of main dialog when the alert dialog is active
+                if (isEmailConfirmOpen) {
+                    e.preventDefault();
+                }
+            }}
+        >
             <DialogHeader>
                 <DialogTitle>Send Email to Registrants</DialogTitle>
                 <DialogDescription>
@@ -834,7 +829,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsEmailConfirmOpen(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
                 toast({
                     title: "Message sent (Mock)",
@@ -851,6 +846,45 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isGenerateDialogOpen} onOpenChange={setGenerateDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Generate Test Data</DialogTitle>
+                <DialogDescription>
+                    How many test registrations would you like to create for "{selectedEvent?.name}"?
+                </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                handleGenerateData(generationCount);
+            }}>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="generation-count" className="text-right">
+                            Amount
+                        </Label>
+                        <Input
+                            id="generation-count"
+                            type="number"
+                            value={generationCount}
+                            onChange={(e) => setGenerationCount(Number(e.target.value))}
+                            className="col-span-3"
+                            min="1"
+                            max="100"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setGenerateDialogOpen(false)}>Cancel</Button>
+                    <Button type="submit" disabled={isGenerating}>
+                        {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Generate
+                    </Button>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
