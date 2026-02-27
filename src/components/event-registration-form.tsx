@@ -1,3 +1,15 @@
+
+/**
+ * @fileOverview Dynamic Event Registration Form.
+ * This component acts as a "Form Engine" that consumes metadata defined by the administrator
+ * and renders a type-safe, validated form using React Hook Form and Zod.
+ *
+ * Business logic:
+ * - Automatically generates a Zod schema based on the event's formFields.
+ * - Handles both online and on-site events (QR code generation for physical presence).
+ * - Implements atomic writes to Firestore (QR reference and Registration document).
+ */
+
 'use client';
 
 import type { Event, FormField as FormFieldType, Registration } from '@/lib/types';
@@ -28,7 +40,13 @@ import { useFirestore } from '@/firebase/provider';
 import { doc, writeBatch } from 'firebase/firestore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-// Helper to generate Zod schema dynamically
+/**
+ * Factory function to create a dynamic Zod validation schema.
+ * Map's internal business types (tel, email, dropdown) to strict validation rules.
+ * 
+ * @param {FormFieldType[]} fields - Metadata defining the form structure.
+ * @returns {z.ZodObject}
+ */
 const generateSchema = (fields: FormFieldType[]) => {
   const schemaFields = fields.reduce(
     (acc, field) => {
@@ -63,6 +81,7 @@ const generateSchema = (fields: FormFieldType[]) => {
           break;
       }
 
+      // Application of mandatory requirements
       if (field.required) {
         if (zodType instanceof z.ZodString) {
             zodType = zodType.min(1, { message: `${field.label} is required.` });
@@ -81,6 +100,7 @@ const generateSchema = (fields: FormFieldType[]) => {
     {} as { [key: string]: z.ZodTypeAny }
   );
 
+  // GDPR/RODO is globally mandatory for all registrations.
   schemaFields['rodo'] = z.boolean().refine((val) => val === true, {
     message: 'You must agree to the terms and conditions.',
   });
@@ -101,6 +121,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
 
   const formSchema = generateSchema(event.formFields);
   
+  // Initialization of default values to ensure React components are controlled from the start.
   const defaultValues = event.formFields.reduce((acc, field) => {
       if (field.type === 'multiple-choice') {
           acc[field.name] = [];
@@ -118,6 +139,10 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
     defaultValues,
   });
 
+  /**
+   * Final submission handler.
+   * Performs data persistence and triggers the email subsystem.
+   */
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
 
@@ -131,8 +156,11 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         if (!firestore) {
           throw new Error("Firestore is not initialized.");
         }
+        
+        // We use a Batch Write to ensure either both (QR and Registration) are saved, or neither.
         const batch = writeBatch(firestore);
 
+        // QR Code entry for the scanner module
         const qrCodeData = {
             eventId: event.id,
             eventName: event.name,
@@ -142,12 +170,14 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         const qrDocRef = doc(firestore, 'qrcodes', qrId);
         batch.set(qrDocRef, qrCodeData);
 
+        // Detailed registration for the organizer dashboard
         const registrationToSave = {
             eventId: event.id,
             eventName: event.name,
             formData: values,
             qrId: qrId,
             registrationDate: registrationTime.toISOString(),
+            // Denormalized fields for secure administrative filtering via firestore.rules
             eventOwnerId: event.ownerId,
             eventMembers: event.members,
             checkedIn: false,
@@ -159,11 +189,14 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         
         await batch.commit();
         
+        // Generate the visual QR code only if it's a physical event.
         let generatedQrUrl: string | undefined = undefined;
         if (isOnSite) {
             generatedQrUrl = await QRCode.toDataURL(qrId, { errorCorrectionLevel: 'H', width: 256 });
         }
         
+        // Internal heuristic: we assume fields with 'email' or 'name' in their ID are the primary contacts.
+        // TODO: Explicitly define 'Identity Fields' in the Admin Panel to avoid this guesswork.
         const emailPayload = {
           email: (values as any).email,
           fullName: (values as any).full_name,
@@ -200,6 +233,9 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
     }
   }
 
+  /**
+   * Field Factory: Maps metadata field types to specific UI components.
+   */
   const renderFormControl = (
     field: FormFieldType,
     formField: any

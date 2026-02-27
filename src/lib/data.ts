@@ -1,4 +1,13 @@
 
+/**
+ * @fileOverview Data Access Layer (DAL) for the EventHorizon project.
+ * Handles dual-source data management: JSON files for legacy/development user data,
+ * and Cloud Firestore for production-ready events and registrations.
+ *
+ * TODO: Migrate all JSON-based user management to Firestore /app_admins and /users collections
+ * to ensure consistency and proper security rules enforcement across all environments.
+ */
+
 import { promises as fs } from 'fs';
 import path from 'path';
 import { unstable_noStore as noStore } from 'next/cache';
@@ -10,15 +19,23 @@ const dataDir = path.join(process.cwd(), 'data');
 const usersFilePath = path.join(dataDir, 'users.json');
 
 // --- Helper Functions ---
+
+/**
+ * Reads and parses a JSON file.
+ * @template T
+ * @param {string} filePath - Absolute path to the JSON file.
+ * @returns {Promise<T>} Parsed JSON content.
+ * @throws {Error} If reading or parsing fails.
+ */
 async function readJsonFile<T>(filePath: string): Promise<T> {
-  noStore(); // Ensures data is fetched on every request
+  noStore(); // Ensures data is fetched on every request, avoiding Next.js static optimization for local data.
   try {
     const fileContent = await fs.readFile(filePath, 'utf8');
     return JSON.parse(fileContent);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       if (filePath.endsWith('.json')) {
-        // Provide a default empty array for list-based files
+        // Provide a default empty array for list-based files to prevent crash on first run.
         return [] as unknown as T;
       }
     }
@@ -27,6 +44,13 @@ async function readJsonFile<T>(filePath: string): Promise<T> {
   }
 }
 
+/**
+ * Writes data to a JSON file with pretty formatting.
+ * @template T
+ * @param {string} filePath - Absolute path to the target JSON file.
+ * @param {T} data - The data structure to persist.
+ * @returns {Promise<void>}
+ */
 async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
   try {
     await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
@@ -37,20 +61,41 @@ async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
 }
 
 // --- User Functions (reading from JSON for login purposes) ---
+
+/**
+ * Retrieves all users from the legacy JSON database.
+ * @returns {Promise<User[]>} Array of User objects.
+ */
 export async function getUsers(): Promise<User[]> {
   return await readJsonFile<User[]>(usersFilePath);
 }
 
+/**
+ * Finds a single user by their internal system ID.
+ * @param {string} id - The usr_ prefixed UUID.
+ * @returns {Promise<User | null>} The user object or null if not found.
+ */
 export async function getUserById(id: string): Promise<User | null> {
   const users = await getUsers();
   return users.find(user => user.id === id) || null;
 }
 
+/**
+ * Finds a user by their email address (case-insensitive).
+ * Used during the authentication handshake.
+ * @param {string} email
+ * @returns {Promise<User | null>}
+ */
 export async function getUserByEmail(email: string): Promise<User | null> {
   const users = await getUsers();
   return users.find(user => user.email.toLowerCase() === email.toLowerCase()) || null;
 }
 
+/**
+ * Persists a new user to the local JSON file.
+ * @param {Omit<User, 'id'>} userData
+ * @returns {Promise<User>} The newly created user with a generated ID.
+ */
 export async function createUser(userData: Omit<User, 'id'>): Promise<User> {
   const users = await getUsers();
   const newUser: User = {
@@ -62,33 +107,54 @@ export async function createUser(userData: Omit<User, 'id'>): Promise<User> {
   return newUser;
 }
 
+/**
+ * Updates an existing user record in the JSON file.
+ * @param {string} id
+ * @param {Partial<Omit<User, 'id'>>} updateData
+ * @returns {Promise<User | null>} Updated user object.
+ */
 export async function updateUser(id: string, updateData: Partial<Omit<User, 'id'>>): Promise<User | null> {
   const users = await getUsers();
   const userIndex = users.findIndex(u => u.id === id);
   if (userIndex === -1) return null;
 
-  // Ensure UID is not overwritten if it exists
+  // Ensure UID (from Firebase Auth) is preserved if already set.
   const updatedUser = { ...users[userIndex], ...updateData, uid: users[userIndex].uid || updateData.uid };
   users[userIndex] = updatedUser;
   await writeJsonFile(usersFilePath, users);
   return updatedUser;
 }
 
+/**
+ * Removes a user record from the system.
+ * @param {string} id
+ * @returns {Promise<boolean>} True if user was found and deleted.
+ */
 export async function deleteUser(id: string): Promise<boolean> {
   let users = await getUsers();
   const initialLength = users.length;
   users = users.filter(u => u.id !== id);
-  if (users.length === initialLength) return false; // No user was deleted
+  if (users.length === initialLength) return false; 
   await writeJsonFile(usersFilePath, users);
   return true;
 }
 
+/**
+ * Replaces the entire users database with a new array.
+ * Typically used for purge/bulk generation operations.
+ * @param {User[]} users
+ */
 export async function overwriteUsers(users: User[]): Promise<void> {
   await writeJsonFile(usersFilePath, users);
 }
 
 // --- Event Functions (Now using Firestore as the Source of Truth) ---
 
+/**
+ * Fetches all events from Cloud Firestore.
+ * Uses the Admin SDK to bypass security rules for administrative queries.
+ * @returns {Promise<Event[]>}
+ */
 export async function getEvents(): Promise<Event[]> {
     noStore();
     try {
@@ -103,6 +169,10 @@ export async function getEvents(): Promise<Event[]> {
     }
 }
 
+/**
+ * Retrieves only events marked as active for the public homepage.
+ * @returns {Promise<Event[]>}
+ */
 export async function getActiveEvents(): Promise<Event[]> {
   noStore();
   try {
@@ -117,6 +187,11 @@ export async function getActiveEvents(): Promise<Event[]> {
   }
 }
 
+/**
+ * Fetches event metadata by its unique Firestore document ID.
+ * @param {string} id
+ * @returns {Promise<Event | null>}
+ */
 export async function getEventById(id: string): Promise<Event | null> {
   noStore();
   try {
@@ -131,6 +206,11 @@ export async function getEventById(id: string): Promise<Event | null> {
   }
 }
 
+/**
+ * Retrieves an event by its URL-friendly slug.
+ * @param {string} slug
+ * @returns {Promise<Event | null>}
+ */
 export async function getEventBySlug(slug: string): Promise<Event | null> {
   noStore();
   try {
@@ -148,6 +228,12 @@ export async function getEventBySlug(slug: string): Promise<Event | null> {
 
 // --- Registration Functions ---
 
+/**
+ * Retrieves all participant registrations for a specific event.
+ * Access is usually restricted via firestore.rules to organizers/admins.
+ * @param {string} eventId
+ * @returns {Promise<Registration[]>}
+ */
 export async function getRegistrationsFromFirestore(eventId: string): Promise<Registration[]> {
   noStore();
   try {
@@ -165,6 +251,12 @@ export async function getRegistrationsFromFirestore(eventId: string): Promise<Re
 }
 
 
+/**
+ * Fetches a single registration record.
+ * @param {string} eventId
+ * @param {string} registrationId
+ * @returns {Promise<Registration | null>}
+ */
 export async function getRegistrationFromFirestore(eventId: string, registrationId: string): Promise<Registration | null> {
   noStore();
   try {
