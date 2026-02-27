@@ -1,4 +1,3 @@
-
 'use server';
 
 import type { Event } from '@/lib/types';
@@ -17,7 +16,7 @@ export async function registerForEvent(
   
   try {
     const recipientEmail = registrationData.email;
-    const recipientName = registrationData.fullName || 'Uczestniku';
+    const recipientName = registrationData.fullName || 'Participant';
     
     let emailStatus: 'sent' | 'failed' | 'skipped' = 'skipped';
     let emailError: string | undefined = undefined;
@@ -26,7 +25,7 @@ export async function registerForEvent(
         let emailResult;
         
         if (requiresApproval) {
-            // Dla wydarzeń z zatwierdzeniem wysyłamy tylko info o "oczekiwaniu"
+            // For events requiring approval, we only send "pending" info
             emailResult = await sendPendingEmail({
                 to: recipientEmail,
                 name: recipientName,
@@ -34,7 +33,7 @@ export async function registerForEvent(
                 eventDate: event.date
             });
         } else {
-            // Dla otwartych wysyłamy od razu potwierdzenie (z QR lub bez)
+            // For open events, send confirmation immediately (with or without QR)
             emailResult = await sendConfirmationEmail({
                 to: recipientEmail,
                 name: recipientName,
@@ -68,7 +67,7 @@ export async function registerForEvent(
 }
 
 /**
- * Akcja wywoływana przy manualnej zmianie statusu przez admina.
+ * Action called when an admin manually changes the approval status.
  */
 export async function notifyRegistrationStatusChange(
     event: Pick<Event, 'name' | 'date'>,
@@ -79,7 +78,7 @@ export async function notifyRegistrationStatusChange(
     try {
         let result;
         if (newStatus === true) {
-            // Zatwierdzono -> wysyłamy e-mail (z kodem QR lub bez)
+            // Approved -> send email (with or without QR code)
             result = await sendApprovedEmail({
                 to: userData.email,
                 name: userData.name,
@@ -88,7 +87,7 @@ export async function notifyRegistrationStatusChange(
                 qrCodeDataUrl
             });
         } else {
-            // Odrzucono/Cofnięto -> wysyłamy informację o braku akceptacji
+            // Rejected/Revoked -> send rejection information
             result = await sendRejectedEmail({
                 to: userData.email,
                 name: userData.name,

@@ -169,7 +169,7 @@ export function RegistrationsTable({ event, registrations, userRole, onDelete, i
 
   const formatDate = (dateString: string) => {
     try {
-      return format(parseISO(dateString), "dd/MM/yyyy, HH:mm:ss");
+      return format(parseISO(dateString), "dd/MM/YYYY, HH:mm:ss");
     } catch (error) {
       const d = new Date(dateString);
       if (!isNaN(d.getTime())) {

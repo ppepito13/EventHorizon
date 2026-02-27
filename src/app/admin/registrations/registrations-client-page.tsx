@@ -834,7 +834,7 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setIsEmailConfirmOpen(false)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
                 toast({
                     title: "Message sent (Mock)",
