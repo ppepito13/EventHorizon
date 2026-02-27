@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Dynamic Event Registration Form.
  * This component acts as a "Form Engine" that consumes metadata defined by the administrator
@@ -100,8 +99,8 @@ const generateSchema = (fields: FormFieldType[]) => {
     {} as { [key: string]: z.ZodTypeAny }
   );
 
-  // GDPR/RODO is globally mandatory for all registrations.
-  schemaFields['rodo'] = z.boolean().refine((val) => val === true, {
+  // GDPR is globally mandatory for all registrations.
+  schemaFields['gdpr'] = z.boolean().refine((val) => val === true, {
     message: 'You must agree to the terms and conditions.',
   });
 
@@ -196,7 +195,6 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
         }
         
         // Internal heuristic: we assume fields with 'email' or 'name' in their ID are the primary contacts.
-        // TODO: Explicitly define 'Identity Fields' in the Admin Panel to avoid this guesswork.
         const emailPayload = {
           email: (values as any).email,
           fullName: (values as any).full_name,
@@ -385,7 +383,7 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
 
         <FormField
           control={form.control}
-          name="rodo"
+          name="gdpr"
           render={({ field }) => (
             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-background">
               <FormControl>
@@ -396,11 +394,11 @@ export function EventRegistrationForm({ event }: EventRegistrationFormProps) {
               </FormControl>
               <div className="space-y-1 leading-none">
                 <FormLabel>
-                  {event.rodoLabel || 'Data Processing Consent'}
+                  {event.gdprLabel || 'Data Processing Consent'}
                   <span className="text-destructive"> *</span>
                 </FormLabel>
                 <FormDescription>
-                  {event.rodo}
+                  {event.gdpr}
                 </FormDescription>
                 {(() => {
                   if (!event.terms?.enabled || !event.terms.text || !event.terms.url) {

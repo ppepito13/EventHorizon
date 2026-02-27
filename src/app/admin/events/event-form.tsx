@@ -73,8 +73,8 @@ const eventFormSchema = z.object({
   locationTypes: z.array(z.string()).nonempty({ message: 'Please select at least one event format.' }),
   locationAddress: z.string().optional(),
   description: z.string().min(1, 'Description is required.'),
-  rodoLabel: z.string().min(1, "The consent label is required."),
-  rodo: z.string().min(1, 'Privacy Policy is required.'),
+  gdprLabel: z.string().min(1, "The consent label is required."),
+  gdpr: z.string().min(1, 'Privacy Policy is required.'),
   terms: z.object({
     enabled: z.boolean().default(false),
     url: z.string().optional(),
@@ -211,8 +211,8 @@ export function EventForm({ event }: EventFormProps) {
       locationTypes: event?.location.types || [],
       locationAddress: event?.location.address || '',
       description: event?.description || JSON.stringify([{ type: 'paragraph', children: [{ text: '' }] }]),
-      rodoLabel: event?.rodoLabel || 'Agree to terms and conditions',
-      rodo: event?.rodo || '',
+      gdprLabel: event?.gdprLabel || 'Agree to terms and conditions',
+      gdpr: event?.gdpr || '',
       terms: {
         enabled: event?.terms?.enabled || false,
         url: event?.terms?.url || '',
@@ -252,7 +252,6 @@ export function EventForm({ event }: EventFormProps) {
       const dateString = dateType === 'range' && endDate ? `${startDate} - ${endDate}` : startDate;
       
       // Simple URL-safe slug generation.
-      // TODO: Implement a server-side uniqueness check for slugs to prevent URL collisions.
       const slug = values.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
 
       const eventPayload: Omit<Event, 'id' | 'slug' | 'ownerId' | 'members'> = {
@@ -309,7 +308,7 @@ export function EventForm({ event }: EventFormProps) {
             <FormItem>
               <FormLabel>Event Name *</FormLabel>
               <FormControl>
-                <Input placeholder="InnovateSphere 2026" {...field} />
+                <Input placeholder="Conference 2026" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -506,7 +505,7 @@ export function EventForm({ event }: EventFormProps) {
                 render={({ field }) => (
                     <FormItem>
                         <FormLabel>On-site Event Address *</FormLabel>
-                        <FormControl><Input placeholder="Wersalska 6, 91-203 Łódź" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormControl><Input placeholder="Main St 123, Lodz" {...field} value={field.value ?? ''} /></FormControl>
                         <FormMessage />
                     </FormItem>
                 )}
@@ -529,7 +528,7 @@ export function EventForm({ event }: EventFormProps) {
                       onClick={() => {
                         toast({
                           title: 'Upload Mockup',
-                          description: "Here, you'd select a file to upload.",
+                          description: "File selection would go here.",
                         });
                       }}
                     >
@@ -592,7 +591,7 @@ export function EventForm({ event }: EventFormProps) {
             <CardContent className="space-y-6">
                  <FormField
                   control={form.control}
-                  name="rodoLabel"
+                  name="gdprLabel"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Consent Checkbox Label *</FormLabel>
@@ -608,7 +607,7 @@ export function EventForm({ event }: EventFormProps) {
                 />
                 <FormField
                   control={form.control}
-                  name="rodo"
+                  name="gdpr"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Privacy Policy / GDPR Text *</FormLabel>

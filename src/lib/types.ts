@@ -43,8 +43,8 @@ export type Event = {
     hint: string; // Used for AI image searching/generation
   };
   formFields: FormField[];
-  rodo: string; // GDPR text
-  rodoLabel?: string; // Consent checkbox label
+  gdpr: string; // GDPR text (formerly rodo)
+  gdprLabel?: string; // Consent checkbox label
   terms: {
     enabled: boolean;
     url: string;

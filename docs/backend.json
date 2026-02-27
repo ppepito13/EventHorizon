@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "Event": {
@@ -58,9 +57,9 @@
           "description": "URL to custom graphics or a banner image for the event's page, contributing to its unique theme.",
           "format": "uri"
         },
-        "rodoInformation": {
+        "gdprInformation": {
           "type": "string",
-          "description": "GDPR (RODO) specific information and consent text tailored for this particular event's registration process."
+          "description": "GDPR specific information and consent text tailored for this particular event's registration process."
         },
         "isActive": {
           "type": "boolean",
@@ -97,7 +96,7 @@
         "themeColorBackground",
         "headlineFont",
         "bodyFont",
-        "rodoInformation",
+        "gdprInformation",
         "isActive",
         "requiresApproval",
         "registrationDeadline",
@@ -293,7 +292,6 @@
           ]
         }
       }
-    ],
-    "reasoning": "The Firestore data structure for EventHorizon is designed to prioritize secure, scalable, and debuggable authorization, adhering strictly to the core design principles. \n\n**Authorization Independence (CRITICAL):**\nTo achieve authorization independence and eliminate the need for `get()` calls in security rules, the `Event` entity will include an `ownerId` field (representing the UID of the primary organizer) and a `members` map (e.g., `{ 'uid1': 'organizer', 'uid2': 'editor' }`) for collaborative event management. This `ownerId` and `members` map will be denormalized and copied into every `EventFormField` and `Registration` document within their respective subcollections. This ensures that a security rule evaluating access to a `formField` or `registration` document can directly check `request.auth.uid` against the document's own `eventOwnerId` or `eventMembers` map without querying the parent `Event` document. This design supports atomic batch writes/updates across related documents, improving performance and reliability.\n\n**QAPs (Rules are not Filters):**\nSecure `list` operations are enabled through structural segregation and explicit state modeling:\n1.  **Public Events (`/events`):** The main `/events` collection will store all events. Public access (read and list) will be granted only to events where the `isActive` field is `true`. Security rules will enforce this, ensuring that unauthenticated users or general visitors can only discover and view active events. The UI will then filter to show only one active event if that's the current business logic.\n2.  **Event Form Fields (`/events/{eventId}/formFields`):** For an active event, its `formFields` must be publicly readable to allow anonymous users to view and fill out the registration form. Rules will verify that the denormalized `eventIsActive` field in the `EventFormField` document is `true` for public reads. \n3.  **Registrations (`/events/{eventId}/registrations`):** Registrations are private. Only the `ownerId` (or members in the `members` map) of the respective `Event` can read and list these documents. The denormalized `eventOwnerId` and `eventMembers` within each `Registration` document will be used to enforce this, preventing unauthorized users from accessing sensitive registration data. \n4.  **Admin Roles (`/app_admins`):** Global administrators, defined in a separate top-level collection (`/app_admins`), will have broader access to manage all events, regardless of their `isActive` status. This allows `list` operations for the admin dashboard to retrieve all events securely. The existence of `request.auth.uid` in this collection will grant global admin privileges.\n\n**DBAC (Database-Backed Access Control):**\nAuthorization roles are stored directly in the database. Global administrators are identified by their `uid` existing as a document in the `/app_admins` collection. Event-specific organizers are identified by the `ownerId` field and `members` map within each `Event` document (and denormalized into subcollection documents). This keeps authorization logic transparent and auditable within Firestore.\n\n**Structural Segregation:**\nEvents are primarily segregated by their `isActive` status via security rules rather than separate collections, as the `isActive` field clearly models the state. `EventFormField` and `Registration` data are kept in subcollections, ensuring they are logically grouped and scoped to their parent `Event`.\n\n**Data Clarity and Predictability:**\nExplicit fields like `isActive` are used for state management. Path parameters are descriptive (e.g., `{eventId}`, `{formFieldId}`). The `Registration.formData` field, as per the provided schema (`array of string`), will store an ordered list of submitted values. Its interpretation will rely on the `order` field of `EventFormField` entities to correctly map values to their corresponding fields. While this schema is less explicit than an array of objects for dynamic forms, the reliance on a consistent `order` field maintains predictability within the schema's constraints.\n\n**Required Schema Enhancements for Authorization:**\nFor robust authorization, the `Event` schema implicitly requires `ownerId` (string, `request.auth.uid` of creator) and a `members` map (object `{uid: role}`). These fields must be denormalized to `EventFormField` and `Registration` documents as `eventOwnerId` (string) and `eventMembers` (map) respectively, along with `eventIsActive` (boolean). These additions are critical for implementing the recommended security rules."
+    ]
   }
 }

@@ -18,8 +18,8 @@ const fontHeadline = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'Commerzbank Łódź Events',
-  description: 'Connect. Code. Celebrate. Event Registration for Commerzbank Łódź.',
+  title: 'Commerzbank Lodz Events',
+  description: 'Connect. Code. Celebrate. Event Registration for Commerzbank Lodz.',
 };
 
 export default function RootLayout({

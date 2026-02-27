@@ -1,9 +1,9 @@
-# Project Technical Documentation: EventHorizon (Commerzbank Łódź Events)
+# Project Technical Documentation: EventHorizon (Commerzbank Lodz Events)
 
 ## 1. Project Overview
 
 ### Application Purpose
-**EventHorizon** is a comprehensive platform for managing corporate and social events, dedicated to Commerzbank Łódź. The application enables dynamic creation of event pages, participant registration using configurable forms, generation of QR codes for fast check-in, and advanced permission management (Administrator vs. Organizer).
+**EventHorizon** is a comprehensive platform for managing corporate and social events, dedicated to Commerzbank Lodz. The application enables dynamic creation of event pages, participant registration using configurable forms, generation of QR codes for fast check-in, and advanced permission management (Administrator vs. Organizer).
 
 ### Tech Stack
 *   **Framework**: Next.js 15.5.9 (App Router)
