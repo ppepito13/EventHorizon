@@ -708,19 +708,6 @@ export function RegistrationsClientPage({ events, userRole }: RegistrationsClien
               </div>
             </div>
           )}
-
-          {/* Debug Info Context */}
-          <div className="mt-8 p-3 bg-muted/50 rounded-lg border border-dashed text-[10px] font-mono space-y-1">
-              <p className="font-bold text-muted-foreground uppercase tracking-wider mb-1">Debug Context</p>
-              <div className="grid grid-cols-2 gap-2 max-w-xs">
-                  <span>Editor Dialog:</span>
-                  <span className={isEmailDialogOpen ? "text-green-600 font-bold" : "text-red-600"}>{isEmailDialogOpen ? 'OPEN' : 'CLOSED'}</span>
-                  <span>Confirm Popup:</span>
-                  <span className={isEmailConfirmOpen ? "text-green-600 font-bold" : "text-red-600"}>{isEmailConfirmOpen ? 'OPEN' : 'CLOSED'}</span>
-                  <span>Total Recipients:</span>
-                  <span>{filteredRegistrations.length}</span>
-              </div>
-          </div>
         </CardContent>
       </Card>
 
