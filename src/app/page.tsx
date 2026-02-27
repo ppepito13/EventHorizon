@@ -28,9 +28,38 @@ import { useState, useEffect } from 'react';
 import { getAppUserByEmailAction } from './admin/actions';
 
 /**
+ * Utility to extract plain text from a Slate.js JSON string.
+ * Used for previews where rich formatting is not required.
+ */
+function getPlainTextExcerpt(content: string): string {
+  if (!content) return '';
+  try {
+    const parsed = JSON.parse(content);
+    if (!Array.isArray(parsed)) return content;
+
+    const extractText = (nodes: any[]): string => {
+      return nodes
+        .map((node) => {
+          if (node.text !== undefined) return node.text;
+          if (node.children) return extractText(node.children);
+          return '';
+        })
+        .join(' ');
+    };
+
+    return extractText(parsed).trim();
+  } catch (e) {
+    // Fallback for legacy plain-text descriptions
+    return content;
+  }
+}
+
+/**
  * Preview card for a single event.
  */
 function EventCard({ event }: { event: Event }) {
+  const plainDescription = getPlainTextExcerpt(event.description);
+
   return (
     <Card className="overflow-hidden shadow-lg transition-transform duration-300 hover:-translate-y-2 flex flex-col h-full">
       <div className="relative h-48 w-full">
@@ -47,7 +76,7 @@ function EventCard({ event }: { event: Event }) {
       </CardHeader>
       <CardContent className="flex-grow">
         <p className="text-muted-foreground text-sm mb-4 line-clamp-3">
-          {event.description}
+          {plainDescription}
         </p>
         <div className="flex items-center text-sm text-muted-foreground gap-2">
           <Calendar className="w-4 h-4" />
