@@ -1,6 +1,14 @@
 
 'use server';
 
+/**
+ * @fileOverview Server Actions for User Management.
+ * Currently interacts with a local JSON file as a transitional database.
+ * 
+ * TODO: Complete migration to Firestore '/users' and '/app_admins' collections.
+ * The use of crypto.randomUUID() and local filesystem writes is strictly for MVP prototyping.
+ */
+
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { createUser, deleteUser, updateUser, getUsers, overwriteUsers } from '@/lib/data';
@@ -14,6 +22,13 @@ const userSchema = z.object({
   assignedEvents: z.array(z.string()).default([]),
 });
 
+/**
+ * Registers a new user in the application database.
+ * 
+ * @param {any} prevState - Form state for useActionState.
+ * @param {FormData} formData - Submitted user details.
+ * @returns {Promise<{ success: boolean, message?: string, errors?: any }>}
+ */
 export async function createUserAction(prevState: any, formData: FormData) {
   const assignedEvents = formData.getAll('assignedEvents');
   const data = {
@@ -36,6 +51,8 @@ export async function createUserAction(prevState: any, formData: FormData) {
     const newUser = await createUser(validated.data);
     
     revalidatePath('/admin/users');
+    // UX Hint: We notify the admin that a manual step in Firebase Console is required.
+    // TODO: Automate Firebase Auth account creation using Firebase Admin SDK.
     return { 
         success: true, 
         message: `User ${newUser.name} created. To enable login, please go to the Firebase Console -> Authentication -> Add user, and create an account with the email ${newUser.email} and a password.`, 
@@ -51,6 +68,9 @@ export async function createUserAction(prevState: any, formData: FormData) {
   }
 }
 
+/**
+ * Updates an existing user's profile and event assignments.
+ */
 export async function updateUserAction(id: string, prevState: any, formData: FormData) {
   const assignedEvents = formData.getAll('assignedEvents');
   const data = {
@@ -60,7 +80,6 @@ export async function updateUserAction(id: string, prevState: any, formData: For
       assignedEvents: assignedEvents,
   };
   
-  // This schema is simplified as we are not handling password changes here.
   const updateSchema = userSchema.omit({ password: true } as any);
   const validated = updateSchema.safeParse(data);
 
@@ -88,6 +107,10 @@ export async function updateUserAction(id: string, prevState: any, formData: For
   }
 }
 
+/**
+ * Removes a user from the application database.
+ * Safeguard: Prevents deletion of the primary administrator to avoid system lockout.
+ */
 export async function deleteUserAction(id: string) {
   try {
     const userToDelete = await getUsers().then(users => users.find(u => u.id === id));
@@ -112,6 +135,9 @@ export async function deleteUserAction(id: string) {
   }
 }
 
+/**
+ * Batch generation of organizer accounts for testing purposes.
+ */
 export async function generateUsersAction(count: number, allEvents: Event[]) {
   if (count <= 0 || count > 50) {
     return { success: false, message: 'Please provide a number between 1 and 50.' };
@@ -165,6 +191,9 @@ export async function generateUsersAction(count: number, allEvents: Event[]) {
   }
 }
 
+/**
+ * Wipes all non-admin users from the database.
+ */
 export async function purgeUsersAction() {
     try {
         const allUsers = await getUsers();

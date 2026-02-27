@@ -1,4 +1,13 @@
+
 'use client';
+
+/**
+ * @fileOverview Administrative Guard Layout.
+ * This component handles the high-level permission check for the Users management module.
+ * 
+ * Decision: We perform a server-side role check via `getAppUserByEmailAction` 
+ * to ensure that roles stored in the database override any stale client-side tokens.
+ */
 
 import { useUser } from '@/firebase/provider';
 import { redirect } from 'next/navigation';
@@ -26,18 +35,16 @@ export default function UsersLayout({
       }
 
       if (user.email) {
-        // Always fetch the user's role from the server to get the latest data
+        // Business Rule: Only users with the 'Administrator' role can access user management.
         const appUser = await getAppUserByEmailAction(user.email);
         
-        // If user doesn't exist in our DB or is not an Admin, redirect
         if (!appUser || appUser.role !== 'Administrator') {
+          console.warn("Unauthorized access attempt to user management.");
           redirect('/admin');
         } else {
-          // User is an admin, allow access
           setIsLoading(false);
         }
       } else {
-        // A user without an email cannot be an admin in our system
         redirect('/admin');
       }
     };

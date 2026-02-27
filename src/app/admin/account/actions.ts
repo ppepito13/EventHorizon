@@ -1,4 +1,13 @@
+
 'use server';
+
+/**
+ * @fileOverview Server-side account management actions.
+ * 
+ * CRITICAL SECURITY NOTE: Password changes should NEVER be handled purely on the server 
+ * in a Firebase environment because Firebase Auth requires a recent login ('re-authentication') 
+ * for sensitive operations. This logic is strictly a placeholder.
+ */
 
 import { z } from 'zod';
 import { getUserById, updateUser } from '@/lib/data';
@@ -14,6 +23,11 @@ const passwordSchema = z.object({
 });
 
 
+/**
+ * Placeholder for password change logic.
+ * 
+ * TODO: Replace this with client-side Firebase SDK call: `updatePassword(user, newPassword)`.
+ */
 export async function changePasswordAction(
   userId: string,
   prevState: { error?: string; success?: boolean },
