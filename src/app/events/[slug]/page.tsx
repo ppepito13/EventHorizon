@@ -1,6 +1,14 @@
 
 'use client';
 
+/**
+ * @fileOverview Dynamic Public Event Landing Page.
+ * This component handles the retrieval and display of event-specific information.
+ * 
+ * Safety Rule: The query strictly filters by 'isActive == true' to ensure that 
+ * unpublished or draft events are never accessible via direct URL manipulation.
+ */
+
 import Image from 'next/image';
 import { notFound, useParams } from 'next/navigation';
 import { EventRegistrationForm } from '@/components/event-registration-form';
@@ -23,6 +31,10 @@ export default function EventPage() {
   const params = useParams<{ slug: string }>();
   const firestore = useFirestore();
 
+  /**
+   * Memoized query to prevent unnecessary re-fetches during component re-renders.
+   * We search by slug (URL segment) rather than ID for SEO and user-friendly URLs.
+   */
   const eventQuery = useMemoFirebase(
     () =>
       firestore && params.slug
@@ -37,66 +49,60 @@ export default function EventPage() {
   
   const { data: events, isLoading, error } = useCollection<Event>(eventQuery);
 
+  // Heuristic: Slug uniqueness is currently managed in the Admin UI.
   const event = useMemo(() => (events && events.length > 0 ? events[0] : null), [events]);
 
   if (isLoading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <p className="ml-4">Ładowanie danych wydarzenia...</p>
+        <p className="ml-4">Loading event data...</p>
       </div>
     );
   }
 
-  // --- START OF DEBUGGING LOGIC ---
+  // Diagnostic feedback for missing or inactive events.
   if (!event) {
     return (
         <div className="container py-10">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-destructive">Błąd Diagnostyczny - 404</CardTitle>
-                    <CardDescription>Strona nie została znaleziona. Poniżej znajdują się szczegóły techniczne, które pomogą zdiagnozować problem.</CardDescription>
+                    <CardTitle className="text-destructive">Diagnostic Error - 404</CardTitle>
+                    <CardDescription>Page not found. Below are technical details to help diagnose the issue.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 font-mono text-xs">
-                    <p>Próbowano wyświetlić stronę, ale ostatecznie nie znaleziono pasującego wydarzenia. Oto stan aplikacji w momencie podejmowania decyzji:</p>
+                    <p>The system could not find a matching event. Current state:</p>
                     
                     <div className="p-3 bg-muted rounded-md">
-                        <strong>Parametry zapytania:</strong>
+                        <strong>Query Params:</strong>
                         <pre className="mt-1 whitespace-pre-wrap">{`slug: "${params.slug}"\nisActive: true`}</pre>
                     </div>
 
                     <div className="p-3 bg-muted rounded-md">
-                        <strong>Status ładowania (isLoading):</strong>
+                        <strong>Loading Status:</strong>
                         <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(isLoading, null, 2)}</pre>
-                        <p className="text-muted-foreground text-xs mt-1">Oczekiwana wartość: false. Jeśli jest 'true', dane wciąż się ładują.</p>
                     </div>
                     
                     <div className="p-3 bg-muted rounded-md">
-                        <strong>Obiekt błędu (error):</strong>
+                        <strong>Error Object:</strong>
                         <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(error, null, 2)}</pre>
-                        <p className="text-muted-foreground text-xs mt-1">Oczekiwana wartość: null. Jakakolwiek inna wartość wskazuje na problem z uprawnieniami lub połączeniem z bazą danych.</p>
-                    </div>
-
-                    <div className="p-3 bg-muted rounded-md">
-                        <strong>Otrzymane dane (zmienna 'events'):</strong>
-                        <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(events, null, 2)}</pre>
-                        <p className="text-muted-foreground text-xs mt-1">Oczekiwana wartość: tablica z jednym obiektem wydarzenia `[ {'{'} ... {'}'} ]`. Wartość `[]` (pusta tablica) oznacza, że zapytanie do bazy danych się powiodło, ale nie znaleziono żadnego wydarzenia pasującego do kryteriów (slug + isActive: true).</p>
                     </div>
 
                     <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
-                        **Wniosek:** Jeśli błąd to `null`, a otrzymane dane to `[]` (pusta tablica), oznacza to, że w bazie danych nie ma wydarzenia o podanym 'slug' LUB to wydarzenie ma status `isActive: false`. Proszę zweryfikować dane w panelu administratora.
+                        <strong>Conclusion:</strong> If the error is null and data is empty, the event either doesn't exist or is set to `isActive: false` in the Admin Panel.
                       </AlertDescription>
                     </Alert>
-
                 </CardContent>
             </Card>
         </div>
     );
   }
-  // --- END OF DEBUGGING LOGIC ---
   
+  /**
+   * Helper to format location metadata based on event format (Virtual/On-site).
+   */
   const formatEventLocation = (location: Event['location']) => {
     if (!location?.types) return null;
     let display = location.types.join(' & ');
@@ -138,12 +144,16 @@ export default function EventPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
+                        {/* 
+                          The description is stored as a Slate.js JSON string.
+                          RichTextRenderer handles the safe conversion to React components.
+                        */}
                         <RichTextRenderer content={event.description} />
                     </CardContent>
                 </Card>
             </div>
             
-            <div>
+            <aside>
                  <Card>
                     <CardHeader>
                         <CardTitle className="font-headline text-2xl">Register Now</CardTitle>
@@ -153,7 +163,7 @@ export default function EventPage() {
                         <EventRegistrationForm event={event} />
                     </CardContent>
                 </Card>
-            </div>
+            </aside>
         </div>
       </div>
     </div>

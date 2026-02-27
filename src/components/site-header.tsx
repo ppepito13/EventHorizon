@@ -1,4 +1,10 @@
+
 'use client';
+
+/**
+ * @fileOverview Universal Navigation Header.
+ * Provides the main branding and a "Back to Panel" context-aware button for logged-in users.
+ */
 
 import Link from 'next/link';
 import { Icons } from './icons';
@@ -25,6 +31,10 @@ export function SiteHeader({ user }: SiteHeaderProps) {
         </div>
         <div className="flex flex-1 items-center justify-end">
           <nav>
+            {/* 
+              UX Rule: If a user is viewing a public page but is authenticated, 
+              provide a quick shortcut back to the management interface.
+            */}
             {isLoggedIn && (
               <Button variant="ghost" asChild>
                 <Link href="/admin">Back to Panel</Link>

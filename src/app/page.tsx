@@ -1,6 +1,14 @@
 
 'use client';
 
+/**
+ * @fileOverview Public Portal Homepage.
+ * Displays a grid of all currently active events.
+ * 
+ * TODO: Implement pagination or 'Show More' logic if the number of active 
+ * events exceeds 12 to maintain page performance.
+ */
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase/provider';
@@ -19,9 +27,12 @@ import { SiteHeader } from '@/components/site-header';
 import { useState, useEffect } from 'react';
 import { getAppUserByEmailAction } from './admin/actions';
 
+/**
+ * Preview card for a single event.
+ */
 function EventCard({ event }: { event: Event }) {
   return (
-    <Card className="overflow-hidden shadow-lg transition-transform duration-300 hover:-translate-y-2 flex flex-col">
+    <Card className="overflow-hidden shadow-lg transition-transform duration-300 hover:-translate-y-2 flex flex-col h-full">
       <div className="relative h-48 w-full">
         <Image
           src={event.heroImage.src}
@@ -44,6 +55,7 @@ function EventCard({ event }: { event: Event }) {
         </div>
       </CardContent>
       <div className="p-6 pt-0">
+        {/* Custom branding colors applied dynamically based on event configuration */}
         <Button asChild className="w-full" style={{ backgroundColor: event.themeColor }}>
           <Link href={`/events/${event.slug}`}>
             View Details & Register
@@ -56,6 +68,11 @@ function EventCard({ event }: { event: Event }) {
 
 export default function Home() {
   const firestore = useFirestore();
+  
+  /**
+   * Data Source: Public events.
+   * Safety Filter: 'isActive' is required to prevent access to drafts.
+   */
   const activeEventsQuery = useMemoFirebase(
     () => firestore ? query(collection(firestore, 'events'), where('isActive', '==', true)) : null,
     [firestore]
@@ -65,6 +82,9 @@ export default function Home() {
   const { user: firebaseUser, isUserLoading } = useUser();
   const [appUser, setAppUser] = useState<AppUser | null>(null);
 
+  /**
+   * Client-side permission checking for the 'Back to Panel' header feature.
+   */
   useEffect(() => {
     const loadAppUser = async () => {
       if (firebaseUser?.email) {
@@ -90,7 +110,7 @@ export default function Home() {
 
     if (error) {
       return (
-        <div className="text-center text-red-500 py-16">
+        <div className="text-center text-destructive py-16">
           <h3 className="text-2xl font-headline mb-2">Error loading events</h3>
           <p>{error.message}</p>
         </div>
@@ -119,6 +139,7 @@ export default function Home() {
     <div className="flex flex-col min-h-screen bg-background">
       <SiteHeader user={appUser} />
       <main className="flex-1">
+        {/* Hero Section with Admin Portal entry point */}
         <section
           className="relative flex h-[60vh] flex-col items-center justify-end text-center overflow-hidden bg-cover bg-[center_30%]"
           style={{ backgroundImage: `url('/images/hero-background.png')` }}
