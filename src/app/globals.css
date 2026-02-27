@@ -33,6 +33,16 @@
     --ring: 48 96% 53%; /* Keep yellow for ring */
 
     --radius: 0.8rem;
+
+    /* Sidebar Variables Light */
+    --sidebar: 210 50% 98%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-primary: 48 96% 53%;
+    --sidebar-primary-foreground: 210 70% 10%;
+    --sidebar-accent: 210 50% 92%;
+    --sidebar-accent-foreground: 222.2 84% 4.9%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 48 96% 53%;
   }
 
   .dark {
@@ -63,6 +73,16 @@
     --border: 210 50% 30%;
     --input: 210 50% 30%;
     --ring: 48 96% 53%;
+
+    /* Sidebar Variables Dark */
+    --sidebar: 210 50% 15%;
+    --sidebar-foreground: 210 20% 98%;
+    --sidebar-primary: 48 96% 53%;
+    --sidebar-primary-foreground: 210 70% 10%;
+    --sidebar-accent: 210 50% 25%;
+    --sidebar-accent-foreground: 210 20% 98%;
+    --sidebar-border: 210 50% 30%;
+    --sidebar-ring: 48 96% 53%;
   }
 }
  

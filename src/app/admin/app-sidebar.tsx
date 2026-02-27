@@ -52,7 +52,7 @@ export function AppSidebar({ appUser }: AppSidebarProps) {
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   <TicketPercent className="size-4" />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
+                <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate font-semibold">Admin Panel</span>
                   <span className="truncate text-xs">EventHorizon</span>
                 </div>
@@ -75,7 +75,7 @@ export function AppSidebar({ appUser }: AppSidebarProps) {
                 >
                   <Link href={item.href}>
                     <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
+                    <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -91,7 +91,7 @@ export function AppSidebar({ appUser }: AppSidebarProps) {
               tooltip={isCollapsed ? 'Expand Menu' : 'Minimize Menu'}
             >
               {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-              <span>Minimize Menu</span>
+              <span className="group-data-[collapsible=icon]:hidden">Minimize Menu</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
