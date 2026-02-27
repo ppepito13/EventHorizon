@@ -1,5 +1,9 @@
-
 'use client';
+
+/**
+ * @fileOverview Main Admin Dashboard landing page.
+ * Provides an overview of all events and utilities for developers to manage test data.
+ */
 
 import { EventsTable } from './events-table';
 import { Button } from '@/components/ui/button';
@@ -41,6 +45,7 @@ import { collection, query, writeBatch, doc, setDoc, getDocs } from 'firebase/fi
 import { useAppSettings } from '@/context/app-settings-provider';
 import { getAppUserByEmailAction } from './actions';
 
+// Constants used for the mock data generator to ensure visual variety during testing.
 const FAKE_EVENT_THEMES = [
     { name: 'Quantum Leap Conference', slug: 'quantum-leap-conference', color: '#8b5cf6', hint: 'futuristic technology' },
     { name: 'Sustainable Futures Summit', slug: 'sustainable-futures-summit', color: '#22c55e', hint: 'green technology' },
@@ -49,6 +54,11 @@ const FAKE_EVENT_THEMES = [
     { name: 'Innovate & Create Fest', slug: 'innovate-create-fest', color: '#f97316', hint: 'creative workshop' },
 ];
 
+/**
+ * Internal utility to generate a dummy event object for stress testing and UI prototyping.
+ * 
+ * TODO: Move this to a dedicated mock service in src/lib/mocks.ts for production readiness.
+ */
 function generateFakeEvent(index: number, existingCount: number, user: User): Event {
     const themeIndex = (existingCount + index) % FAKE_EVENT_THEMES.length;
     const cycle = Math.floor((existingCount + index) / FAKE_EVENT_THEMES.length) + 1;
@@ -97,6 +107,7 @@ export default function AdminDashboardPage() {
   const [isGenerateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [generationCount, setGenerationCount] = useState(3);
 
+  // Real-time synchronization with the top-level 'events' collection.
   const eventsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'events')) : null, [firestore]);
   const { data: allEvents, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
 
@@ -124,6 +135,10 @@ export default function AdminDashboardPage() {
     loadAppUser();
   }, [firebaseUser, isAuthLoading]);
 
+  /**
+   * Filter events based on the user's role.
+   * Admins see everything, Organizers see only what they are assigned to.
+   */
   const filteredEvents = useMemo(() => {
     if (!allEvents || !appUser) return [];
     if (appUser.role === 'Administrator' || appUser.assignedEvents.includes('All')) {
@@ -132,6 +147,10 @@ export default function AdminDashboardPage() {
     return allEvents.filter(event => appUser.assignedEvents.includes(event.name));
   }, [allEvents, appUser]);
 
+  /**
+   * Bulk insertion of test events using Firestore Batches.
+   * Ensures atomicity and avoids partial states if one creation fails.
+   */
   const handleGenerateEvents = (count: number) => {
     if (!firestore || !appUser || !appUser.uid) {
       toast({ variant: 'destructive', title: 'Error', description: 'User or database not available.' });
@@ -160,6 +179,12 @@ export default function AdminDashboardPage() {
     });
   };
 
+  /**
+   * Deep Purge: Recursively deletes all events AND their subcollections (registrations, QR codes).
+   * 
+   * TODO: This operation is extremely heavy. For production, move this to a Cloud Function 
+   * to avoid client-side timeouts and memory issues with large datasets.
+   */
   const handlePurgeEvents = () => {
     if (!firestore) return;
     startPurgeTransition(async () => {
@@ -175,6 +200,7 @@ export default function AdminDashboardPage() {
             for (const event of allEvents) {
                 const eventRef = doc(firestore, 'events', event.id);
 
+                // We must manually fetch and delete subcollections as Firestore doesn't support cascading deletes.
                 const registrationsRef = collection(firestore, 'events', event.id, 'registrations');
                 const registrationsSnap = await getDocs(registrationsRef);
                 const qrIdsToDelete: string[] = [];
@@ -186,6 +212,7 @@ export default function AdminDashboardPage() {
                     }
                 });
 
+                // Cleanup orphans in the global qrcodes collection
                 for (const qrId of qrIdsToDelete) {
                     batch.delete(doc(firestore, 'qrcodes', qrId));
                 }

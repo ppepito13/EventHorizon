@@ -1,5 +1,13 @@
-
 'use client';
+
+/**
+ * @fileOverview Complex Event Creation and Editing Form.
+ * This is the central engine for event configuration, supporting:
+ * - Dynamic form field definitions (text, email, dropdowns, etc.).
+ * - Single vs Multi-day event logic.
+ * - On-site vs Virtual formats with mandatory address validation.
+ * - GDPR/Privacy Policy configuration.
+ */
 
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,6 +37,7 @@ interface EventFormProps {
   event?: Event;
 }
 
+// Validation schema for individual registration form fields.
 const formFieldSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   label: z.string().min(1, 'Label is required.'),
@@ -38,6 +47,7 @@ const formFieldSchema = z.object({
   options: z.array(z.string()).optional(),
 });
 
+// Strict DD/MM/YYYY date validation to prevent browser-specific parsing issues.
 const dateStringSchema = z.string()
   .regex(/^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/, {
     message: "Please use DD/MM/YYYY format.",
@@ -45,12 +55,15 @@ const dateStringSchema = z.string()
   .refine((val) => {
     const [day, month, year] = val.split('/').map(Number);
     const date = new Date(year, month - 1, day);
-    // Check if the constructed date is valid and matches the input parts
     return date && date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
   }, {
     message: "Please enter a valid date."
   });
 
+/**
+ * Main validation schema for the entire event.
+ * Includes complex cross-field validation rules (superRefine).
+ */
 const eventFormSchema = z.object({
   name: z.string().min(3, 'Name must be at least 3 characters.'),
   dateType: z.enum(['single', 'range']).default('single'),
@@ -73,7 +86,7 @@ const eventFormSchema = z.object({
   isActive: z.boolean(),
   requiresApproval: z.boolean().default(false),
 }).superRefine((data, ctx) => {
-  // If location is On-site, address is required
+  // Business Rule: On-site events MUST have a physical address.
   if (data.locationTypes.includes('On-site') && (!data.locationAddress || data.locationAddress.trim() === '')) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -90,7 +103,7 @@ const eventFormSchema = z.object({
     return new Date(year, month - 1, day);
   }
 
-  // Past date validation
+  // Business Rule: Prevent historical event creation unless explicitly allowed.
   if (!data.allowPastDates) {
       const startParseResult = dateStringSchema.safeParse(data.startDate);
       if (startParseResult.success) {
@@ -105,7 +118,7 @@ const eventFormSchema = z.object({
       }
   }
 
-  // If date type is range, handle end date
+  // Cross-field Rule: Multi-day events must have a valid end date following the start date.
   if (data.dateType === 'range') {
     if (!data.endDate || data.endDate.trim() === '') {
       ctx.addIssue({
@@ -120,7 +133,6 @@ const eventFormSchema = z.object({
             ctx.addIssue({ ...error, path: ['endDate'] });
         });
       } else {
-        // End date after start date validation
         const startParseResult = dateStringSchema.safeParse(data.startDate);
         if (startParseResult.success) {
           const startDateObj = parseDate(startParseResult.data);
@@ -133,7 +145,6 @@ const eventFormSchema = z.object({
             });
           }
         }
-        // Past date validation for end date
         if (!data.allowPastDates) {
             const endDateObj = parseDate(endParseResult.data);
             if (endDateObj < today) {
@@ -148,6 +159,7 @@ const eventFormSchema = z.object({
     }
   }
 
+  // Terms Link Rule: Validate display text and URL structure.
   if (data.terms.enabled) {
     if (!data.terms.url || !z.string().url().safeParse(data.terms.url).success) {
       ctx.addIssue({
@@ -163,6 +175,7 @@ const eventFormSchema = z.object({
         path: ['terms.text'],
       });
     }
+    // UX Hint: Check for the special placeholder characters used for rendering the link.
     if (data.terms.text && (!data.terms.text.includes('>') || !data.terms.text.includes('<'))) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -183,6 +196,7 @@ export function EventForm({ event }: EventFormProps) {
   const { user } = useUser();
   const firestore = useFirestore();
 
+  // Initialization: Parse the composite date string back into parts for the form.
   const dateParts = event?.date?.split(' - ') ?? [];
   const isRange = dateParts.length > 1;
 
@@ -221,6 +235,10 @@ export function EventForm({ event }: EventFormProps) {
   const dateType = form.watch('dateType');
   const termsEnabled = form.watch('terms.enabled');
 
+  /**
+   * Data persistence handler.
+   * Transforms form UI state into the flat Event schema used by Firestore.
+   */
   const onSubmit = (values: EventFormValues) => {
     startTransition(async () => {
       if (!firestore || !user?.uid) {
@@ -230,8 +248,11 @@ export function EventForm({ event }: EventFormProps) {
 
       const { dateType, startDate, endDate, locationTypes, locationAddress, heroImageSrc, heroImageHint, formFields, terms, ...restOfValues } = values;
       
+      // Combine date parts into a searchable/displayable string.
       const dateString = dateType === 'range' && endDate ? `${startDate} - ${endDate}` : startDate;
       
+      // Simple URL-safe slug generation.
+      // TODO: Implement a server-side uniqueness check for slugs to prevent URL collisions.
       const slug = values.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
 
       const eventPayload: Omit<Event, 'id' | 'slug' | 'ownerId' | 'members'> = {
@@ -246,7 +267,6 @@ export function EventForm({ event }: EventFormProps) {
 
       try {
           if (event) {
-              // Update existing event
               const eventRef = doc(firestore, 'events', event.id);
               await updateDoc(eventRef, {
                   ...eventPayload,
@@ -255,7 +275,6 @@ export function EventForm({ event }: EventFormProps) {
               });
               toast({ title: 'Success!', description: 'Event has been updated.' });
           } else {
-              // Create new event
               const eventId = `evt_${crypto.randomUUID()}`;
               const eventRef = doc(firestore, 'events', eventId);
               const newEventData: Event = {
@@ -732,7 +751,10 @@ export function EventForm({ event }: EventFormProps) {
   );
 }
 
-
+/**
+ * Child component for a single form field definition.
+ * Includes localized state management for field options (radio/dropdown).
+ */
 function FormFieldCard({ index, remove, form }: { index: number, remove: (index: number) => void, form: any }) {
     const { fields: options, append: appendOption, remove: removeOption } = useFieldArray({
         control: form.control,
@@ -741,6 +763,9 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
 
     const fieldType = form.watch(`formFields.${index}.type`);
 
+    /**
+     * Sanitizes labels into programmatic names (e.g. "Full Name" -> "full_name").
+     */
     const generateFieldName = (label: string) => {
       return label
         .toLowerCase()
@@ -811,6 +836,7 @@ function FormFieldCard({ index, remove, form }: { index: number, remove: (index:
                             <FormItem>
                                 <Select onValueChange={(value) => {
                                     field.onChange(value);
+                                    // Default options setup for choice-based fields.
                                     if (value === 'radio' || value === 'multiple-choice') {
                                         const currentOptions = form.getValues(`formFields.${index}.options`);
                                         if (!currentOptions || currentOptions.length === 0) {

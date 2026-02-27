@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * @fileOverview Data table component for events management.
+ * Handles sorting, filtering (by status and name), pagination, and cascading deletions.
+ */
+
 import type { Event, User } from '@/lib/types';
 import { useState, useTransition, useMemo, useEffect } from 'react';
 import Link from 'next/link';
@@ -60,6 +65,9 @@ interface EventsTableProps {
   userRole: User['role'];
 }
 
+/**
+ * Formats location object into a user-friendly string.
+ */
 function formatLocation(location: { types: Array<'Virtual' | 'On-site'>, address?: string }) {
     if (!location || !location.types) return 'N/A';
     let locationString = location.types.join(' & ');
@@ -91,8 +99,12 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState<number | 'all'>(10);
 
+  /**
+   * Computed property for filtered and sorted events.
+   * This is memoized to prevent expensive re-sorts on every render.
+   */
   const filteredAndSortedEvents = useMemo(() => {
-    // 1. Filter
+    // 1. Filtering logic
     let result = events.filter(event => {
         const matchesSearch = event.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'all' 
@@ -101,7 +113,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
         return matchesSearch && matchesStatus;
     });
 
-    // 2. Sort
+    // 2. Sorting logic
     if (!sortConfig.direction) return result;
 
     const parseDate = (d: string) => {
@@ -135,7 +147,7 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
     });
   }, [events, sortConfig, searchTerm, statusFilter]);
 
-  // Reset to first page when search, filters, or page size change
+  // UX Rule: Reset to page 1 whenever criteria change.
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, pageSize]);
@@ -161,6 +173,10 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
       setStatusFilter('all');
   };
 
+  /**
+   * Toggles the 'isActive' status of an event.
+   * Active events are visible on the public homepage.
+   */
   const handleSetActive = (id: string, makeActive: boolean) => {
     setActiveToggles(prev => ({ ...prev, [id]: true }));
     startTransition(async () => {
@@ -185,6 +201,11 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
     setAlertOpen(true);
   };
 
+  /**
+   * Cascading Delete logic.
+   * Since Firestore doesn't support foreign key constraints or cascading deletes,
+   * we must manually wipe subcollections to prevent orphaned data.
+   */
   const handleDelete = () => {
     if (!eventToDelete) return;
     startTransition(async () => {
@@ -196,14 +217,17 @@ export function EventsTable({ events, userRole }: EventsTableProps) {
             const eventId = eventToDelete;
             const batch = writeBatch(firestore);
             
+            // Wipe registrations subcollection
             const registrationsRef = collection(firestore, 'events', eventId, 'registrations');
             const registrationsSnap = await getDocs(registrationsRef);
             registrationsSnap.forEach(doc => batch.delete(doc.ref));
 
+            // Wipe form fields subcollection
             const formFieldsRef = collection(firestore, 'events', eventId, 'formFields');
             const formFieldsSnap = await getDocs(formFieldsRef);
             formFieldsSnap.forEach(doc => batch.delete(doc.ref));
 
+            // Finally, delete the parent event
             const eventRef = doc(firestore, 'events', eventId);
             batch.delete(eventRef);
 
