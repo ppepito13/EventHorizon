@@ -1,82 +1,82 @@
-# Dokumentacja Techniczna Projektu: EventHorizon (Commerzbank Łódź Events)
+# Project Technical Documentation: EventHorizon (Commerzbank Łódź Events)
 
-## 1. Przegląd Projektu (Overview)
+## 1. Project Overview
 
-### Cel aplikacji
-**EventHorizon** to kompleksowa platforma do zarządzania wydarzeniami firmowymi i społecznościowymi, dedykowana dla Commerzbank Łódź. Aplikacja umożliwia dynamiczne tworzenie stron wydarzeń, rejestrację uczestników z wykorzystaniem konfigurowalnych formularzy, generowanie kodów QR do szybkiego check-inu oraz zaawansowane zarządzanie uprawnieniami (Administrator vs Organizator).
+### Application Purpose
+**EventHorizon** is a comprehensive platform for managing corporate and social events, dedicated to Commerzbank Łódź. The application enables dynamic creation of event pages, participant registration using configurable forms, generation of QR codes for fast check-in, and advanced permission management (Administrator vs. Organizer).
 
-### Stos technologiczny (Tech Stack)
+### Tech Stack
 *   **Framework**: Next.js 15.5.9 (App Router)
-*   **Język**: TypeScript
+*   **Language**: TypeScript
 *   **Frontend**: React 19.2.1, Tailwind CSS 3.4.1
-*   **Komponenty UI**: shadcn/ui (Radix UI)
-*   **Baza danych i Auth**: Firebase SDK 11.9.1 (Firestore, Authentication)
-*   **Backend**: Firebase Admin SDK 12.1.0 (używany w Server Actions i API)
-*   **AI**: Genkit 1.20.0 (integracja z Google Gemini)
-*   **Ikony**: Lucide React
-*   **Obsługa E-mail**: Resend SDK
+*   **UI Components**: shadcn/ui (Radix UI)
+*   **Database & Auth**: Firebase SDK 11.9.1 (Firestore, Authentication)
+*   **Backend**: Firebase Admin SDK 12.1.0 (Used in Server Actions and API)
+*   **AI**: Genkit 1.20.0 (Integration with Google Gemini)
+*   **Icons**: Lucide React
+*   **Email Service**: Resend SDK
 
 ---
 
-## 2. Architektura Frontendu
+## 2. Frontend Architecture
 
-### Struktura Routingów (`src/app/`)
-Projekt wykorzystuje **Next.js App Router**. Podział na sekcje:
+### Routing Structure (`src/app/`)
+The project utilizes the **Next.js App Router**. Division of sections:
 
-*   **Publiczne**:
-    *   `/`: Strona główna z listą aktywnych wydarzeń.
-    *   `/events/[slug]`: Dynamiczna strona konkretnego wydarzenia z formularzem rejestracji.
-    *   `/login`: Strona logowania do panelu administracyjnego.
+*   **Public**:
+    *   `/`: Home page with a list of active events.
+    *   `/events/[slug]`: Dynamic page for a specific event with a registration form.
+    *   `/login`: Login page for the administrative panel.
 *   **Admin (`/admin/`)**:
-    *   `/admin`: Dashboard z tabelą wydarzeń.
-    *   `/admin/registrations`: Centralne zarządzanie zgłoszeniami i wysyłka mailingów.
-    *   `/admin/check-in`: Moduł skanera kodów QR i manualnego potwierdzania obecności.
-    *   `/admin/users`: Zarządzanie kontami organizatorów (tylko dla Administratora).
-    *   `/admin/account`: Ustawienia profilu i zmiana motywu.
+    *   `/admin`: Dashboard with an events table.
+    *   `/admin/registrations`: Central management of registrations and mass mailing.
+    *   `/admin/check-in`: QR code scanner module and manual attendance confirmation.
+    *   `/admin/users`: User account management (Administrator only).
+    *   `/admin/account`: Profile settings and theme switching.
 
-### Wzorce dostępu do danych
-Aplikacja łączy dwa podejścia:
-1.  **Client-Side Real-time (Firestore SDK)**: Tabele w panelu admina używają hooków `useCollection` i `useDoc`, co zapewnia natychmiastowe odświeżanie danych bez przeładowania strony (np. statusy obecności).
-2.  **Server Actions**: Używane do operacji wymagających bezpieczeństwa lub integracji zewnętrznych (np. wysyłka e-mail, logowanie, manipulacja plikami JSON z użytkownikami).
+### Data Access Patterns
+The application combines two approaches:
+1.  **Client-Side Real-time (Firestore SDK)**: Admin panel tables use `useCollection` and `useDoc` hooks, providing instant data updates without page reloads (e.g., attendance statuses).
+2.  **Server Actions**: Used for operations requiring security or external integrations (e.g., sending emails, logging in, manipulating local user files).
 
 ---
 
-## 3. Integracja z Firebase i Logika Backendowa
+## 3. Firebase Integration and Backend Logic
 
-### Autoryzacja (Auth)
-Proces logowania (`src/app/login/`) opiera się na **Firebase Authentication**.
-*   **Zarządzanie sesją**: Po poprawnym logowaniu po stronie klienta, token ID jest przesyłany do endpointu `/api/auth/login`, który weryfikuje go za pomocą Firebase Admin SDK i zapisuje dane użytkownika w sesji (obsługiwanej przez `src/lib/session.ts`).
-*   **Dostawcy**: Password (Email/Hasło) oraz Anonymous (do celów testowych/publicznych).
+### Authentication (Auth)
+The login process (`src/app/login/`) is based on **Firebase Authentication**.
+*   **Session Management**: After a successful client-side login, the ID token is sent to the `/api/auth/login` endpoint, which verifies it using the Firebase Admin SDK and saves user data in a session (handled by `src/lib/session.ts`).
+*   **Providers**: Password (Email/Password) and Anonymous (for testing/public purposes).
 
-### Baza Danych (Firestore)
-Struktura danych (`src/lib/types.ts`) jest zoptymalizowana pod kątem bezpieczeństwa i wydajności:
+### Database (Firestore)
+The data structure (`src/lib/types.ts`) is optimized for security and performance:
 
-| Kolekcja | Opis | Główne pola |
+| Collection | Description | Main Fields |
 | :--- | :--- | :--- |
-| `events` | Definicje wydarzeń | `id`, `name`, `slug`, `formFields`, `isActive`, `ownerId`, `members` (mapa ról) |
-| `events/{id}/registrations` | Uczestnicy danego eventu | `id`, `formData` (dynamiczne), `qrId`, `checkedIn`, `isApproved` |
-| `app_admins` | Globalni administratorzy | Dokument ID = UID użytkownika (brak dodatkowych pól) |
-| `qrcodes` | Skrócone dane dla skanera | `eventId`, `qrId`, `registrationDate` |
+| `events` | Event definitions | `id`, `name`, `slug`, `formFields`, `isActive`, `ownerId`, `members` (role map) |
+| `events/{id}/registrations` | Participants of a given event | `id`, `formData` (dynamic), `qrId`, `checkedIn`, `isApproved` |
+| `app_admins` | Global administrators | Document ID = User UID (no additional fields) |
+| `qrcodes` | Shortened data for the scanner | `eventId`, `qrId`, `registrationDate` |
 
-### Reguły Bezpieczeństwa (`firestore.rules`)
-Bezpieczeństwo oparte jest na **Database-Backed Access Control (DBAC)**:
-*   **Admin**: Każdy użytkownik, którego UID znajduje się w `/app_admins/`, ma pełny dostęp do bazy.
-*   **Organizator**: Ma dostęp tylko do wydarzeń, gdzie jego UID znajduje się w polu `ownerId` lub mapie `members`.
-*   **Public**: Może czytać tylko te wydarzenia, które mają flagę `isActive: true`. Rejestracja jest dozwolona tylko dla aktywnych eventów.
-
----
-
-## 4. Funkcje AI / Genkit
-
-Aplikacja posiada gotową infrastrukturę dla sztucznej inteligencji zlokalizowaną w `src/ai/`.
-*   **Konfiguracja**: Plik `src/ai/genkit.ts` inicjalizuje bibliotekę Genkit z modelem `googleai/gemini-2.5-flash`.
-*   **Zastosowanie**: System jest przygotowany do implementacji "Flows" – np. automatycznego generowania opisów wydarzeń na podstawie kilku słów kluczowych lub pomocy w analizie danych rejestracyjnych.
+### Security Rules (`firestore.rules`)
+Security is based on **Database-Backed Access Control (DBAC)**:
+*   **Admin**: Any user whose UID is in `/app_admins/` has full database access.
+*   **Organizer**: Has access only to events where their UID is in the `ownerId` field or the `members` map.
+*   **Public**: Can only read events that have the flag `isActive: true`. Registration is allowed only for active events.
 
 ---
 
-## 5. Konfiguracja i Zmienne Środowiskowe
+## 4. AI / Genkit Functions
 
-Do poprawnego działania aplikacji wymagany jest plik `.env.local` z następującymi kluczami:
+The application has ready-made AI infrastructure located in `src/ai/`.
+*   **Configuration**: The `src/ai/genkit.ts` file initializes the Genkit library with the `googleai/gemini-2.5-flash` model.
+*   **Usage**: The system is prepared to implement "Flows" – e.g., automatically generating event descriptions based on keywords or assisting in the analysis of registration data.
+
+---
+
+## 5. Configuration and Environment Variables
+
+The following keys are required in the `.env.local` file for the application to function correctly:
 
 ```bash
 # Firebase Client
@@ -84,7 +84,7 @@ NEXT_PUBLIC_FIREBASE_API_KEY=xxx
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=xxx
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=xxx
 
-# Firebase Admin (na serwerze)
+# Firebase Admin (Server-side)
 FIREBASE_PROJECT_ID=xxx
 FIREBASE_CLIENT_EMAIL=xxx
 FIREBASE_PRIVATE_KEY="xxx"
@@ -96,14 +96,14 @@ RESEND_FROM_EMAIL=no-reply@yourdomain.com
 
 ---
 
-## 6. Uruchomienie i Deployment
+## 6. Execution and Deployment
 
-### Lokalne uruchomienie
-1. Zainstaluj zależności: `npm install`
-2. Uruchom serwer deweloperski: `npm run dev`
-3. Aplikacja dostępna pod adresem: `http://localhost:9002`
+### Local Setup
+1. Install dependencies: `npm install`
+2. Run development server: `npm run dev`
+3. Application available at: `http://localhost:9002`
 
 ### Deployment
-Projekt jest skonfigurowany pod **Firebase App Hosting** (następca Firebase Hosting dla aplikacji Next.js SSR).
-*   **Konfiguracja**: Plik `apphosting.yaml` definiuje ustawienia środowiska uruchomieniowego (np. `maxInstances`).
-*   **Wdrażanie**: Odbywa się automatycznie poprzez integrację z repozytorium GitHub po wypchnięciu zmian na gałąź główną.
+The project is configured for **Firebase App Hosting**.
+*   **Configuration**: The `apphosting.yaml` file defines runtime settings (e.g., `maxInstances`).
+*   **Deployment**: Occurs automatically via GitHub integration after pushing changes to the main branch.
